@@ -11,21 +11,64 @@ export class ServiceError extends Error {
 
 const TIMEOUT_MS = 10_000;
 
-/** qBittorrent session cookies, per service id. */
+/** qBittorrent session cookies ("name=value"), per service id. */
 const qbitSids = new Map<number, string>();
+/** Recent login failures, so a wrong password doesn't hammer qBittorrent into banning our IP. */
+const qbitFailures = new Map<number, { at: number; message: string }>();
+const LOGIN_BACKOFF_MS = 60_000;
 
-async function qbitLogin(s: ServiceRecord): Promise<string> {
-	const res = await fetch(`${s.url}/api/v2/auth/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/x-www-form-urlencoded', Referer: s.url, Origin: s.url },
-		body: new URLSearchParams({ username: s.credentials.username ?? '', password: s.credentials.password ?? '' }),
-		signal: AbortSignal.timeout(TIMEOUT_MS)
-	});
-	const text = await res.text();
-	const sid = res.headers.get('set-cookie')?.match(/SID=([^;]+)/)?.[1];
-	if (!res.ok || text.trim() !== 'Ok.' || !sid) throw new ServiceError('qBittorrent login failed — check username and password', 401);
-	qbitSids.set(s.id, sid);
-	return sid;
+/** qBittorrent ≤4.x names its cookie `SID`; 5.x uses `QBT_SID_<port>`. */
+const SID_COOKIE = /(?:^|[\s,;])((?:QBT_)?SID(?:_\d+)?)=([^;,\s]+)/;
+
+const qbitLogins = new Map<number, Promise<string>>();
+
+/** One login at a time per service: parallel calls share it. */
+function qbitLogin(s: ServiceRecord): Promise<string> {
+	const running = qbitLogins.get(s.id);
+	if (running) return running;
+	const p = qbitLoginOnce(s).finally(() => qbitLogins.delete(s.id));
+	qbitLogins.set(s.id, p);
+	return p;
+}
+
+async function qbitLoginOnce(s: ServiceRecord): Promise<string> {
+	const failed = qbitFailures.get(s.id);
+	if (failed && Date.now() - failed.at < LOGIN_BACKOFF_MS) throw new ServiceError(failed.message, 401);
+	let res: Response;
+	try {
+		res = await fetch(`${s.url}/api/v2/auth/login`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded', Referer: s.url, Origin: s.url },
+			body: new URLSearchParams({ username: s.credentials.username ?? '', password: s.credentials.password ?? '' }),
+			signal: AbortSignal.timeout(TIMEOUT_MS)
+		});
+	} catch (e) {
+		const reason = e instanceof Error && e.name === 'TimeoutError' ? 'timed out' : 'is unreachable';
+		throw new ServiceError(`${s.name} ${reason}`, 504);
+	}
+	const text = (await res.text()).trim();
+	const cookies = res.headers.getSetCookie?.() ?? [res.headers.get('set-cookie') ?? ''];
+	const m = cookies.map((c) => SID_COOKIE.exec(c)).find(Boolean);
+	if (res.ok && text === 'Ok.' && m) {
+		qbitFailures.delete(s.id);
+		const cookie = `${m[1]}=${m[2]}`;
+		qbitSids.set(s.id, cookie);
+		return cookie;
+	}
+	const message =
+		res.status === 403 && /banned/i.test(text)
+			? 'qBittorrent has temporarily banned this IP after failed logins — wait and try again'
+			: res.ok && text === 'Ok.'
+				? 'qBittorrent accepted the login but sent no session cookie'
+				: 'qBittorrent login failed — check username and password';
+	qbitFailures.set(s.id, { at: Date.now(), message });
+	throw new ServiceError(message, 401);
+}
+
+/** Forget cached sessions/failures when a service's settings change. */
+export function resetServiceSession(id: number) {
+	qbitSids.delete(id);
+	qbitFailures.delete(id);
 }
 
 function authHeaders(s: ServiceRecord): Record<string, string> {
@@ -51,8 +94,7 @@ function authHeaders(s: ServiceRecord): Record<string, string> {
 export async function call<T = unknown>(s: ServiceRecord, path: string, init: RequestInit = {}, retried = false): Promise<T> {
 	const headers: Record<string, string> = { Accept: 'application/json', ...authHeaders(s), ...(init.headers as Record<string, string>) };
 	if (s.type === 'qbittorrent') {
-		const sid = qbitSids.get(s.id) ?? (await qbitLogin(s));
-		headers.Cookie = `SID=${sid}`;
+		headers.Cookie = qbitSids.get(s.id) ?? (await qbitLogin(s));
 		headers.Referer = s.url;
 	}
 	let res: Response;
