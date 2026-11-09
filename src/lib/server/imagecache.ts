@@ -13,8 +13,9 @@ mkdirSync(DIR, { recursive: true });
 
 const TTL_MS = 7 * 864e5;
 const MAX_BYTES = 512 * 1024 ** 2;
-const TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
-const EXT_TYPE = Object.fromEntries(Object.entries(TYPES).map(([t, e]) => [e, t]));
+// Seerr's TMDb proxy sends the non-standard "image/jpg"; treat it as JPEG.
+const TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+const EXT_TYPE: Record<string, string> = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
 
 type Img = { type: string; body: Uint8Array };
 const inflight = new Map<string, Promise<Img | null>>();
@@ -57,7 +58,8 @@ export function cachedImage(key: string, fetcher: () => Promise<Img | null>): Pr
 		const hit = await readCached(hash);
 		if (hit) return hit;
 		const img = await fetcher();
-		const ext = img && TYPES[img.type.split(';')[0]];
+		const ext = img && TYPES[img.type.split(';')[0].trim().toLowerCase()];
+		if (img && ext) img.type = EXT_TYPE[ext];
 		if (img && ext) {
 			await writeFile(join(DIR, `${hash}.${ext}`), img.body).catch(() => {});
 			if (++writes % 100 === 0) prune().catch(() => {});
