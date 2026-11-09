@@ -31,3 +31,14 @@ export { default as iError } from '@ktibow/iconset-material-symbols/error-rounde
 export { default as iOk } from '@ktibow/iconset-material-symbols/check-circle-rounded';
 export { default as iWait } from '@ktibow/iconset-material-symbols/hourglass-rounded';
 export { default as iEmpty } from '@ktibow/iconset-material-symbols/inbox-rounded';
+export { default as iSearch } from '@ktibow/iconset-material-symbols/search-rounded';
+export { default as iSort } from '@ktibow/iconset-material-symbols/sort-rounded';
+export { default as iBack } from '@ktibow/iconset-material-symbols/arrow-back-rounded';
+export { default as iStar } from '@ktibow/iconset-material-symbols/star-rounded';
+export { default as iMonitored } from '@ktibow/iconset-material-symbols/bookmark-rounded';
+export { default as iUnmonitored } from '@ktibow/iconset-material-symbols/bookmark-outline-rounded';
+export { default as iExpand } from '@ktibow/iconset-material-symbols/expand-more-rounded';
+export { default as iFolder } from '@ktibow/iconset-material-symbols/folder-rounded';
+export { default as iSchedule } from '@ktibow/iconset-material-symbols/schedule-rounded';
+export { default as i4k } from '@ktibow/iconset-material-symbols/4k-rounded';
+export { default as iPerson } from '@ktibow/iconset-material-symbols/person-rounded';

@@ -1,5 +1,6 @@
 import { cached, call, testConnection, ServiceError } from './services/client';
 import { listServices, servicesOfType, type ServiceRecord } from './services/store';
+import { arrImage } from './library';
 import type {
 	DiskItem,
 	DownloadsData,
@@ -30,10 +31,7 @@ const img = (s: ServiceRecord, path: string | undefined | null) =>
 	path ? `/api/img/${s.id}?p=${encodeURIComponent(path)}` : null;
 
 type ArrImage = { coverType: string; url?: string; remoteUrl?: string };
-const poster = (s: ServiceRecord, images?: ArrImage[]) => {
-	const p = images?.find((i) => i.coverType === 'poster');
-	return p?.url ? img(s, p.url.replace(/^\/?/, '/')) : null;
-};
+const poster = (s: ServiceRecord, images?: ArrImage[]) => arrImage(s, images, 'poster', 250);
 
 export function health(): Promise<HealthItem[]> {
 	return cached('w:health', 15_000, () =>
