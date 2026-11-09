@@ -51,3 +51,8 @@ export { default as iLive } from '@ktibow/iconset-material-symbols/sync-rounded'
 export { default as iForward } from '@ktibow/iconset-material-symbols/arrow-forward-rounded';
 export { default as iRequest } from '@ktibow/iconset-material-symbols/add-circle-rounded';
 export { default as iDecline } from '@ktibow/iconset-material-symbols/do-not-disturb-on-rounded';
+export { default as iPrev } from '@ktibow/iconset-material-symbols/chevron-left-rounded';
+export { default as iNext } from '@ktibow/iconset-material-symbols/chevron-right-rounded';
+export { default as iToday } from '@ktibow/iconset-material-symbols/today-rounded';
+export { default as iNoEvents } from '@ktibow/iconset-material-symbols/event-busy-rounded';
+export { default as iCinema } from '@ktibow/iconset-material-symbols/theaters-rounded';
