@@ -46,7 +46,7 @@ export function live<T>(url: string, intervalMs: number) {
 					return body as T;
 				});
 				inflight.set(url, p);
-				p.finally(() => inflight.delete(url));
+				p.finally(() => inflight.delete(url)).catch(() => {}); // the awaiting caller handles the error
 			}
 			const data = await p;
 			state.data = data;

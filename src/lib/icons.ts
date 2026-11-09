@@ -42,3 +42,9 @@ export { default as iFolder } from '@ktibow/iconset-material-symbols/folder-roun
 export { default as iSchedule } from '@ktibow/iconset-material-symbols/schedule-rounded';
 export { default as i4k } from '@ktibow/iconset-material-symbols/4k-rounded';
 export { default as iPerson } from '@ktibow/iconset-material-symbols/person-rounded';
+export { default as iResume } from '@ktibow/iconset-material-symbols/play-arrow-rounded';
+export { default as iRecheck } from '@ktibow/iconset-material-symbols/refresh-rounded';
+export { default as iAnnounce } from '@ktibow/iconset-material-symbols/cell-tower-rounded';
+export { default as iWarning } from '@ktibow/iconset-material-symbols/warning-rounded';
+export { default as iLink } from '@ktibow/iconset-material-symbols/link-rounded';
+export { default as iLive } from '@ktibow/iconset-material-symbols/sync-rounded';
