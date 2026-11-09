@@ -49,7 +49,8 @@ async function qbitLoginOnce(s: ServiceRecord): Promise<string> {
 	const text = (await res.text()).trim();
 	const cookies = res.headers.getSetCookie?.() ?? [res.headers.get('set-cookie') ?? ''];
 	const m = cookies.map((c) => SID_COOKIE.exec(c)).find(Boolean);
-	if (res.ok && text === 'Ok.' && m) {
+	// 4.x answers 200 "Ok."; 5.2+ answers 204 with no body. Either way success = 2xx + a session cookie.
+	if (res.ok && text !== 'Fails.' && m) {
 		qbitFailures.delete(s.id);
 		const cookie = `${m[1]}=${m[2]}`;
 		qbitSids.set(s.id, cookie);
@@ -58,7 +59,7 @@ async function qbitLoginOnce(s: ServiceRecord): Promise<string> {
 	const message =
 		res.status === 403 && /banned/i.test(text)
 			? 'qBittorrent has temporarily banned this IP after failed logins — wait and try again'
-			: res.ok && text === 'Ok.'
+			: res.ok && text !== 'Fails.'
 				? 'qBittorrent accepted the login but sent no session cookie'
 				: 'qBittorrent login failed — check username and password';
 	qbitFailures.set(s.id, { at: Date.now(), message });
