@@ -130,7 +130,10 @@ function lookup(s: ServiceRecord, path: '/api/v3/qualityprofile' | '/api/v3/tag'
 	});
 }
 
-const UHD = /2160|4k|uhd|ultra[\s-]?hd/i;
+export const UHD = /2160|4k|uhd|ultra[\s-]?hd/i;
+
+/** Quality profile names by id (cached). */
+export const qualityProfiles = (s: ServiceRecord) => lookup(s, '/api/v3/qualityprofile');
 
 function rating(r?: Ratings): number | null {
 	const v = r?.imdb?.value || r?.tmdb?.value || r?.value;

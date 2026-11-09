@@ -1,6 +1,8 @@
 import { cached, call, testConnection, ServiceError } from './services/client';
 import { listServices, servicesOfType, type ServiceRecord } from './services/store';
 import { arrImage } from './library';
+import { calendar } from './calendar';
+import { RELEASE_LABEL } from '$lib/calendar/types';
 import type {
 	DiskItem,
 	DownloadsData,
@@ -110,43 +112,26 @@ export function upcoming(days = 7): Promise<UpcomingItem[]> {
 	return cached(`w:upcoming:${days}`, 60_000, async () => {
 		const start = new Date();
 		start.setHours(0, 0, 0, 0);
-		const end = new Date(start.getTime() + days * 864e5);
-		const range = `start=${start.toISOString()}&end=${end.toISOString()}`;
-		const items = await each(servicesOfType('sonarr', 'radarr'), async (s): Promise<UpcomingItem[]> => {
-			if (s.type === 'sonarr') {
-				const eps = await call<
-					Array<{ id: number; seasonNumber: number; episodeNumber: number; title: string; airDateUtc: string; hasFile: boolean; series: { title: string; images?: ArrImage[] } }>
-				>(s, `/api/v3/calendar?${range}&includeSeries=true`);
-				return eps.map((e) => ({
-					id: `${s.id}:e${e.id}`,
-					kind: 'episode',
-					title: e.series.title,
-					subtitle: `S${String(e.seasonNumber).padStart(2, '0')}E${String(e.episodeNumber).padStart(2, '0')} · ${e.title}`,
-					date: e.airDateUtc,
-					hasFile: e.hasFile,
-					poster: poster(s, e.series.images),
-					service: s.name
-				}));
-			}
-			const movies = await call<
-				Array<{ id: number; title: string; year: number; digitalRelease?: string; physicalRelease?: string; inCinemas?: string; hasFile: boolean; images?: ArrImage[] }>
-			>(s, `/api/v3/calendar?${range}`);
-			return movies.map((m) => {
-				const dates = [m.digitalRelease, m.physicalRelease, m.inCinemas].filter(Boolean) as string[];
-				const inRange = dates.filter((d) => +new Date(d) >= +start && +new Date(d) < +end).sort();
-				return {
-					id: `${s.id}:m${m.id}`,
-					kind: 'movie',
-					title: m.title,
-					subtitle: m.digitalRelease && inRange[0] === m.digitalRelease ? 'Digital release' : m.inCinemas && inRange[0] === m.inCinemas ? 'In cinemas' : 'Physical release',
-					date: inRange[0] ?? dates[0],
-					hasFile: m.hasFile,
-					poster: poster(s, m.images),
-					service: s.name
-				};
-			});
-		});
-		return items.sort((a, b) => +new Date(a.date) - +new Date(b.date));
+		const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + days);
+		const r = await calendar(start, end);
+		// Same contract as the other widgets: an error only when every instance failed.
+		if (r.errors.length && r.errors.length === servicesOfType('sonarr', 'radarr').length) throw new ServiceError(r.errors[0].error);
+		const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+		const [from, to] = [ymd(start), ymd(end)];
+		return r.entries
+			.filter((e) => e.monitored && (e.allDay ? e.date.slice(0, 10) >= from && e.date.slice(0, 10) < to : +new Date(e.date) >= +start && +new Date(e.date) < +end))
+			.map(
+				(e): UpcomingItem => ({
+					id: e.id,
+					kind: e.kind,
+					title: e.title,
+					subtitle: e.episodeLabel ?? RELEASE_LABEL[e.release],
+					date: e.date,
+					hasFile: e.status === 'downloaded',
+					poster: e.poster,
+					service: e.copies.map((c) => c.serviceName).join(', ')
+				})
+			);
 	});
 }
 
