@@ -7,7 +7,8 @@
 
 	let { size: _size }: { size: WidgetSize } = $props();
 	const q = live<DiskItem[]>('/api/widgets/disk', WIDGETS.disk.refreshMs);
-	const items = $derived(q.state.data ?? []);
+	// De-dupe on the client too: older servers sent repeated paths, and that data may still be saved on the device.
+	const items = $derived([...new Map((q.state.data ?? []).map((d) => [d.path, d])).values()]);
 </script>
 
 <State loading={q.state.loading} error={q.state.error} empty={items.length === 0}>
