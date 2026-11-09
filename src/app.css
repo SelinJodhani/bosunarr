@@ -1,0 +1,85 @@
+@import '@fontsource-variable/google-sans-flex/opsz.css';
+@import 'm3-svelte/etc/styles.css';
+@import 'm3-svelte/etc/livetheme/tonalspot2025.css';
+@import 'm3-svelte/etc/recommended-styles.css';
+
+/* Component density (0 = M3 default). Negative steps would shrink controls by 4px each. */
+@function --m3-density(--size) {
+	result: var(--size);
+}
+
+:root {
+	/* App-wide seed colour; pages may override --m3v-source (e.g. from a poster). */
+	--m3v-source: #6750a4;
+	color-scheme: light dark;
+	font-family: 'Google Sans Flex Variable', system-ui, sans-serif;
+	--gap: 1rem;
+	--radius-l: 1.75rem;
+	--radius-m: 1rem;
+}
+:root[data-scheme='light'] {
+	color-scheme: light;
+}
+:root[data-scheme='dark'] {
+	color-scheme: dark;
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+	background: var(--m3c-surface);
+	color: var(--m3c-on-surface);
+	-webkit-tap-highlight-color: transparent;
+	text-size-adjust: 100%;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+a {
+	color: var(--m3c-primary);
+}
+
+h1,
+h2,
+h3 {
+	margin: 0;
+	font-weight: 500;
+}
+
+.title-large {
+	font-size: 1.375rem;
+	line-height: 1.75rem;
+}
+.title-medium {
+	font-size: 1rem;
+	line-height: 1.5rem;
+	font-weight: 500;
+}
+.body-small {
+	font-size: 0.75rem;
+	line-height: 1rem;
+	color: var(--m3c-on-surface-variant);
+}
+.label {
+	font-size: 0.75rem;
+	letter-spacing: 0.03em;
+	color: var(--m3c-on-surface-variant);
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

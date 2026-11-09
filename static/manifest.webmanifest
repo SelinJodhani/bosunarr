@@ -1,0 +1,10 @@
+{
+	"name": "Bosunarr",
+	"short_name": "Bosunarr",
+	"description": "Manage your *arr media stack",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#141218",
+	"theme_color": "#141218",
+	"icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

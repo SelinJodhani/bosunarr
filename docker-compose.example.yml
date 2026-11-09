@@ -1,0 +1,14 @@
+services:
+  bosunarr:
+    image: ghcr.io/OWNER/bosunarr:latest # or build: .
+    container_name: bosunarr
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # The public URL you open Bosunarr at (needed for form submissions behind a proxy).
+      ORIGIN: http://localhost:8080
+      # Optional: pin the key that encrypts stored API keys (otherwise generated into /data).
+      # BOSUNARR_SECRET: change-me-to-a-long-random-string
+    volumes:
+      - ./bosunarr-data:/data
