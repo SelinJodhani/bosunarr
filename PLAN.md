@@ -117,5 +117,4 @@ Plex/Tautulli, Emby, Cleanuparr, Uptime Kuma.
 ## 8. Repo & release
 
 - License **AGPL-3.0** (keeps forks open) — or MIT if wider reuse is preferred.
-- GitHub: **personal account, not the work account** (`gh` on this Mac is logged in as the Dezerv work account).
 - README with screenshots, `docker-compose.yml` example, CONTRIBUTING, adapter-writing guide.

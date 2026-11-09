@@ -29,7 +29,7 @@ Discover, Calendar and Activity are next. See [PLAN.md](PLAN.md).
 docker run -d --name bosunarr -p 8080:8080 \
   -e ORIGIN=http://localhost:8080 \
   -v ./bosunarr-data:/data \
-  ghcr.io/OWNER/bosunarr:latest
+  ghcr.io/selinjodhani/bosunarr:latest
 ```
 
 Open http://localhost:8080, create the admin account, then **Settings → Add service**.

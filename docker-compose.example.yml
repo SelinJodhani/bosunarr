@@ -1,6 +1,6 @@
 services:
   bosunarr:
-    image: ghcr.io/OWNER/bosunarr:latest # or build: .
+    image: ghcr.io/selinjodhani/bosunarr:latest # or build: .
     container_name: bosunarr
     restart: unless-stopped
     ports:
