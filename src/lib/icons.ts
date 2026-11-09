@@ -48,3 +48,6 @@ export { default as iAnnounce } from '@ktibow/iconset-material-symbols/cell-towe
 export { default as iWarning } from '@ktibow/iconset-material-symbols/warning-rounded';
 export { default as iLink } from '@ktibow/iconset-material-symbols/link-rounded';
 export { default as iLive } from '@ktibow/iconset-material-symbols/sync-rounded';
+export { default as iForward } from '@ktibow/iconset-material-symbols/arrow-forward-rounded';
+export { default as iRequest } from '@ktibow/iconset-material-symbols/add-circle-rounded';
+export { default as iDecline } from '@ktibow/iconset-material-symbols/do-not-disturb-on-rounded';

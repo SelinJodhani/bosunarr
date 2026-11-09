@@ -30,6 +30,9 @@ export type LibraryItem = {
 	/** Series only. */
 	episodes: { have: number; total: number } | null;
 	network: string | null;
+	/** External ids, used to link Discover results to the library. */
+	tmdbId: number | null;
+	tvdbId: number | null;
 };
 
 export type LibraryResult = { items: LibraryItem[]; errors: Array<{ service: string; error: string }> };
@@ -78,8 +81,6 @@ export type LibraryDetail = LibraryItem & {
 	rootFolder: string | null;
 	fanart: string | null;
 	imdbId: string | null;
-	tmdbId: number | null;
-	tvdbId: number | null;
 	inCinemas: string | null;
 	digitalRelease: string | null;
 	nextAiring: string | null;

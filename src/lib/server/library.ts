@@ -187,7 +187,9 @@ function seriesItem(s: ServiceRecord, x: SonarrSeries, profiles: Map<number, str
 		qualityProfile: qp,
 		is4k: UHD.test(s.name) || UHD.test(qp ?? ''),
 		episodes: { have: x.statistics?.episodeFileCount ?? 0, total: x.statistics?.episodeCount ?? 0 },
-		network: x.network ?? null
+		network: x.network ?? null,
+		tmdbId: x.tmdbId || null,
+		tvdbId: x.tvdbId || null
 	};
 }
 
@@ -213,7 +215,9 @@ function movieItem(s: ServiceRecord, x: RadarrMovie, profiles: Map<number, strin
 		qualityProfile: qp,
 		is4k: UHD.test(s.name) || UHD.test(qp ?? '') || (x.movieFile?.quality?.quality?.resolution ?? 0) >= 2160,
 		episodes: null,
-		network: x.studio ?? null
+		network: x.studio ?? null,
+		tmdbId: x.tmdbId || null,
+		tvdbId: null
 	};
 }
 
@@ -305,8 +309,6 @@ async function movieDetail(s: ServiceRecord, id: number): Promise<LibraryDetail>
 		rootFolder: m.rootFolderPath ?? null,
 		fanart: arrImage(s, m.images, 'fanart'),
 		imdbId: m.imdbId || null,
-		tmdbId: m.tmdbId || null,
-		tvdbId: null,
 		inCinemas: m.inCinemas ?? null,
 		digitalRelease: m.digitalRelease ?? null,
 		nextAiring: null,
@@ -365,8 +367,6 @@ async function seriesDetail(s: ServiceRecord, id: number): Promise<LibraryDetail
 		rootFolder: x.rootFolderPath ?? null,
 		fanart: arrImage(s, x.images, 'fanart'),
 		imdbId: x.imdbId || null,
-		tmdbId: x.tmdbId || null,
-		tvdbId: x.tvdbId || null,
 		inCinemas: null,
 		digitalRelease: null,
 		nextAiring: x.nextAiring ?? null,
