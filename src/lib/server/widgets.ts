@@ -193,17 +193,22 @@ export function requests(): Promise<RequestItem[]> {
 
 export function disk(): Promise<DiskItem[]> {
 	return cached('w:disk', 60_000, async () => {
-		const seen = new Map<string, DiskItem>();
+		const disks: DiskItem[] = [];
 		await each(servicesOfType('sonarr', 'radarr'), async (s) => {
 			const spaces = await call<Array<{ path: string; label?: string; freeSpace: number; totalSpace: number }>>(s, '/api/v3/diskspace');
 			for (const d of spaces) {
 				if (!d.totalSpace || d.path.startsWith('/config') || d.path === '/app') continue;
-				const key = `${d.totalSpace}:${d.freeSpace}`;
-				if (!seen.has(key)) seen.set(key, { path: d.path, free: d.freeSpace, total: d.totalSpace });
+				// Several arrs report the same disk a moment apart, so free space differs slightly between them.
+				// Same path, or same size with nearly the same free space (one disk mounted at different paths) = one disk.
+				const same = disks.find(
+					(x) => x.path === d.path || (x.total === d.totalSpace && Math.abs(x.free - d.freeSpace) <= Math.max(1024 ** 3, d.totalSpace * 0.001))
+				);
+				if (same) same.free = Math.min(same.free, d.freeSpace);
+				else disks.push({ path: d.path, free: d.freeSpace, total: d.totalSpace });
 			}
 			return [];
 		});
-		return [...seen.values()].sort((a, b) => b.total - a.total);
+		return disks.sort((a, b) => b.total - a.total);
 	});
 }
 

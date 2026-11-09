@@ -54,12 +54,27 @@
 		{#if missing}
 			<p class="body-small">Add {meta.needs.map((t) => SERVICE_TYPES[t].label).join(' or ')} in Settings to use this widget.</p>
 		{:else}
-			<Component size={widget.size} />
+			<!-- A bug in one widget must not take the whole dashboard down with it. -->
+			<svelte:boundary onerror={(e) => console.error(`Widget "${widget.kind}" crashed`, e)}>
+				<Component size={widget.size} />
+				{#snippet failed(_error, reset)}
+					<p class="body-small crashed">This widget hit an error. <button class="retry" onclick={reset}>Retry</button></p>
+				{/snippet}
+			</svelte:boundary>
 		{/if}
 	</div>
 </article>
 
 <style>
+	.crashed {
+		color: var(--m3c-error);
+	}
+	.retry {
+		all: unset;
+		cursor: pointer;
+		font-weight: 600;
+		text-decoration: underline;
+	}
 	article {
 		height: 100%;
 		display: flex;

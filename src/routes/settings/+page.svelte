@@ -74,8 +74,8 @@
 	{:else}
 		<ul>
 			{#each data.services as s (s.id)}
-				<li>
-					<ListItem headline={s.name} supporting={`${SERVICE_TYPES[s.type]?.label ?? s.type} · ${s.url}`}>
+				<!-- ListItem renders its own <li>. -->
+				<ListItem headline={s.name} supporting={`${SERVICE_TYPES[s.type]?.label ?? s.type} · ${s.url}`}>
 						{#snippet leading()}
 							<span class="dot" style:background={SERVICE_TYPES[s.type]?.color}></span>
 						{/snippet}
@@ -95,8 +95,7 @@
 								</span>
 							{/if}
 						{/snippet}
-					</ListItem>
-				</li>
+				</ListItem>
 			{/each}
 		</ul>
 	{/if}

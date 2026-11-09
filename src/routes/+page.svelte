@@ -93,14 +93,13 @@
 	<ul class="picker">
 		{#each Object.entries(WIDGETS) as [kind, w] (kind)}
 			{@const ok = available(kind as WidgetKind)}
-			<li class:unavailable={!ok}>
-				<ListItem
-					headline={w.label}
-					supporting={ok ? w.description : `Add ${w.needs.map((t) => SERVICE_TYPES[t].label).join(' or ')} first`}
-					onclick={() => ok && addWidget(kind as WidgetKind)}
-					aria-disabled={!ok}
-				/>
-			</li>
+			<!-- ListItem renders its own <li>. -->
+			<ListItem
+				headline={w.label}
+				supporting={ok ? w.description : `Add ${w.needs.map((t) => SERVICE_TYPES[t].label).join(' or ')} first`}
+				onclick={() => ok && addWidget(kind as WidgetKind)}
+				aria-disabled={!ok}
+			/>
 		{/each}
 	</ul>
 	{#snippet buttons()}
@@ -171,7 +170,7 @@
 		padding: 0;
 		margin: 0 -1.5rem;
 	}
-	.unavailable {
+	.picker :global([aria-disabled='true']) {
 		opacity: 0.5;
 	}
 </style>
