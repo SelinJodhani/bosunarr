@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Shared Sonarr / Radarr service screen: status, wanted, history and setup summary.
 	import { untrack } from 'svelte';
-	import { Button, Chip, Dialog, Icon, LinearProgress, LoadingIndicator, snackbar, Tabs } from 'm3-svelte';
+	import { Button, Chip, Dialog, Icon, LinearProgress, LinearProgressEstimate, LoadingIndicator, snackbar, Tabs } from 'm3-svelte';
 	import iRss from '@ktibow/iconset-material-symbols/rss-feed-rounded';
 	import iSearch from '@ktibow/iconset-material-symbols/travel-explore-rounded';
 	import iUpgrade from '@ktibow/iconset-material-symbols/upgrade-rounded';
@@ -94,6 +94,9 @@
 	let pending = $state<ArrCommand | null>(null);
 	let busy = $state(false);
 
+	let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => () => clearTimeout(refreshTimer));
+
 	function ask(c: ArrCommand) {
 		pending = c;
 		confirmOpen = true;
@@ -112,7 +115,8 @@
 			const body = (r.headers.get('content-type') ?? '').includes('json') ? await r.json().catch(() => null) : null;
 			if (!r.ok) throw new Error(body?.error ?? body?.message ?? `HTTP ${r.status}`);
 			snackbar(typeof body?.message === 'string' ? body.message : `${ACTIONS[c].label} started`, {}, true);
-			setTimeout(() => ov.refresh(), 1500);
+			clearTimeout(refreshTimer);
+			refreshTimer = setTimeout(() => ov.refresh(), 1500);
 		} catch (e) {
 			snackbar(`Couldn't start ${ACTIONS[c].label.toLowerCase()}: ${e instanceof Error ? e.message : e}`, {}, true);
 		} finally {
@@ -232,7 +236,7 @@
 									</li>
 								{/each}
 							</ul>
-							{#if running}<LinearProgress percent={100} aria-label="Tasks running" />{/if}
+							{#if running}<LinearProgressEstimate sToHalfway={20} aria-label="Tasks running" />{/if}
 						{:else}
 							<p class="muted small">No recent tasks.</p>
 						{/if}
@@ -465,6 +469,7 @@
 		color: var(--m3c-error);
 	}
 	.stale {
+		overflow-wrap: anywhere;
 		font-size: 0.8125rem;
 		color: var(--m3c-error);
 	}

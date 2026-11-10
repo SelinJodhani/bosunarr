@@ -26,10 +26,15 @@
 		min-height: 2.5rem;
 	}
 	.count {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		font-size: 0.875rem;
 		color: var(--m3c-on-surface-variant);
 	}
 	.nav {
+		flex: none;
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;

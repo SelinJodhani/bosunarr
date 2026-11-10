@@ -48,7 +48,16 @@ type DiskSpace = { path: string; freeSpace: number; totalSpace: number };
 type RootFolder = { id: number; path: string; accessible?: boolean; freeSpace?: number; unmappedFolders?: unknown[] };
 type QueueStatus = { totalCount?: number; count?: number; errors?: boolean; warnings?: boolean; unknownErrors?: boolean; unknownWarnings?: boolean };
 type Update = { version: string; releaseDate?: string; installed?: boolean; latest?: boolean; installable?: boolean };
-type Command = { id: number; name?: string; commandName?: string; status?: string; started?: string; ended?: string; queued?: string };
+type Command = {
+	id: number;
+	name?: string;
+	commandName?: string;
+	status?: string;
+	started?: string;
+	ended?: string;
+	queued?: string;
+	trigger?: string;
+};
 type Indexer = {
 	id: number;
 	name: string;
@@ -148,10 +157,17 @@ function health(rows: Health[]): ArrHealth[] {
 
 /** Root folders first (matched to the drive they live on for the total), then drives that hold no root folder. */
 function disks(space: DiskSpace[], roots: RootFolder[]): ArrDisk[] {
-	const driveOf = (p: string) =>
-		space
-			.filter((d) => p === d.path || p.startsWith(d.path.replace(/\/+$/, '') + '/'))
-			.sort((a, b) => b.path.length - a.path.length)[0];
+	// Windows arrs report paths like "D:\\Media\\TV": compare with forward slashes, case-insensitively.
+	const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+	const driveOf = (p: string) => {
+		const np = norm(p);
+		return space
+			.filter((d) => {
+				const nd = norm(d.path);
+				return np === nd || np.startsWith(nd + '/') || nd === '';
+			})
+			.sort((a, b) => norm(b.path).length - norm(a.path).length)[0];
+	};
 	const used = new Set<string>();
 	const out: ArrDisk[] = roots.map((r) => {
 		const d = driveOf(r.path);
@@ -207,12 +223,24 @@ const COMMAND_LABELS: Record<string, string> = {
 	ImportListSync: 'Import list sync',
 	MessagingCleanup: 'Clean up messages'
 };
+/** Commands the arr runs on its own every few minutes; hidden when the arr doesn't report a trigger. */
+const SCHEDULED = new Set(['RefreshMonitoredDownloads', 'MessagingCleanup', 'Housekeeping', 'CheckHealth', 'ApplicationUpdateCheck', 'ImportListSync']);
+const isManual = (c: Command) => (c.trigger ? c.trigger === 'manual' : !SCHEDULED.has(c.name ?? ''));
+const commandTime = (c: Command) => +new Date(c.queued ?? c.started ?? 0) || 0;
+
+/** Resolves to null if `p` takes longer than `ms` (the promise keeps running and fills its cache). */
+const within = <T>(p: Promise<T>, ms: number): Promise<T | null> =>
+	Promise.race([p, new Promise<null>((res) => setTimeout(() => res(null), ms))]);
+
 const commandLabel = (c: Command) =>
 	COMMAND_LABELS[c.name ?? ''] ?? c.commandName ?? (c.name ?? 'Task').replace(/([a-z])([A-Z])/g, '$1 $2');
 
 export function overview(s: ServiceRecord): Promise<ArrOverview> {
 	return cached(`svc-arr:${s.id}:overview`, 15_000, async () => {
 		const get = <T>(path: string) => call<T>(s, path);
+		// Slow-changing or expensive lookups get their own longer cache: /update asks the arr's update server and
+		// /rootfolder scans disk, so they must not run on every 15-30 s poll.
+		const slow = <T>(key: string, path: string, ttlMs: number) => cached(`svc-arr:${s.id}:${key}`, ttlMs, () => get<T>(path));
 		const kind = kindOf(s);
 		const wantedCount = (which: WantedKind) =>
 			get<PageOf<unknown>>(`/api/v3/wanted/${which}?page=1&pageSize=1&monitored=true`).then((r) => Number(r?.totalRecords));
@@ -220,16 +248,16 @@ export function overview(s: ServiceRecord): Promise<ArrOverview> {
 			get<Status>('/api/v3/system/status'),
 			get<Health[]>('/api/v3/health'),
 			get<DiskSpace[]>('/api/v3/diskspace'),
-			get<RootFolder[]>('/api/v3/rootfolder'),
+			slow<RootFolder[]>('rootfolder', '/api/v3/rootfolder', 5 * 60_000),
 			get<QueueStatus>('/api/v3/queue/status'),
-			get<Update[]>('/api/v3/update'),
+			within(slow<Update[]>('update', '/api/v3/update', 10 * 60_000), 3000),
 			get<Command[]>('/api/v3/command'),
 			get<Indexer[]>('/api/v3/indexer'),
 			get<ProviderStatus[]>('/api/v3/indexerstatus'),
 			get<DownloadClient[]>('/api/v3/downloadclient'),
 			get<ProviderStatus[]>('/api/v3/downloadclientstatus'),
-			get<Profile[]>('/api/v3/qualityprofile'),
-			get<TagDetail[]>('/api/v3/tag/detail'),
+			slow<Profile[]>('qualityprofile', '/api/v3/qualityprofile', 10 * 60_000),
+			slow<TagDetail[]>('tags', '/api/v3/tag/detail', 10 * 60_000),
 			wantedCount('missing'),
 			wantedCount('cutoff')
 		]);
@@ -265,7 +293,9 @@ export function overview(s: ServiceRecord): Promise<ArrOverview> {
 			missing: num(missing),
 			cutoff: num(cutoff),
 			commands: arr(cmds, null)
+				.filter(isManual)
 				.filter((c) => c.status === 'started' || c.status === 'queued' || (c.ended && Date.now() - +new Date(c.ended) < 10 * 60_000))
+				.sort((a, b) => commandTime(b) - commandTime(a))
 				.slice(0, 8)
 				.map((c): ArrCommandInfo => ({ id: c.id, name: commandLabel(c), status: c.status ?? 'unknown', started: c.started ?? c.queued ?? null, ended: c.ended ?? null })),
 			indexers: arr(idx, 'indexers')
@@ -383,7 +413,15 @@ export function parseHistoryFilter(v: string | null): HistoryFilter {
 }
 
 /** Arr history event type ids (identical in Sonarr v4 and Radarr v6). */
-const EVENT_IDS: Record<Exclude<HistoryFilter, 'all'>, number> = { grabbed: 1, imported: 3, failed: 4 };
+/**
+ * Arr history event type ids. Grabbed/DownloadFolderImported/DownloadFailed are shared; folder imports differ
+ * (Sonarr EpisodeHistoryEventType.SeriesFolderImported = 2, Radarr MovieHistoryEventType.MovieFolderImported = 7).
+ */
+function eventIds(s: ServiceRecord, filter: Exclude<HistoryFilter, 'all'>): number[] {
+	if (filter === 'grabbed') return [1];
+	if (filter === 'failed') return [4];
+	return [3, s.type === 'sonarr' ? 2 : 7];
+}
 
 const EVENTS: Record<string, { label: string; tone: HistoryItem['tone'] }> = {
 	grabbed: { label: 'Grabbed', tone: 'grab' },
@@ -406,17 +444,19 @@ const DELETE_REASONS: Record<string, string> = {
 
 function historyDetail(h: History): string | null {
 	const d = h.data ?? {};
+	// downloadClientName is the user's name for the client; downloadClient is often just its type.
+	const client = d.downloadClientName || d.downloadClient;
 	if (h.eventType === 'downloadFailed' || h.eventType === 'downloadIgnored') return d.message || null;
 	if (h.eventType.endsWith('FileDeleted')) return (d.reason && DELETE_REASONS[d.reason]) || d.reason || null;
-	if (h.eventType === 'grabbed') return [d.indexer, d.downloadClient].filter(Boolean).join(' → ') || null;
-	if (h.eventType.endsWith('Imported')) return d.downloadClient ? `From ${d.downloadClient}` : null;
+	if (h.eventType === 'grabbed') return [d.indexer, client].filter(Boolean).join(' → ') || null;
+	if (h.eventType.endsWith('Imported')) return client ? `From ${client}` : null;
 	return null;
 }
 
 export function history(s: ServiceRecord, filter: HistoryFilter, page: number): Promise<Paged<HistoryItem>> {
 	return cached(`svc-arr:${s.id}:history:${filter}:${page}`, 15_000, async () => {
 		const include = s.type === 'sonarr' ? 'includeSeries=true&includeEpisode=true' : 'includeMovie=true';
-		const ev = filter === 'all' ? '' : `&eventType=${EVENT_IDS[filter]}`;
+		const ev = filter === 'all' ? '' : eventIds(s, filter).map((id) => `&eventType=${id}`).join('');
 		const r = await call<PageOf<History>>(
 			s,
 			`/api/v3/history?page=${page}&pageSize=${PAGE_SIZE}&sortKey=date&sortDirection=descending&${include}${ev}`
