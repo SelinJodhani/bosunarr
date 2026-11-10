@@ -1,0 +1,181 @@
+<script lang="ts" module>
+	type Filter = 'all' | 'query' | 'grab' | 'rss' | 'failed';
+	const view = $state({ filter: 'all' as Filter });
+</script>
+
+<script lang="ts">
+	import { Chip, Icon, LoadingIndicator } from 'm3-svelte';
+	import iSearch from '@ktibow/iconset-material-symbols/search-rounded';
+	import iGrab from '@ktibow/iconset-material-symbols/download-rounded';
+	import iRss from '@ktibow/iconset-material-symbols/rss-feed-rounded';
+	import iKey from '@ktibow/iconset-material-symbols/key-rounded';
+	import iInfo from '@ktibow/iconset-material-symbols/info-rounded';
+	import { live } from '$lib/live.svelte';
+	import { ago } from '$lib/format';
+	import type { HistoryEntry, HistoryResponse } from './types';
+
+	let { api }: { api: string } = $props();
+
+	// svelte-ignore state_referenced_locally
+	const h = live<HistoryResponse>(`${api}/history`, 30_000);
+	const records = $derived(h.state.data?.records ?? []);
+
+	const FILTERS: Array<{ value: Filter; label: string; test: (e: HistoryEntry) => boolean }> = [
+		{ value: 'all', label: 'All', test: () => true },
+		{ value: 'query', label: 'Searches', test: (e) => e.kind === 'query' },
+		{ value: 'grab', label: 'Grabs', test: (e) => e.kind === 'grab' },
+		{ value: 'rss', label: 'RSS', test: (e) => e.kind === 'rss' },
+		{ value: 'failed', label: 'Failed', test: (e) => !e.successful }
+	];
+	const counts = $derived(Object.fromEntries(FILTERS.map((f) => [f.value, records.filter(f.test).length])) as Record<Filter, number>);
+	const list = $derived(records.filter((FILTERS.find((f) => f.value === view.filter) ?? FILTERS[0]).test));
+
+	const ICON = { query: iSearch, grab: iGrab, rss: iRss, auth: iKey, other: iInfo };
+	const KIND = { query: 'Search', grab: 'Grab', rss: 'RSS', auth: 'Login', other: 'Event' };
+	const fallback = (e: HistoryEntry) => (e.kind === 'rss' ? 'RSS sync' : e.kind === 'query' ? '(no query text)' : KIND[e.kind]);
+</script>
+
+<div class="chips" role="toolbar" aria-label="Filter history">
+	{#each FILTERS as f (f.value)}
+		{#if f.value === 'all' || counts[f.value] > 0 || view.filter === f.value}
+			<Chip variant="general" selected={view.filter === f.value} onclick={() => (view.filter = f.value)}>{f.label} {counts[f.value]}</Chip>
+		{/if}
+	{/each}
+</div>
+
+{#if !h.state.data}
+	{#if h.state.error}
+		<p class="error" role="alert">{h.state.error}</p>
+	{:else}
+		<div class="center"><LoadingIndicator aria-label="Loading history" /></div>
+	{/if}
+{:else if list.length === 0}
+	<p class="empty">{records.length ? 'Nothing matches' : 'No history yet.'}</p>
+{:else}
+	<ul class="list">
+		{#each list as e (e.id)}
+			<li class="row" class:failed={!e.successful}>
+				<span class="ic k-{e.kind}" title={KIND[e.kind]}><Icon icon={ICON[e.kind]} size={20} /></span>
+				<div class="body">
+					<span class="title">{e.title || fallback(e)}</span>
+					<span class="meta">
+						<span class="idx">{e.indexer ?? `Indexer ${e.indexerId}`}</span>
+						{#if e.source}<span>{e.source}</span>{/if}
+						{#if !e.successful}
+							<span class="bad">Failed</span>
+						{:else if e.kind !== 'grab' && e.results !== null}
+							<span>{e.results} results</span>
+						{/if}
+						{#if e.elapsedMs !== null}<span>{e.elapsedMs.toLocaleString()} ms</span>{/if}
+						<span class="when">{ago(e.date)}</span>
+					</span>
+				</div>
+			</li>
+		{/each}
+	</ul>
+	{#if h.state.data.total > records.length}
+		<p class="more body-small">Showing the latest {records.length} of {h.state.data.total.toLocaleString()} events.</p>
+	{/if}
+{/if}
+
+<style>
+	.chips {
+		display: flex;
+		gap: 0.5rem;
+		overflow-x: auto;
+		padding: 0 0 0.75rem;
+		scrollbar-width: none;
+	}
+	.chips > :global(*) {
+		flex: none;
+	}
+	.list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.375rem;
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.625rem 1rem 0.625rem 0.75rem;
+		border-radius: var(--radius-m);
+		background: var(--m3c-surface-container-low);
+		content-visibility: auto;
+		contain-intrinsic-size: auto 3.75rem;
+	}
+	.ic {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 50%;
+		background: var(--m3c-secondary-container);
+		color: var(--m3c-on-secondary-container);
+	}
+	.k-grab {
+		background: var(--m3c-primary-container);
+		color: var(--m3c-on-primary-container);
+	}
+	.failed .ic {
+		background: var(--m3c-error-container);
+		color: var(--m3c-on-error-container);
+	}
+	.body {
+		flex: 1;
+		min-width: 0;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.25rem;
+	}
+	.title {
+		font-size: 0.875rem;
+		font-weight: 500;
+		overflow-wrap: anywhere;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+	.meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.125rem 0.75rem;
+		font-size: 0.75rem;
+		color: var(--m3c-on-surface-variant);
+		font-variant-numeric: tabular-nums;
+	}
+	.idx {
+		font-weight: 600;
+		min-width: 0;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.when {
+		margin-left: auto;
+	}
+	.bad {
+		color: var(--m3c-error);
+		font-weight: 600;
+	}
+	.center {
+		display: grid;
+		place-items: center;
+		padding: 2rem 0;
+	}
+	.empty,
+	.more {
+		color: var(--m3c-on-surface-variant);
+	}
+	.error {
+		color: var(--m3c-error);
+	}
+</style>
