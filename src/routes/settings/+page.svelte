@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Button, Dialog, ListItem, ConnectedButtons, snackbar } from 'm3-svelte';
@@ -47,10 +48,14 @@
 	type Appearance = { scheme: 'system' | 'light' | 'dark'; seed: string };
 	const SEEDS = ['#6750a4', '#0061a4', '#006e1c', '#9c4146', '#8b5000', '#006a6a', '#7d5260'];
 	let appearance = $state<Appearance>({ scheme: 'system', seed: SEEDS[0] });
+	// Load the saved choice once. untrack: reading `appearance` here must not re-run this effect,
+	// or it writes and re-triggers itself forever (effect_update_depth_exceeded).
 	$effect(() => {
-		try {
-			appearance = { ...appearance, ...JSON.parse(localStorage.getItem('appearance') || '{}') };
-		} catch {}
+		untrack(() => {
+			try {
+				appearance = { ...appearance, ...JSON.parse(localStorage.getItem('appearance') || '{}') };
+			} catch {}
+		});
 	});
 	function setAppearance(patch: Partial<Appearance>) {
 		appearance = { ...appearance, ...patch };

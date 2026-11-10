@@ -24,7 +24,10 @@
 	let error = $state<string | null>(null);
 	let sentinel = $state<HTMLElement>();
 
-	const done = $derived(page >= totalPages);
+	// TMDb lists report hundreds of pages; past the first few it's obscure filler and the page never ends.
+	const MAX_PAGES = 10;
+	const capped = $derived(totalPages > MAX_PAGES);
+	const done = $derived(page >= Math.min(totalPages, MAX_PAGES));
 
 	async function load() {
 		if (loading || done) return;
@@ -79,10 +82,17 @@
 		<LoadingIndicator aria-label="Loading more" />
 	{:else if error}
 		<p class="error" role="alert">{error} <button class="retry" onclick={load}>Retry</button></p>
+	{:else if done && capped && items.length}
+		<p class="end body-small">That's the top {items.length}. Search to find anything else.</p>
 	{/if}
 </div>
 
 <style>
+	.end {
+		text-align: center;
+		color: var(--m3c-on-surface-variant);
+		padding: 1rem 0 0.5rem;
+	}
 	.count {
 		margin: 0 0 0.5rem;
 		color: var(--m3c-on-surface-variant);

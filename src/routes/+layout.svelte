@@ -7,7 +7,7 @@
 	let { children, data } = $props();
 
 	const nav = [
-		{ href: '/', text: 'Home', icon: iDashboard },
+		{ href: '/', text: 'Dashboard', icon: iDashboard },
 		{ href: '/library', text: 'Library', icon: iLibrary },
 		{ href: '/discover', text: 'Discover', icon: iDiscover },
 		{ href: '/calendar', text: 'Calendar', icon: iCalendar },
@@ -55,7 +55,7 @@
 		min-width: 0;
 		padding: 1rem max(1rem, env(safe-area-inset-left)) 1.5rem;
 	}
-	/* Compact bar: six destinations must share the width, or their labels collide on phones. */
+	/* Compact bar: six destinations share the width evenly. */
 	@media (width < 52.5rem) {
 		.nav :global(.m3-container) {
 			justify-content: stretch;
@@ -64,10 +64,14 @@
 			flex: 1 1 0;
 			min-width: 0;
 		}
+		/* Icons only on phones; the label stays in the DOM (font-size 0) so screen readers still announce it. */
 		.nav :global(.m3-container > a .content) {
-			font-size: 0.75rem;
-			letter-spacing: 0;
-			white-space: nowrap;
+			font-size: 0;
+			line-height: 0;
+			gap: 0;
+		}
+		.nav :global(.m3-container > a) {
+			padding-block: 0.25rem;
 		}
 	}
 	@media (width >= 52.5rem) {
