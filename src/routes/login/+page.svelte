@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { clearCache } from '$lib/http';
+	// Signed out (or about to sign in as someone else): drop everything cached for the previous account.
+	onMount(clearCache);
 	import { enhance } from '$app/forms';
 	import { Button, TextField } from 'm3-svelte';
 	import AuthCard from '$lib/components/AuthCard.svelte';
