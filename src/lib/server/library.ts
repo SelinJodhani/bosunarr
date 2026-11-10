@@ -103,7 +103,8 @@ function arrImagePath(s: ServiceRecord, url: string): string {
 /** Proxied arr cover; `size` picks the arr's pre-scaled variant (poster-500.jpg, fanart-360.jpg …). */
 export function arrImage(s: ServiceRecord, images: ArrImage[] | undefined, type: 'poster' | 'fanart', size?: number): string | null {
 	const im = images?.find((i) => i.coverType === type);
-	if (!im?.url) return null;
+	// Items the arr hasn't cached art for yet (e.g. upcoming calendar entries) only carry a TMDb remoteUrl.
+	if (!im?.url) return tmdbImage(im?.remoteUrl, type === 'fanart' ? 'w780' : size && size <= 250 ? 'w185' : 'w500');
 	let p = arrImagePath(s, im.url);
 	if (size) p = p.replace(new RegExp(`/${type}\\.jpg`), `/${type}-${size}.jpg`);
 	return `/api/img/${s.id}?p=${encodeURIComponent(p)}`;
@@ -138,6 +139,17 @@ export const qualityProfiles = (s: ServiceRecord) => lookup(s, '/api/v3/qualityp
 function rating(r?: Ratings): number | null {
 	const v = r?.imdb?.value || r?.tmdb?.value || r?.value;
 	return v ? Math.round(v * 10) / 10 : null;
+}
+
+/** Where `rating()` took its value from (Sonarr only reports an unlabelled value). */
+function ratingSource(r?: Ratings): string | null {
+	return r?.imdb?.value ? 'IMDb' : r?.tmdb?.value ? 'TMDb' : null;
+}
+
+/** Backdrop: TMDb w780 when the arr knows it, else the arr's own 360 px variant — never the 3840 px original. */
+function backdrop(s: ServiceRecord, images: ArrImage[] | undefined): string | null {
+	const im = images?.find((i) => i.coverType === 'fanart');
+	return tmdbImage(im?.remoteUrl, 'w780') ?? arrImage(s, images, 'fanart', 360);
 }
 
 function sortTitle(title: string, sort?: string) {
@@ -186,6 +198,7 @@ function seriesItem(s: ServiceRecord, x: SonarrSeries, profiles: Map<number, str
 		sizeOnDisk: x.statistics?.sizeOnDisk ?? 0,
 		added: x.added ?? null,
 		rating: rating(x.ratings),
+		ratingSource: ratingSource(x.ratings),
 		genres: x.genres ?? [],
 		qualityProfile: qp,
 		is4k: UHD.test(s.name) || UHD.test(qp ?? ''),
@@ -214,6 +227,7 @@ function movieItem(s: ServiceRecord, x: RadarrMovie, profiles: Map<number, strin
 		sizeOnDisk: x.sizeOnDisk ?? 0,
 		added: x.added ?? null,
 		rating: rating(x.ratings),
+		ratingSource: ratingSource(x.ratings),
 		genres: x.genres ?? [],
 		qualityProfile: qp,
 		is4k: UHD.test(s.name) || UHD.test(qp ?? '') || (x.movieFile?.quality?.quality?.resolution ?? 0) >= 2160,
@@ -266,7 +280,7 @@ export function library(): Promise<LibraryResult> {
 		const items: LibraryItem[] = [];
 		results.forEach((r, i) => {
 			if (r.status === 'fulfilled') items.push(...r.value);
-			else errors.push({ service: all[i].name, error: r.reason instanceof Error ? r.reason.message : String(r.reason) });
+			else errors.push({ service: all[i].name, kind: all[i].type === 'radarr' ? 'movie' : 'series', error: r.reason instanceof Error ? r.reason.message : String(r.reason) });
 		});
 		if (all.length > 0 && errors.length === all.length) throw new ServiceError(errors[0].error);
 		items.sort((a, b) => a.sortTitle.localeCompare(b.sortTitle));
@@ -310,7 +324,7 @@ async function movieDetail(s: ServiceRecord, id: number): Promise<LibraryDetail>
 		studio: m.studio || null,
 		path: m.path ?? null,
 		rootFolder: m.rootFolderPath ?? null,
-		fanart: arrImage(s, m.images, 'fanart'),
+		fanart: backdrop(s, m.images),
 		imdbId: m.imdbId || null,
 		inCinemas: m.inCinemas ?? null,
 		digitalRelease: m.digitalRelease ?? null,
@@ -368,7 +382,7 @@ async function seriesDetail(s: ServiceRecord, id: number): Promise<LibraryDetail
 		studio: null,
 		path: x.path ?? null,
 		rootFolder: x.rootFolderPath ?? null,
-		fanart: arrImage(s, x.images, 'fanart'),
+		fanart: backdrop(s, x.images),
 		imdbId: x.imdbId || null,
 		inCinemas: null,
 		digitalRelease: null,

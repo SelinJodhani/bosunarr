@@ -25,13 +25,58 @@ export const STATUS_LABEL: Record<LibraryStatus, string> = {
 	unmonitored: 'Unmonitored'
 };
 
-/** Seed colour extracted from a poster with Material's quantizer + scorer; cached per image URL. */
-export async function posterSeed(src: string): Promise<string | null> {
-	const cacheKey = 'seed:' + src;
+const SEED_STORE = 'posterSeeds';
+const SEED_MAX = 400;
+let seeds: Record<string, string> | null = null;
+function seedMap(): Record<string, string> {
+	if (seeds) return seeds;
 	try {
-		const hit = sessionStorage.getItem(cacheKey);
-		if (hit) return hit === 'none' ? null : hit;
+		seeds = JSON.parse(localStorage.getItem(SEED_STORE) || '{}') as Record<string, string>;
+	} catch {
+		seeds = {};
+	}
+	return seeds;
+}
+function rememberSeed(src: string, seed: string | null) {
+	const map = seedMap();
+	delete map[src];
+	map[src] = seed ?? 'none';
+	const keys = Object.keys(map);
+	for (const k of keys.slice(0, Math.max(0, keys.length - SEED_MAX))) delete map[k];
+	try {
+		localStorage.setItem(SEED_STORE, JSON.stringify(map));
 	} catch {}
+}
+
+/**
+ * Synchronous cache lookup so a detail page can apply the poster theme on its first frame.
+ * `undefined` = not computed yet; `null` = computed, poster has no usable colour.
+ */
+export function cachedSeed(src: string | null | undefined): string | null | undefined {
+	if (!src) return null;
+	const hit = seedMap()[src];
+	return hit === undefined ? undefined : hit === 'none' ? null : hit;
+}
+
+const pending = new Map<string, Promise<string | null>>();
+
+/** Seed colour extracted from a poster with Material's quantizer + scorer; cached per image URL (localStorage). */
+export function posterSeed(src: string): Promise<string | null> {
+	const hit = cachedSeed(src);
+	if (hit !== undefined) return Promise.resolve(hit);
+	let p = pending.get(src);
+	if (!p) {
+		p = extractSeed(src).then((seed) => {
+			rememberSeed(src, seed);
+			pending.delete(src);
+			return seed;
+		});
+		pending.set(src, p);
+	}
+	return p;
+}
+
+async function extractSeed(src: string): Promise<string | null> {
 	const img = new Image();
 	img.decoding = 'async';
 	img.src = src;
@@ -55,9 +100,29 @@ export async function posterSeed(src: string): Promise<string | null> {
 	// Loaded lazily so it stays out of the initial bundle.
 	const { QuantizerCelebi, Score, hexFromArgb } = await import('@material/material-color-utilities');
 	const ranked = Score.score(QuantizerCelebi.quantize(pixels, 64), { fallbackColorARGB: 0, filter: true });
-	const seed = ranked[0] ? hexFromArgb(ranked[0]) : null;
-	try {
-		sessionStorage.setItem(cacheKey, seed ?? 'none');
-	} catch {}
-	return seed;
+	return ranked[0] ? hexFromArgb(ranked[0]) : null;
+}
+
+/**
+ * Apply a late-arriving seed with a cross-fade (View Transitions) instead of a hard colour jump.
+ * Falls back to an instant swap where the API is missing or motion is reduced.
+ */
+export function fadeIn(apply: () => void) {
+	const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+	if (!doc.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) apply();
+	else doc.startViewTransition(apply);
+}
+
+/** Label for a detail page's back button, from the page the user came from. */
+export function backLabel(fromPath: string | null | undefined): string {
+	const seg = fromPath?.split('/')[1] ?? 'library';
+	const names: Record<string, string> = {
+		'': 'Dashboard',
+		library: 'Library',
+		calendar: 'Calendar',
+		discover: 'Discover',
+		activity: 'Activity',
+		settings: 'Settings'
+	};
+	return `Back to ${names[seg] ?? 'previous page'}`;
 }
