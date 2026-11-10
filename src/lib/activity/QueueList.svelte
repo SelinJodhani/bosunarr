@@ -26,10 +26,12 @@
 	async function remove() {
 		if (!target) return;
 		busy = true;
-		const err = await act({ action: 'removeQueue', ids: [target.id], removeFromClient, blocklist });
+		const t = target;
+		const bl = blocklist;
+		const err = await act({ action: 'removeQueue', ids: [t.id], removeFromClient, blocklist: bl });
 		busy = false;
-		dialogOpen = false;
-		snackbar(err ?? `Removed ${target.title}${blocklist ? ' and blocklisted the release' : ''}`, {}, true);
+		if (!err) dialogOpen = false;
+		snackbar(err ?? `Removed ${t.title}${bl ? ' and blocklisted the release' : ''}`, {}, true);
 	}
 </script>
 
@@ -48,13 +50,13 @@
 				</div>
 				{#if q.subtitle}<div class="sub">{q.subtitle}</div>{/if}
 				<div class="bar"><LinearProgress percent={q.progress * 100} aria-label={`${q.title} progress`} /></div>
-				<div class="meta">
+				<div class="meta main">
 					<span class="state state-{q.health}">
 						{#if q.health === 'error'}<Icon icon={iError} size={16} />{:else if q.health === 'warning'}<Icon icon={iWarning} size={16} />{/if}
-						{queueState(q.state)}
+						<span class="st">{queueState(q.state)}</span>
 					</span>
-					<span>{Math.round(q.progress * 100)}% of {bytes(q.size)}</span>
-					{#if q.state === 'downloading' && timeleft(q.timeleft)}<span>{timeleft(q.timeleft)} left</span>{/if}
+					<span class="num">{Math.round(q.progress * 100)}% of {bytes(q.size)}</span>
+					{#if q.state === 'downloading' && timeleft(q.timeleft)}<span class="num">{timeleft(q.timeleft)} left</span>{/if}
 				</div>
 				<div class="meta sub2">
 					{#if q.quality}<span>{q.quality}</span>{/if}
@@ -78,16 +80,16 @@
 <Dialog headline="Remove from queue?" bind:open={dialogOpen}>
 	<p class="dlg-title">{target?.title}{target?.subtitle ? ` · ${target.subtitle}` : ''}</p>
 	<label class="check">
-		<Checkbox><input type="checkbox" bind:checked={removeFromClient} /></Checkbox>
+		<Checkbox><input type="checkbox" bind:checked={removeFromClient} disabled={busy} /></Checkbox>
 		<span>Also remove it from the download client</span>
 	</label>
 	<label class="check">
-		<Checkbox><input type="checkbox" bind:checked={blocklist} /></Checkbox>
+		<Checkbox><input type="checkbox" bind:checked={blocklist} disabled={busy} /></Checkbox>
 		<span>Blocklist this release so it isn't grabbed again</span>
 	</label>
 	{#snippet buttons()}
-		<Button variant="text" onclick={() => (dialogOpen = false)}>Cancel</Button>
-		<Button variant="filled" disabled={busy} onclick={remove}>Remove</Button>
+		<Button variant="text" disabled={busy} onclick={() => (dialogOpen = false)}>Cancel</Button>
+		<Button variant="filled" data-danger disabled={busy} onclick={remove}>{busy ? 'Removing…' : 'Remove'}</Button>
 	{/snippet}
 </Dialog>
 
@@ -151,12 +153,31 @@
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
 	}
+	/* One fixed line: a live "12m left" appearing or a new percentage never makes the card grow. */
+	.meta.main {
+		flex-wrap: nowrap;
+		white-space: nowrap;
+		overflow: hidden;
+		height: 1.25rem;
+	}
+	.meta.main > :global(*) {
+		flex: none;
+	}
+	.num {
+		font-variant-numeric: tabular-nums;
+	}
 	.state {
+		flex-shrink: 1 !important;
+		min-width: 0;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.25rem;
 		font-weight: 600;
 		color: var(--m3c-primary);
+	}
+	.st {
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.state-warning {
 		color: var(--m3c-tertiary);
@@ -176,9 +197,12 @@
 	}
 	.msgs-toggle {
 		all: unset;
+		box-sizing: border-box;
 		cursor: pointer;
 		display: block;
-		margin-top: 0.375rem;
+		min-height: 2.5rem;
+		line-height: 2.5rem;
+		margin: -0.5rem 0 -0.75rem;
 		font-size: 0.75rem;
 		color: var(--m3c-error);
 		overflow: hidden;
@@ -200,7 +224,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 0.25rem 0;
+		min-height: 2.5rem;
 		cursor: pointer;
 	}
 </style>

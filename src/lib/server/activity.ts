@@ -127,7 +127,7 @@ const GROUPS: Record<string, TorrentGroup> = {
 
 async function qbit(s: ServiceRecord): Promise<{ torrents: Torrent[]; summary: ClientSummary }> {
 	const [info, list] = await Promise.all([
-		call<{ dl_info_speed: number; up_info_speed: number }>(s, '/api/v2/transfer/info'),
+		call<{ dl_info_speed?: number; up_info_speed?: number }>(s, '/api/v2/transfer/info').catch(() => null),
 		call<QbitTorrent[]>(s, '/api/v2/torrents/info')
 	]);
 	const torrents = list.map(
@@ -155,9 +155,16 @@ async function qbit(s: ServiceRecord): Promise<{ torrents: Torrent[]; summary: C
 			savePath: t.save_path
 		})
 	);
+	// The client's global rate is the truth (it includes overhead), but some setups and proxies hand back
+	// an empty or zeroed /transfer/info while torrents are moving; fall back to the per-torrent sum then.
+	const sum = (k: 'dlspeed' | 'upspeed') => torrents.reduce((a, t) => a + (Number.isFinite(t[k]) ? t[k] : 0), 0);
+	const rate = (v: unknown, k: 'dlspeed' | 'upspeed') => {
+		const n = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+		return n > 0 ? n : sum(k);
+	};
 	return {
 		torrents,
-		summary: { id: s.id, name: s.name, down: info.dl_info_speed, up: info.up_info_speed, count: torrents.length, error: null }
+		summary: { id: s.id, name: s.name, down: rate(info?.dl_info_speed, 'dlspeed'), up: rate(info?.up_info_speed, 'upspeed'), count: torrents.length, error: null }
 	};
 }
 
