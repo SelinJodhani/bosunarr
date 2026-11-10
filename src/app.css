@@ -89,12 +89,13 @@ h3 {
    --------------------------------------------------------------------------- */
 
 /* Dialogs keep a 24 px margin on phones instead of touching the screen edges (M3). */
-dialog.m3-container.m3-container {
+/* (m3-svelte BottomSheets are dialogs too; they always carry an inline max-height — leave them edge to edge.) */
+dialog.m3-container.m3-container:not([style*='max-height']) {
 	max-width: min(35rem, calc(100vw - 3rem));
 }
 /* …and on phones every dialog is the same width, whatever its content. */
 @media (width < 40rem) {
-	dialog.m3-container.m3-container {
+	dialog.m3-container.m3-container:not([style*='max-height']) {
 		width: calc(100vw - 3rem);
 	}
 }
