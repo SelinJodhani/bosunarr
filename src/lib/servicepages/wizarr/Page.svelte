@@ -21,9 +21,11 @@
 	const api = $derived(`/api/svc/wizarr/${service.id}`);
 	// The page is keyed by service id, so the URL is fixed for this instance.
 	// svelte-ignore state_referenced_locally
-	const data = live<WizarrOverview>(`/api/svc/wizarr/${service.id}`, 30_000);
+	// persist: false — emails and invite codes must never land in localStorage.
+	const data = live<WizarrOverview>(`/api/svc/wizarr/${service.id}`, 30_000, { persist: false });
 	const ov = $derived(data.state.data);
-	const base = $derived(service.externalUrl ?? service.url);
+	// Only the public URL makes a usable link; the internal one (e.g. http://wizarr:5690) is useless to invitees.
+	const base = $derived(service.externalUrl);
 
 	let tab = $state('invites');
 	let q = $state('');
@@ -72,23 +74,26 @@
 		return i.durationDays ? `${i.durationDays}-day access` : 'Permanent access';
 	}
 
-	async function copy(i: { code: string; path: string }) {
-		const ok = await copyText(inviteLink(base, i.path));
-		snackbar(ok ? `Invite link copied` : `Couldn't copy — the link is ${inviteLink(base, i.path)}`, {}, true);
+	async function copy(i: { path: string | null }) {
+		if (!base || !i.path) return;
+		const link = inviteLink(base, i.path);
+		const ok = await copyText(link);
+		snackbar(ok ? `Invite link copied` : `Couldn't copy — the link is ${link}`, {}, true);
 	}
+	const label = (i: WizarrInvite) => i.code ?? `Invite #${i.id}`;
 
 	function onCreated(inv: CreatedInvite) {
 		data.refresh();
-		snackbar(`Invite ${inv.code} created`, { 'Copy link': () => copy(inv) }, true, 8000);
+		snackbar(`Invite ${inv.code} created`, base ? { 'Copy link': () => copy(inv) } : {}, true, 8000);
 	}
 
 	async function removeInvite() {
 		const i = delInvite;
-		if (!i) return;
+		if (busy || !i) return;
 		busy = true;
 		const res = await send('DELETE', `${api}/invitations/${i.id}`);
 		busy = false;
-		snackbar(res.error ?? `Deleted invite ${i.code}`, {}, true);
+		snackbar(res.error ?? `Deleted invite ${label(i)}`, {}, true);
 		if (!res.error) {
 			delInviteOpen = false;
 			data.refresh();
@@ -97,7 +102,7 @@
 
 	async function removeUser() {
 		const u = delUser;
-		if (!u || confirmName.trim() !== u.username) return;
+		if (busy || !u || confirmName.trim() !== u.username) return;
 		busy = true;
 		const res = await send('DELETE', `${api}/users/${u.id}`);
 		busy = false;
@@ -159,6 +164,10 @@
 			{/if}
 		</div>
 
+		{#if isAdmin && !base}
+			<p class="hint">To copy invite links, set a <strong>Public URL</strong> for this service in <a href="/settings">Settings</a>.</p>
+		{/if}
+
 		{#if invites.length === 0}
 			<p class="empty">{ov.invitations.length ? 'No invitations match' : 'No invitations yet'}</p>
 		{:else}
@@ -166,7 +175,7 @@
 				{#each invites as i (i.id)}
 					<li class="invite s-{i.status}" class:active={i.active}>
 						<div class="inv-head">
-							<code class="code">{i.code}</code>
+							{#if i.code}<code class="code">{i.code}</code>{:else}<span class="code anon">Invite #{i.id}</span>{/if}
 							<span class="badge">{statusLabel(i)}</span>
 						</div>
 						<div class="meta">
@@ -182,15 +191,16 @@
 								{#each i.libraries as l, n (`l${n}`)}<span class="tag">{l}</span>{/each}
 							</div>
 						{/if}
+						{#if isAdmin}
 						<div class="actions">
-							{#if i.active}
+							{#if i.active && base && i.path}
 								<Button variant="tonal" onclick={() => copy(i)}><Icon icon={iCopy} /> Copy link</Button>
 							{/if}
 							{#if isAdmin}
 								<Button
 									variant="text"
 									iconType="full"
-									aria-label={`Delete invite ${i.code}`}
+									aria-label={`Delete invite ${label(i)}`}
 									onclick={() => {
 										delInvite = i;
 										delInviteOpen = true;
@@ -198,6 +208,7 @@
 								>
 							{/if}
 						</div>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -254,9 +265,10 @@
 	<CreateInvite bind:open={createOpen} serviceId={service.id} servers={ov.servers} libraries={ov.libraries} created={onCreated} />
 {/if}
 
+{#if isAdmin}
 <Dialog headline="Delete invite?" bind:open={delInviteOpen}>
 	<div class="dlg">
-		<p>Invite <code>{delInvite?.code}</code> stops working immediately. People who already joined keep their accounts.</p>
+		<p>Invite <code>{delInvite?.code ?? `#${delInvite?.id ?? ""}`}</code> stops working immediately. People who already joined keep their accounts.</p>
 	</div>
 	{#snippet buttons()}
 		<Button variant="text" onclick={() => (delInviteOpen = false)}>Cancel</Button>
@@ -277,6 +289,7 @@
 		<Button variant="filled" disabled={busy || !delUser || confirmName.trim() !== delUser.username} onclick={removeUser}>Remove</Button>
 	{/snippet}
 </Dialog>
+{/if}
 
 <style>
 	.center {
@@ -306,6 +319,18 @@
 		margin: 0 0 0.75rem;
 	}
 	.empty {
+		color: var(--m3c-on-surface-variant);
+	}
+	.hint {
+		margin: 0 0 0.75rem;
+		font-size: 0.8125rem;
+		color: var(--m3c-on-surface-variant);
+	}
+	.hint a {
+		color: var(--m3c-primary);
+	}
+	.anon {
+		font-family: inherit;
 		color: var(--m3c-on-surface-variant);
 	}
 

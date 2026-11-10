@@ -15,9 +15,10 @@ export type InviteStatus = 'pending' | 'used' | 'expired';
 
 export type WizarrInvite = {
 	id: number;
-	code: string;
-	/** Path of the public join page on the Wizarr host, e.g. `/j/ABC123`. */
-	path: string;
+	/** Sign-up pass: null for non-admins. */
+	code: string | null;
+	/** Path of the public join page on the Wizarr host, e.g. `/j/ABC123`. Null for non-admins. */
+	path: string | null;
 	status: InviteStatus;
 	/** Can still be redeemed (pending, or an unlimited invite that was used but hasn't expired). */
 	active: boolean;

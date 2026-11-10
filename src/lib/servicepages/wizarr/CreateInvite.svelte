@@ -42,7 +42,7 @@
 	});
 
 	const libs = $derived(libraries.filter((l) => l.enabled && (l.serverId === null || serverIds.includes(l.serverId))));
-	const durationError = $derived(duration.trim() !== '' && !/^\d{1,4}$/.test(duration.trim()) ? true : Number(duration) > 3650 || duration.trim() === '0');
+	const durationError = $derived(duration.trim() !== '' && (!/^\d{1,4}$/.test(duration.trim()) || Number(duration) < 1 || Number(duration) > 3650));
 
 	function toggle(list: number[], id: number) {
 		return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];

@@ -6,6 +6,11 @@ import { overview } from '$lib/server/svc/wizarr';
 export const GET: RequestHandler = ({ params, locals }) =>
 	handleApi(async () => {
 		const data = await overview(serviceOf(params.id, 'wizarr'));
-		// Email addresses are personal data: only admins see them.
-		return locals.user?.is_admin ? data : { ...data, users: data.users.map((u) => ({ ...u, email: null })) };
+		if (locals.user?.is_admin) return data;
+		// Non-admins: no email addresses (personal data) and no invite codes/links (they are sign-up passes).
+		return {
+			...data,
+			users: data.users.map((u) => ({ ...u, email: null })),
+			invitations: data.invitations.map((i) => ({ ...i, code: null, path: null }))
+		};
 	});
