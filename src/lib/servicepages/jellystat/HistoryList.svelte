@@ -5,9 +5,10 @@
 	import { duration, method, when } from './format';
 
 	let { url, searching, onpages }: { url: string; searching: boolean; onpages: (pages: number) => void } = $props();
-	// Re-keyed by the parent per page/search, so `url` is fixed per instance.
+	// Re-keyed by the parent per page/search, so `url` is fixed per instance. Not persisted: one key
+	// per page/search would pile personal watch history up in localStorage.
 	// svelte-ignore state_referenced_locally
-	const q = live<JsHistory>(url, 30_000);
+	const q = live<JsHistory>(url, 30_000, { persist: false });
 	const d = $derived(q.state.data && Array.isArray(q.state.data.rows) ? q.state.data : undefined);
 	const rows = $derived(d?.rows ?? []);
 	$effect(() => {

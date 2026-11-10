@@ -56,11 +56,11 @@
 	<div class="plot">
 		<div class="yaxis" aria-hidden="true">
 			<span>{count(top)}</span>
-			<span>{count(top / 2)}</span>
+			<span>{Number.isInteger(top / 2) ? count(top / 2) : ''}</span>
 			<span>0</span>
 		</div>
 		<svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary}>
-			<line x1="0" x2={W} y1={H / 2} y2={H / 2} class="grid" vector-effect="non-scaling-stroke" />
+			{#if Number.isInteger(top / 2)}<line x1="0" x2={W} y1={H / 2} y2={H / 2} class="grid" vector-effect="non-scaling-stroke" />{/if}
 			<line x1="0" x2={W} y1={H} y2={H} class="axis" vector-effect="non-scaling-stroke" />
 			{#each bars as b (b.d.date)}
 				<g>

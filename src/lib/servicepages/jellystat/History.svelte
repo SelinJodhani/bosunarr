@@ -43,7 +43,10 @@
 	</div>
 
 	{#key url}
-		<HistoryList {url} searching={Boolean(ui.q)} onpages={(n) => (pages = n)} />
+		<HistoryList {url} searching={Boolean(ui.q)} onpages={(n) => {
+			pages = n;
+			if (n > 0 && ui.page > n) ui.page = n;
+		}} />
 	{/key}
 
 	{#if pages > 1}

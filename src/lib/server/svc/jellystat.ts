@@ -120,6 +120,9 @@ const MONTHS: Record<string, string> = { Jan: '01', Feb: '02', Mar: '03', Apr: '
 function keyToDate(key: string): string | null {
 	const m = /^([A-Z][a-z]{2}) (\d{1,2}), (\d{4})$/.exec(key.trim());
 	if (m && MONTHS[m[1]]) return `${m[3]}-${MONTHS[m[1]]}-${m[2].padStart(2, '0')}`;
+	// ISO dates ("2026-11-07", "2026-11-07T00:00:00") are calendar days already: never round-trip them through UTC.
+	const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(key.trim());
+	if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 	const d = new Date(key);
 	return Number.isNaN(+d) ? null : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
@@ -154,10 +157,15 @@ export function overview(s: ServiceRecord): Promise<JsOverview> {
 		}
 		const all = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 
-		const now = Date.now();
 		const periods = PERIODS.map((days) => {
+			// Both numbers cover the same span: the last `days` calendar days, today included.
+			// "Active users" = users whose latest play (Jellystat's LastActivityDate) falls in that span,
+			// which is exactly the users with at least one play in it.
 			const slice = all.slice(-days);
-			const since = now - days * 864e5;
+			const [y, m, dd] = (slice[0]?.date ?? '').split('-').map(Number);
+			const start = slice.length ? new Date(y, m - 1, dd) : new Date();
+			if (!slice.length) start.setHours(0, 0, 0, 0);
+			const since = +start;
 			return {
 				days,
 				plays: slice.reduce((t, d) => t + d.movies + d.episodes + d.other, 0),

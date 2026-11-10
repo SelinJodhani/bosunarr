@@ -10,7 +10,7 @@
 	let { base }: { base: string } = $props();
 	// The page is re-keyed per service, so `base` never changes for this instance.
 	// svelte-ignore state_referenced_locally
-	const q = live<JsSession[]>(`${base}/now`, 10_000);
+	const q = live<JsSession[]>(`${base}/now`, 10_000, { persist: false });
 	const items = $derived(Array.isArray(q.state.data) ? q.state.data : []);
 </script>
 
