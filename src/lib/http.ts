@@ -28,3 +28,18 @@ export function purgeOldCache() {
 		/* storage disabled */
 	}
 }
+
+/** Remove every cached response (this build's and older ones). Called on the sign-in page so the next
+ *  account never sees data cached for the previous one. */
+export function clearCache() {
+	try {
+		const keys: string[] = [];
+		for (let i = 0; i < localStorage.length; i++) {
+			const k = localStorage.key(i);
+			if (k && (k.startsWith('swr:') || k.startsWith(CACHE_PREFIX))) keys.push(k);
+		}
+		for (const k of keys) localStorage.removeItem(k);
+	} catch {
+		/* storage disabled */
+	}
+}
