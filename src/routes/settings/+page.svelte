@@ -73,6 +73,10 @@
 			appearance = { ...appearance, ...JSON.parse(localStorage.getItem('appearance') || '{}') };
 		} catch {}
 		loaded = true;
+		// Deep link from a service screen (e.g. Wizarr → "Open Settings"): /settings?edit=<serviceId>
+		const id = Number(page.url.searchParams.get('edit'));
+		const target = data.services.find((s) => s.id === id);
+		if (target && data.user?.isAdmin) edit(target);
 	});
 	function setAppearance(patch: Partial<Appearance>) {
 		appearance = { ...appearance, ...patch };
