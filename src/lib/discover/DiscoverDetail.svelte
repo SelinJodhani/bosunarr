@@ -1,39 +1,79 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Button, Icon, LoadingIndicator, snackbar } from 'm3-svelte';
+	import { Button, Icon, snackbar } from 'm3-svelte';
 	import { live } from '$lib/live.svelte';
 	import { ago } from '$lib/format';
-	import { posterSeed } from '$lib/library/client';
 	import Poster from '$lib/widgets/Poster.svelte';
-	import { iBack, iCheck, iDecline, iLibrary, iOpen, iPerson, iRequest, iStar } from '$lib/icons';
-	import { AVAILABILITY_LABEL, REQUEST_LABEL, peek, post } from './client';
+	import { iBack, iCheck, iDecline, iDelete, iLibrary, iOpen, iPerson, iRequest, iStar } from '$lib/icons';
+	import { AVAILABILITY_LABEL, AVAILABILITY_TONE, REQUEST_LABEL, REQUEST_TONE, cachedSeed, peek, post, resolveSeed } from './client';
 	import RequestDialog from './RequestDialog.svelte';
-	import type { Availability, DiscoverDetail, DiscoverItem, RequestAction, RequestBrief } from './types';
+	import RequestConfirm from './RequestConfirm.svelte';
+	import StatusBadge from './StatusBadge.svelte';
+	import type { ConfirmTarget, DiscoverDetail, DiscoverItem, RequestAction, RequestBrief } from './types';
 
 	let { service, type, id }: { service: string; type: string; id: string } = $props();
 
 	// The route re-mounts this component per item ({#key}), so props are fixed for its lifetime.
 	// svelte-ignore state_referenced_locally
 	const q = live<DiscoverDetail>(`/api/discover/${service}/${type}/${id}`, 60_000);
-	let peeked = $state<DiscoverItem | undefined>();
-	$effect(() => {
-		peeked = peek(service, type, id);
-	});
+	// svelte-ignore state_referenced_locally
+	const peeked: DiscoverItem | undefined = peek(service, type, id);
 
 	const d = $derived(q.state.data);
 	const item = $derived<DiscoverItem | undefined>(d ?? peeked);
 	const isAdmin = $derived(Boolean(page.data.user?.isAdmin));
 
-	/* Poster-derived theme */
-	let seed = $state<string | null>(null);
+	/* Poster-derived theme, without the purple-then-recolour flash: a seed computed earlier this
+	   session (lists warm it on hover / touch) paints on the first frame; otherwise the page stays
+	   invisible until the seed is ready (or 350 ms pass) and then fades in. */
 	const posterSrc = $derived(item?.poster ?? null);
+	// svelte-ignore state_referenced_locally
+	const initial = cachedSeed(posterSrc);
+	let seed = $state<string | null>(initial ?? null);
+	// svelte-ignore state_referenced_locally
+	let ready = $state(initial !== undefined && Boolean(item));
 	$effect(() => {
 		const src = posterSrc;
-		if (src) posterSeed(src).then((s) => src === posterSrc && (seed = s));
+		if (!src) {
+			if (item) ready = true;
+			return;
+		}
+		const hit = cachedSeed(src);
+		if (hit !== undefined) {
+			seed = hit;
+			ready = true;
+			return;
+		}
+		const timer = setTimeout(() => (ready = true), 350);
+		resolveSeed(src).then((s) => {
+			if (src !== posterSrc) return;
+			seed = s;
+			ready = true;
+		});
+		return () => clearTimeout(timer);
+	});
+	// No poster info at all yet (cold deep link): show the skeleton rather than a blank page.
+	$effect(() => {
+		if (q.state.error) ready = true;
+		const t = setTimeout(() => (ready = true), 600);
+		return () => clearTimeout(t);
 	});
 
 	let showAllOverview = $state(false);
+	/** Only offer "Show more" when the clamp actually hides text. */
+	let overviewEl = $state<HTMLElement>();
+	let overviewClamped = $state(false);
+	$effect(() => {
+		const el = overviewEl;
+		if (!el) return;
+		const check = () => (overviewClamped = showAllOverview || el.scrollHeight > el.clientHeight + 1);
+		check();
+		const ro = new ResizeObserver(check);
+		ro.observe(el);
+		return () => ro.disconnect();
+	});
 	let requestOpen = $state(false);
+	let requestUhd = $state<boolean | undefined>(undefined);
 	let busy = $state<number | null>(null);
 
 	const meta = $derived.by(() => {
@@ -46,32 +86,100 @@
 		return m;
 	});
 
-	/** Can anything still be requested (regular or, when configured, 4K)? */
-	const requestable = $derived.by(() => {
+	/** The request buttons: explicit about what each one asks for. */
+	const requestButtons = $derived.by(() => {
+		if (!d || !isAdmin) return [] as Array<{ label: string; uhd?: boolean }>;
+		if (d.mediaType === 'movie') {
+			const reg = d.status === 'none';
+			const uhd = d.can4k && d.status4k === 'none';
+			if (reg) return [{ label: d.status4k !== 'none' ? 'Request HD' : 'Request', uhd: false }];
+			if (uhd) return [{ label: 'Request 4K', uhd: true }];
+			return [];
+		}
+		const open = d.seasons.filter((s) => s.status === 'none');
+		const open4k = d.can4k ? d.seasons.filter((s) => s.status4k === 'none') : [];
+		if (open.length) return [{ label: open.length < d.seasons.length ? 'Request more seasons' : 'Request' }];
+		if (open4k.length) return [{ label: 'Request 4K', uhd: true }];
+		return [];
+	});
+	const somethingOpen = $derived.by(() => {
 		if (!d) return false;
 		if (d.mediaType === 'movie') return d.status === 'none' || (d.can4k && d.status4k === 'none');
 		return d.seasons.some((s) => s.status === 'none' || (d.can4k && s.status4k === 'none'));
 	});
-	const anyRequested = $derived(Boolean(d && (d.status !== 'none' || d.status4k !== 'none' || d.seasons.some((s) => s.status !== 'none'))));
 
 	const fmtDate = (iso: string | null) => (iso ? new Date(iso + (iso.length === 10 ? 'T00:00:00' : '')).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+	const serviceOf = (l: { serviceName: string }) => l.serviceName;
 
 	async function act(r: RequestBrief, action: RequestAction['action']) {
-		if (!d) return;
+		if (!d) return null;
 		busy = r.id;
 		const err = await post('/api/discover/requests/action', { serviceId: d.serviceId, requestId: r.id, action } satisfies RequestAction);
 		busy = null;
-		snackbar(err ?? (action === 'approve' ? 'Request approved' : 'Request declined'), {}, true);
-		q.refresh();
+		if (!err) {
+			snackbar({ approve: 'Request approved', decline: 'Request declined', delete: 'Request deleted' }[action], {}, true);
+			q.refresh();
+		}
+		return err;
+	}
+
+	/* Decline / Delete go through a confirmation, like on the Requests tab. */
+	let confirmOpen = $state(false);
+	let confirmFor = $state<{ r: RequestBrief; target: ConfirmTarget } | null>(null);
+	let confirmError = $state<string | null>(null);
+	function ask(r: RequestBrief, action: 'decline' | 'delete') {
+		if (!d) return;
+		confirmFor = { r, target: { action, title: d.title, is4k: r.is4k, requestedBy: r.requestedBy, serviceName: d.serviceName } };
+		confirmError = null;
+		confirmOpen = true;
+	}
+	async function confirmed() {
+		if (!confirmFor) return;
+		const err = await act(confirmFor.r, confirmFor.target.action);
+		if (err) confirmError = err;
+		else confirmOpen = false;
+	}
+	async function approve(r: RequestBrief) {
+		const err = await act(r, 'approve');
+		if (err) snackbar(err, {}, true);
+	}
+
+	function openRequest(uhd?: boolean) {
+		requestUhd = uhd;
+		requestOpen = true;
 	}
 
 	const back = () => (history.length > 1 ? history.back() : (location.href = '/discover'));
-	const statusClass = (s: Availability) => `status-${s}`;
 </script>
 
 <svelte:head><title>{item?.title ?? 'Discover'} · Bosunarr</title></svelte:head>
 
-<div class="m3-theme themed" style:--m3v-source={seed ?? undefined}>
+{#snippet actions()}
+	{#if !d}
+		<div class="actions" aria-hidden="true"><span class="sk sk-btn"></span><span class="sk sk-btn short"></span></div>
+	{:else}
+		<div class="actions">
+			{#if d.status !== 'none' && AVAILABILITY_TONE[d.status]}
+				<StatusBadge size="m" tone={AVAILABILITY_TONE[d.status]!} label={AVAILABILITY_LABEL[d.status]} />
+			{/if}
+			{#if d.status4k !== 'none' && AVAILABILITY_TONE[d.status4k]}
+				<StatusBadge size="m" tone={AVAILABILITY_TONE[d.status4k]!} label={`4K · ${AVAILABILITY_LABEL[d.status4k]}`} />
+			{/if}
+			{#each requestButtons as b (b.label)}
+				<Button variant="filled" onclick={() => openRequest(b.uhd)}><Icon icon={iRequest} /> {b.label}</Button>
+			{/each}
+			{#each d.inLibrary as l (l.href)}
+				<Button variant="tonal" href={l.href}><Icon icon={iLibrary} /> In Library{d.inLibrary.length > 1 ? ` · ${serviceOf(l)}` : ''}</Button>
+			{/each}
+			{#if d.openUrl}
+				<Button variant="tonal" href={d.openUrl} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} /> Open in {d.serviceName}</Button>
+			{/if}
+		</div>
+		{#if !isAdmin && somethingOpen}<p class="hint">Requests from Bosunarr are admin-only for now.</p>{/if}
+	{/if}
+{/snippet}
+
+<div class="m3-theme themed" class:ready style:--m3v-source={seed ?? undefined}>
 	{#if d?.backdrop}
 		<div class="backdrop" aria-hidden="true">
 			<img src={d.backdrop} alt="" decoding="async" />
@@ -82,64 +190,64 @@
 		<Button variant="text" iconType="full" aria-label="Back" onclick={back}><Icon icon={iBack} /></Button>
 	</div>
 
-	{#if !item}
-		{#if q.state.error}
-			<p class="error" role="alert">{q.state.error}</p>
-		{:else}
-			<div class="center"><LoadingIndicator aria-label="Loading" /></div>
-		{/if}
+	{#if !item && q.state.error}
+		<p class="error" role="alert">{q.state.error}</p>
 	{:else}
-		<section class="hero">
-			<div class="poster"><Poster src={item.poster} alt={`${item.title} poster`} width={180} /></div>
+		<section class="hero" aria-busy={!d}>
+			<div class="poster">
+				{#if item}
+					<Poster src={item.poster} alt={`${item.title} poster`} width={180} />
+				{:else}
+					<span class="sk sk-poster"></span>
+				{/if}
+			</div>
 			<div class="heading">
-				<h1>{item.title}</h1>
-				{#if d?.tagline}<p class="tagline">{d.tagline}</p>{/if}
+				{#if item}
+					<h1>{item.title}</h1>
+				{:else}
+					<span class="sk sk-h1"></span>
+				{/if}
+				{#if d}
+					{#if d.tagline}<p class="tagline">{d.tagline}</p>{/if}
+				{:else}
+					<span class="sk sk-line"></span>
+				{/if}
 				{#if meta.length}<p class="meta">{meta.join(' · ')}</p>{/if}
 				<div class="chips">
-					<span class="chip {statusClass(item.status)}">{AVAILABILITY_LABEL[item.status]}</span>
-					{#if item.status4k !== 'none' || d?.can4k}
-						<span class="chip {statusClass(item.status4k)}">4K · {AVAILABILITY_LABEL[item.status4k]}</span>
-					{/if}
 					{#if d}
 						{#each d.ratings as r (r.source)}
-							<span class="chip subtle" title={r.source === 'rt' || r.source === 'rtAudience' ? 'Rotten Tomatoes' : r.label}>
+							<span class="chip" title={r.source === 'rt' || r.source === 'rtAudience' ? 'Rotten Tomatoes' : r.label}>
 								{#if r.source === 'tmdb' || r.source === 'imdb'}<Icon icon={iStar} size={16} />{/if}
 								{r.label} {r.value}
 							</span>
 						{/each}
-					{:else if item.rating}
-						<span class="chip subtle"><Icon icon={iStar} size={16} /> TMDb {item.rating}</span>
+					{:else}
+						{#if item?.rating}<span class="chip"><Icon icon={iStar} size={16} /> TMDb {item.rating}</span>{/if}
+						<span class="sk sk-chip"></span><span class="sk sk-chip"></span>
 					{/if}
 				</div>
-				{#if d}
-					<div class="actions">
-						{#if isAdmin && requestable}
-							<Button variant="filled" onclick={() => (requestOpen = true)}><Icon icon={iRequest} /> {anyRequested ? 'Request more' : 'Request'}</Button>
-						{/if}
-						{#each d.inLibrary as l (l.href)}
-							<Button variant="tonal" href={l.href}><Icon icon={iLibrary} /> In Library{d.inLibrary.length > 1 ? ` · ${l.serviceName}` : ''}</Button>
-						{/each}
-						{#if d.openUrl}
-							<Button variant="text" href={d.openUrl} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} /> {d.serviceName}</Button>
-						{/if}
-					</div>
-					{#if !isAdmin && requestable}<p class="hint">Requests from Bosunarr are admin-only for now.</p>{/if}
-				{/if}
+				<div class="wide-only">{@render actions()}</div>
 			</div>
 		</section>
+		<div class="phone-only">{@render actions()}</div>
 
 		{#if !d}
 			{#if q.state.error}
 				<p class="error" role="alert">{q.state.error}</p>
 			{:else}
-				<div class="center"><LoadingIndicator aria-label="Loading details" /></div>
+				<div class="card" aria-hidden="true">
+					<span class="sk sk-line wide"></span><span class="sk sk-line wide"></span><span class="sk sk-line wide"></span><span class="sk sk-line"></span>
+				</div>
+				<div class="card" aria-hidden="true">
+					<span class="sk sk-line"></span><span class="sk sk-line wide"></span><span class="sk sk-line wide"></span>
+				</div>
 			{/if}
 		{:else}
 			{#if d.overview}
 				<section class="card">
-					<p class="overview" class:clamp={!showAllOverview}>{d.overview}</p>
-					{#if d.overview.length > 280}
-						<button class="more" onclick={() => (showAllOverview = !showAllOverview)}>{showAllOverview ? 'Less' : 'More'}</button>
+					<p class="overview" class:clamp={!showAllOverview} bind:this={overviewEl}>{d.overview}</p>
+					{#if overviewClamped}
+						<button class="more" onclick={() => (showAllOverview = !showAllOverview)}>{showAllOverview ? 'Show less' : 'Show more'}</button>
 					{/if}
 					{#if d.genres.length}<p class="genres">{d.genres.join(' · ')}</p>{/if}
 				</section>
@@ -158,10 +266,12 @@
 							<dd>
 								<ul class="seasons">
 									{#each d.seasons as s (s.number)}
+										{@const tone = AVAILABILITY_TONE[s.status]}
+										{@const tone4k = AVAILABILITY_TONE[s.status4k]}
 										<li>
-											<span>{s.name}</span>
-											<span class="schip {statusClass(s.status)}">{AVAILABILITY_LABEL[s.status]}</span>
-											{#if s.status4k !== 'none'}<span class="schip {statusClass(s.status4k)}">4K · {AVAILABILITY_LABEL[s.status4k]}</span>{/if}
+											<span class="sname">{s.name}</span>
+											{#if tone}<StatusBadge {tone} label={AVAILABILITY_LABEL[s.status]} />{/if}
+											{#if tone4k}<StatusBadge tone={tone4k} label={`4K · ${AVAILABILITY_LABEL[s.status4k]}`} />{/if}
 										</li>
 									{/each}
 								</ul>
@@ -184,15 +294,21 @@
 							<ul class="reqs">
 								{#each d.requests as r (r.id)}
 									<li>
-										<div class="rtext">
-											<span class="rtitle">
-												{REQUEST_LABEL[r.status]}{r.is4k ? ' · 4K' : ''}{r.seasons.length ? ` · ${r.seasons.map((n) => `S${n}`).join(', ')}` : ''}
-											</span>
-											<span class="rsub">{r.requestedBy} · {ago(r.createdAt)}</span>
+										<div class="rhead">
+											<StatusBadge tone={REQUEST_TONE[r.status]} label={REQUEST_LABEL[r.status]} />
+											{#if r.is4k}<StatusBadge tone="partial" label="4K" />{/if}
+											{#if r.seasons.length}<span class="rseasons">{r.seasons.map((n) => `S${n}`).join(', ')}</span>{/if}
 										</div>
-										{#if isAdmin && r.status === 'pending'}
-											<Button variant="tonal" iconType="full" aria-label="Approve request" disabled={busy === r.id} onclick={() => act(r, 'approve')}><Icon icon={iCheck} /></Button>
-											<Button variant="text" iconType="full" aria-label="Decline request" disabled={busy === r.id} onclick={() => act(r, 'decline')}><Icon icon={iDecline} /></Button>
+										<span class="rsub">{r.requestedBy} · {ago(r.createdAt)}</span>
+										{#if isAdmin}
+											<div class="racts">
+												{#if r.status === 'pending'}
+													<Button variant="text" data-danger disabled={busy === r.id} onclick={() => ask(r, 'decline')}><Icon icon={iDecline} /> Decline</Button>
+													<Button variant="tonal" disabled={busy === r.id} onclick={() => approve(r)}><Icon icon={iCheck} /> Approve</Button>
+												{:else}
+													<Button variant="text" data-danger disabled={busy === r.id} onclick={() => ask(r, 'delete')}><Icon icon={iDelete} /> Delete</Button>
+												{/if}
+											</div>
 										{/if}
 									</li>
 								{/each}
@@ -203,7 +319,7 @@
 					{#if d.cast.length}
 						<section class="card cast-card">
 							<h2 class="title-medium">Cast</h2>
-							<ul class="cast">
+							<ul class="cast no-scrollbar">
 								{#each d.cast as c, i (i)}
 									<li>
 										<div class="face">
@@ -219,7 +335,10 @@
 				</div>
 			</div>
 
-			{#if isAdmin}<RequestDialog bind:open={requestOpen} detail={d} ondone={() => q.refresh()} />{/if}
+			{#if isAdmin}
+				<RequestDialog bind:open={requestOpen} detail={d} uhd={requestUhd} ondone={() => q.refresh()} />
+				<RequestConfirm bind:open={confirmOpen} target={confirmFor?.target ?? null} busy={busy !== null} error={confirmError} onconfirm={confirmed} />
+			{/if}
 		{/if}
 	{/if}
 </div>
@@ -233,7 +352,18 @@
 		margin: -1rem calc(-1 * max(1rem, env(safe-area-inset-left))) -1.5rem;
 		padding: 0.5rem max(1rem, env(safe-area-inset-left)) 2rem;
 		min-height: 100dvh;
-		transition: background-color 300ms;
+		opacity: 0;
+		transition:
+			background-color 300ms,
+			opacity 200ms ease-out;
+	}
+	.themed.ready {
+		opacity: 1;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.themed {
+			transition: none;
+		}
 	}
 	@media (width >= 52.5rem) {
 		.themed {
@@ -270,11 +400,6 @@
 	}
 	.top {
 		margin-left: -0.5rem;
-	}
-	.center {
-		display: grid;
-		place-items: center;
-		padding: 3rem 0;
 	}
 	.error {
 		color: var(--m3c-error);
@@ -314,8 +439,7 @@
 		gap: 0.375rem;
 		margin-top: 0.75rem;
 	}
-	.chip,
-	.schip {
+	.chip {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.25rem;
@@ -324,39 +448,64 @@
 		border-radius: 0.5rem;
 		font-size: 0.8125rem;
 		font-weight: 500;
-		background: var(--m3c-secondary-container);
-		color: var(--m3c-on-secondary-container);
 		white-space: nowrap;
-	}
-	.schip {
-		height: 1.375rem;
-		padding: 0 0.5rem;
-		font-size: 0.75rem;
-	}
-	.subtle,
-	.status-none {
 		background: transparent;
 		box-shadow: inset 0 0 0 1px var(--m3c-outline-variant);
 		color: var(--m3c-on-surface-variant);
 	}
-	.status-available {
-		background: var(--m3c-primary);
-		color: var(--m3c-on-primary);
-	}
-	.status-processing {
-		background: var(--m3c-tertiary-container);
-		color: var(--m3c-on-tertiary-container);
-	}
-	.status-pending {
+	/* Skeletons reserve the space real content will take, so nothing jumps when details arrive. */
+	.sk {
+		display: block;
+		border-radius: 0.5rem;
 		background: var(--m3c-surface-container-highest);
-		color: var(--m3c-on-surface);
-		box-shadow: inset 0 0 0 1px var(--m3c-outline);
+		animation: pulse 1.2s ease-in-out infinite alternate;
+	}
+	@keyframes pulse {
+		to {
+			opacity: 0.5;
+		}
+	}
+	.sk-poster {
+		width: 180px;
+		height: 270px;
+		border-radius: 1rem;
+	}
+	.sk-h1 {
+		height: 1.75rem;
+		width: 70%;
+	}
+	.sk-line {
+		height: 0.875rem;
+		width: 55%;
+		margin: 0.5rem 0;
+	}
+	.sk-line.wide {
+		width: 100%;
+	}
+	.sk-chip {
+		display: inline-block;
+		height: 1.75rem;
+		width: 4.5rem;
+	}
+	.sk-btn {
+		display: inline-block;
+		height: 2.5rem;
+		width: 8rem;
+		border-radius: 1.25rem;
+	}
+	.sk-btn.short {
+		width: 6rem;
+	}
+	.phone-only {
+		display: none;
 	}
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
+		align-items: center;
 		gap: 0.5rem;
 		margin-top: 1rem;
+		min-height: 2.5rem;
 	}
 	.hint {
 		margin: 0.5rem 0 0;
@@ -370,12 +519,24 @@
 			gap: 1rem;
 			margin-top: 0.25rem;
 		}
-		.poster :global(.poster) {
+		.poster :global(.poster),
+		.sk-poster {
 			width: 112px !important;
 			height: 168px !important;
 		}
 		h1 {
 			font-size: 1.375rem;
+		}
+		/* Actions get the full width below the poster instead of a cramped column beside it. */
+		.wide-only {
+			display: none;
+		}
+		.phone-only {
+			display: block;
+			margin: -0.25rem 0 1.25rem;
+		}
+		.phone-only .actions {
+			margin-top: 0;
 		}
 	}
 	.card {
@@ -401,7 +562,15 @@
 		cursor: pointer;
 		color: var(--m3c-primary);
 		font-weight: 500;
-		margin-top: 0.25rem;
+		display: inline-flex;
+		align-items: center;
+		min-height: 2.5rem;
+		padding: 0 0.75rem;
+		margin: 0 -0.75rem;
+		border-radius: 1.25rem;
+	}
+	.more:focus-visible {
+		outline: 2px solid var(--m3c-primary);
 	}
 	.genres {
 		margin: 0.75rem 0 0;
@@ -447,14 +616,21 @@
 		align-items: center;
 		gap: 0.375rem;
 	}
-	.seasons li > span:first-child {
+	.sname {
 		min-width: 4.5rem;
 	}
 	.links {
 		display: flex;
-		gap: 1rem;
-		margin: 1rem 0 0;
+		gap: 0.5rem;
+		margin: 0.75rem -0.5rem 0;
 		font-weight: 500;
+	}
+	.links a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2.5rem;
+		min-width: 2.5rem;
+		padding: 0 0.5rem;
 	}
 	.reqs {
 		list-style: none;
@@ -462,23 +638,32 @@
 		padding: 0;
 	}
 	.reqs li {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		padding: 0.375rem 0;
-	}
-	.rtext {
-		flex: 1;
-		min-width: 0;
 		display: grid;
+		gap: 0.25rem;
+		padding: 0.625rem 0;
 	}
-	.rtitle {
-		font-size: 0.875rem;
+	.reqs li + li {
+		border-top: 1px solid var(--m3c-outline-variant);
+	}
+	.rhead {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.375rem;
+	}
+	.rseasons {
+		font-size: 0.8125rem;
 		font-weight: 500;
 	}
 	.rsub {
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
+	}
+	.racts {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+		margin-right: -0.5rem;
 	}
 	.cast {
 		list-style: none;
@@ -527,5 +712,10 @@
 	}
 	.role {
 		color: var(--m3c-on-surface-variant);
+	}
+	/* app.css's [data-danger] ties with m3-svelte's own variant rules on specificity and loses on
+	   load order; repeat it with the scope class until the shared rule is fixed. */
+	.racts :global(button.m3-container.text[data-danger]:not(:disabled)) {
+		color: var(--m3c-error);
 	}
 </style>

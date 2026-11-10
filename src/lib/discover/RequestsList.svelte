@@ -1,12 +1,24 @@
+<script lang="ts" module>
+	import type { RequestFilter, RequestsResult } from './types';
+	/** First pages of the other filters, fetched in the background so switching filters paints at once. */
+	const prefetched = new Map<string, RequestsResult>();
+	const ALL_FILTERS: RequestFilter[] = ['pending', 'approved', 'available', 'failed', 'all'];
+	const firstPage = (f: RequestFilter) => `/api/discover/requests?filter=${f}&page=1`;
+</script>
+
 <script lang="ts">
 	import { getJSON } from '$lib/http';
-	import { Button, Dialog, Icon, LoadingIndicator, snackbar } from 'm3-svelte';
+	import { Button, Icon, snackbar } from 'm3-svelte';
 	import { live } from '$lib/live.svelte';
 	import { ago } from '$lib/format';
 	import Poster from '$lib/widgets/Poster.svelte';
-	import { iCheck, iDecline, iDelete } from '$lib/icons';
-	import { AVAILABILITY_LABEL, REQUEST_LABEL, detailHref, post, uniq } from './client';
-	import type { RequestAction, RequestFilter, RequestItem, RequestsResult } from './types';
+	import { iCheck, iDecline, iDelete, iEmpty } from '$lib/icons';
+	import { iDoneAll, iMore } from './icons';
+	import { AVAILABILITY_LABEL, AVAILABILITY_TONE, REQUEST_LABEL, REQUEST_TONE, detailHref, post, uniq, type Tone } from './client';
+	import Empty from './Empty.svelte';
+	import RequestConfirm from './RequestConfirm.svelte';
+	import StatusBadge from './StatusBadge.svelte';
+	import type { ConfirmTarget, RequestAction, RequestItem } from './types';
 
 	/** Re-mounted by the parent ({#key}) when the filter changes. */
 	let { filter, isAdmin }: { filter: RequestFilter; isAdmin: boolean } = $props();
@@ -18,8 +30,27 @@
 	let page = $state(1);
 	let loadingMore = $state(false);
 
-	const data = $derived(more ?? q.state.data);
+	// svelte-ignore state_referenced_locally
+	const warm = prefetched.get(firstPage(filter));
+	const data = $derived(more ?? q.state.data ?? warm);
 	const items = $derived(uniq(data?.items ?? []));
+
+	// Once this filter has loaded, quietly fetch the others' first pages.
+	let warmed = false;
+	$effect(() => {
+		if (!q.state.data || warmed) return;
+		warmed = true;
+		const t = setTimeout(() => {
+			for (const f of ALL_FILTERS) {
+				const url = firstPage(f);
+				if (f === filter) continue;
+				getJSON<RequestsResult>(url)
+					.then((r) => prefetched.set(url, r))
+					.catch(() => {});
+			}
+		}, 300);
+		return () => clearTimeout(t);
+	});
 
 	async function loadMore(p = page + 1) {
 		loadingMore = true;
@@ -34,77 +65,132 @@
 	}
 
 	async function refresh() {
+		prefetched.clear();
+		warmed = false;
 		await q.refresh();
 		if (page > 1) await loadMore(page);
 	}
 
 	let busy = $state<string | null>(null);
-	let confirm = $state<{ item: RequestItem; action: 'decline' | 'delete' } | null>(null);
+	let confirmFor = $state<{ item: RequestItem; target: ConfirmTarget } | null>(null);
 	let confirmOpen = $state(false);
+	let confirmError = $state<string | null>(null);
 
 	async function run(item: RequestItem, action: RequestAction['action']) {
 		busy = item.key;
 		const err = await post('/api/discover/requests/action', { serviceId: item.serviceId, requestId: item.id, action } satisfies RequestAction);
 		busy = null;
+		if (err) {
+			// While the confirmation is open the error belongs in it (dialogs sit above snackbars).
+			if (confirmOpen) confirmError = err;
+			else snackbar(err, {}, true);
+			return;
+		}
 		confirmOpen = false;
 		const done = { approve: 'Approved', decline: 'Declined', delete: 'Deleted request for' }[action];
-		snackbar(err ?? `${done} ${item.title}`, {}, true);
+		snackbar(`${done} ${item.title}`, {}, true);
 		refresh();
 	}
 
 	function ask(item: RequestItem, action: 'decline' | 'delete') {
-		confirm = { item, action };
+		closeMenu();
+		confirmFor = { item, target: { action, title: item.title, is4k: item.is4k, requestedBy: item.requestedBy, serviceName: item.serviceName } };
+		confirmError = null;
 		confirmOpen = true;
 	}
 
+	/* Overflow menu (one shared popover, placed under the button that opened it). */
+	let menuEl = $state<HTMLElement>();
+	let menuFor = $state<RequestItem | null>(null);
+	let menuPos = $state({ top: 0, right: 0 });
+	function openMenu(e: MouseEvent, item: RequestItem) {
+		const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		menuFor = item;
+		menuPos = { top: Math.min(r.bottom + 4, window.innerHeight - 64), right: Math.max(8, window.innerWidth - r.right) };
+		menuEl?.showPopover();
+	}
+	function closeMenu() {
+		try {
+			menuEl?.hidePopover();
+		} catch {
+			/* already closed */
+		}
+	}
+
+	/** One status per row: what's in the library wins over the request's own state, and nothing that just repeats the active filter. */
+	function statusOf(r: RequestItem): { tone: Tone; label: string } | null {
+		const media = r.media === 'available' || r.media === 'partial' ? r.media : null;
+		if (media) return filter === 'available' ? null : { tone: AVAILABILITY_TONE[media]!, label: AVAILABILITY_LABEL[media] };
+		if (r.status === filter) return null;
+		return { tone: REQUEST_TONE[r.status], label: REQUEST_LABEL[r.status] };
+	}
+
 	const seasonsLabel = (s: number[]) => (s.length ? (s.length > 4 ? `${s.length} seasons` : s.map((n) => `S${n}`).join(', ')) : null);
+	function subLine(r: RequestItem) {
+		const parts = [r.mediaType === 'movie' ? 'Movie' : 'Series'];
+		const seasons = seasonsLabel(r.seasons);
+		if (seasons) parts.push(seasons);
+		let who = `${r.requestedBy} · ${ago(r.createdAt)}`;
+		if (r.modifiedBy && (r.status === 'approved' || r.status === 'declined') && r.modifiedBy !== r.requestedBy) who += ` · ${REQUEST_LABEL[r.status].toLowerCase()} by ${r.modifiedBy}`;
+		return { what: parts.join(' · '), who };
+	}
 </script>
 
 {#if !data}
 	{#if q.state.error}
 		<p class="error" role="alert">{q.state.error}</p>
 	{:else}
-		<div class="center"><LoadingIndicator aria-label="Loading requests" /></div>
+		<ul class="list" aria-busy="true" aria-label="Loading requests">
+			{#each { length: 4 } as _, i (i)}
+				<li class="row sk-row" aria-hidden="true">
+					<span class="sk sk-art"></span>
+					<span class="body"><span class="sk sk-line"></span><span class="sk sk-line short"></span><span class="sk sk-line shorter"></span></span>
+				</li>
+			{/each}
+		</ul>
 	{/if}
 {:else}
 	{#if data.errors.length}
 		<p class="error">Couldn't reach {data.errors.map((e) => e.service).join(', ')}: {data.errors[0].error}</p>
 	{/if}
 	{#if items.length === 0}
-		<p class="empty">{filter === 'pending' ? 'No requests waiting for approval — all caught up.' : 'No requests here.'}</p>
+		{#if filter === 'pending'}
+			<Empty icon={iDoneAll} title="All caught up" hint="No requests are waiting for approval." />
+		{:else}
+			<Empty icon={iEmpty} title="No requests here" />
+		{/if}
 	{:else}
 		<ul class="list">
 			{#each items as r (r.key)}
-				<li class="row" class:wrap={isAdmin && r.status === 'pending'}>
-					<a class="art" href={detailHref(r)} aria-label={`Open ${r.title}`}><Poster src={r.poster} width={48} alt="" /></a>
+				{@const st = statusOf(r)}
+				{@const sub = subLine(r)}
+				<li class="row" class:has-actions={isAdmin && r.status === 'pending'}>
+					<span class="art"><Poster src={r.poster} width={48} alt="" /></span>
 					<div class="body">
 						<a class="title" href={detailHref(r)}>{r.title}{r.year ? ` (${r.year})` : ''}</a>
-						<div class="chips">
-							<span class="chip st-{r.status}">{REQUEST_LABEL[r.status]}</span>
-							{#if r.media === 'available' || r.media === 'partial'}<span class="chip subtle">{AVAILABILITY_LABEL[r.media]}</span>{/if}
-							<span class="chip subtle">{r.mediaType === 'movie' ? 'Movie' : 'Series'}</span>
-							{#if r.is4k}<span class="chip uhd">4K</span>{/if}
-							{#if seasonsLabel(r.seasons)}<span class="chip subtle">{seasonsLabel(r.seasons)}</span>{/if}
-						</div>
+						{#if st || r.is4k}
+							<div class="chips">
+								{#if st}<StatusBadge tone={st.tone} label={st.label} />{/if}
+								{#if r.is4k}<StatusBadge tone="partial" label="4K" />{/if}
+							</div>
+						{/if}
+						<div class="sub">{sub.what}</div>
 						<div class="sub">
-							{r.requestedBy} · {ago(r.createdAt)}{r.modifiedBy && r.status !== 'pending' ? ` · by ${r.modifiedBy}` : ''}
-							{#if r.serviceName}<span class="svc"> · {r.serviceName}</span>{/if}
+							{sub.who}{#if r.serviceName}<span class="svc"> · {r.serviceName}</span>{/if}
 						</div>
 					</div>
 					{#if isAdmin}
-						<div class="actions">
-							{#if r.status === 'pending'}
-								<Button variant="tonal" iconType="full" aria-label={`Approve ${r.title}`} disabled={busy === r.key} onclick={() => run(r, 'approve')}
-									><Icon icon={iCheck} /></Button
-								>
-								<Button variant="text" iconType="full" aria-label={`Decline ${r.title}`} disabled={busy === r.key} onclick={() => ask(r, 'decline')}
-									><Icon icon={iDecline} /></Button
-								>
-							{/if}
-							<Button variant="text" iconType="full" aria-label={`Delete request for ${r.title}`} disabled={busy === r.key} onclick={() => ask(r, 'delete')}
-								><Icon icon={iDelete} /></Button
+						<span class="menu-btn">
+							<Button variant="text" iconType="full" aria-label={`More actions for ${r.title}`} aria-haspopup="menu" onclick={(e: MouseEvent) => openMenu(e, r)}
+								><Icon icon={iMore} /></Button
 							>
-						</div>
+						</span>
+						{#if r.status === 'pending'}
+							<div class="actions">
+								<Button variant="text" data-danger disabled={busy === r.key} onclick={() => ask(r, 'decline')}><Icon icon={iDecline} /> Decline</Button>
+								<Button variant="tonal" disabled={busy === r.key} onclick={() => run(r, 'approve')}><Icon icon={iCheck} /> Approve</Button>
+							</div>
+						{/if}
 					{/if}
 				</li>
 			{/each}
@@ -117,22 +203,20 @@
 	{/if}
 {/if}
 
-<Dialog headline={confirm?.action === 'delete' ? 'Delete this request?' : 'Decline this request?'} bind:open={confirmOpen}>
-	<p class="dlg">
-		{confirm?.item.title}{confirm?.item.is4k ? ' (4K)' : ''} — requested by {confirm?.item.requestedBy}.
-		{#if confirm?.action === 'delete'}
-			The request is removed from {confirm?.item.serviceName}. Anything already downloaded stays.
-		{:else}
-			The requester will see it as declined.
-		{/if}
-	</p>
-	{#snippet buttons()}
-		<Button variant="text" onclick={() => (confirmOpen = false)}>Cancel</Button>
-		<Button variant="filled" disabled={!confirm || busy === confirm.item.key} onclick={() => confirm && run(confirm.item, confirm.action)}>
-			{confirm?.action === 'delete' ? 'Delete' : 'Decline'}
-		</Button>
-	{/snippet}
-</Dialog>
+{#if isAdmin}
+	<div bind:this={menuEl} popover="auto" class="menu" role="menu" style:top="{menuPos.top}px" style:right="{menuPos.right}px">
+		<button role="menuitem" class="item danger" disabled={!menuFor} onclick={() => menuFor && ask(menuFor, 'delete')}>
+			<Icon icon={iDelete} /> Delete request
+		</button>
+	</div>
+	<RequestConfirm
+		bind:open={confirmOpen}
+		target={confirmFor?.target ?? null}
+		busy={!!confirmFor && busy === confirmFor.item.key}
+		error={confirmError}
+		onconfirm={() => confirmFor && run(confirmFor.item, confirmFor.target.action)}
+	/>
+{/if}
 
 <style>
 	.center {
@@ -144,9 +228,6 @@
 		color: var(--m3c-error);
 		font-size: 0.875rem;
 	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
-	}
 	.list {
 		list-style: none;
 		margin: 0;
@@ -155,99 +236,174 @@
 		gap: 0.5rem;
 	}
 	.row {
-		display: flex;
-		gap: 0.875rem;
-		align-items: center;
-		padding: 0.75rem;
+		position: relative;
+		display: grid;
+		grid-template-columns: 48px minmax(0, 1fr) auto;
+		grid-template-areas:
+			'art body menu'
+			'acts acts acts';
+		column-gap: 0.875rem;
+		align-items: start;
+		padding: 0.75rem 0.25rem 0.75rem 0.75rem;
 		border-radius: var(--radius-l, 1rem);
 		background: var(--m3c-surface-container-low);
 	}
 	.art {
+		grid-area: art;
 		display: flex;
-		align-self: flex-start;
 	}
 	.body {
-		flex: 1;
+		grid-area: body;
 		min-width: 0;
 		display: grid;
 		gap: 0.25rem;
+		align-content: start;
 	}
 	.title {
 		color: inherit;
 		text-decoration: none;
 		font-weight: 500;
+		line-height: 1.25rem;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.title:hover {
-		text-decoration: underline;
+	/* The whole card opens the detail page (≥ 40 px target); buttons sit above it. */
+	.title::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+	}
+	.title:focus-visible {
+		outline: none;
+	}
+	.title:focus-visible::after {
+		outline: 2px solid var(--m3c-primary);
+		outline-offset: -2px;
+	}
+	@media (hover: hover) {
+		.row:has(.title:hover) {
+			background: var(--m3c-surface-container);
+		}
+	}
+	.menu-btn,
+	.actions {
+		position: relative;
+		z-index: 1;
+	}
+	.menu-btn {
+		grid-area: menu;
+		margin-top: -0.25rem;
 	}
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.25rem;
 	}
-	.chip {
-		display: inline-flex;
-		align-items: center;
-		height: 1.375rem;
-		padding: 0 0.5rem;
-		border-radius: 0.375rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		background: var(--m3c-secondary-container);
-		color: var(--m3c-on-secondary-container);
-	}
-	.chip.subtle {
-		background: transparent;
-		box-shadow: inset 0 0 0 1px var(--m3c-outline-variant);
-		color: var(--m3c-on-surface-variant);
-	}
-	.chip.uhd {
-		background: var(--m3c-inverse-surface);
-		color: var(--m3c-inverse-on-surface);
-	}
-	.chip.st-pending {
-		background: var(--m3c-tertiary-container);
-		color: var(--m3c-on-tertiary-container);
-	}
-	.chip.st-approved,
-	.chip.st-completed {
-		background: var(--m3c-primary-container);
-		color: var(--m3c-on-primary-container);
-	}
-	.chip.st-declined,
-	.chip.st-failed {
-		background: var(--m3c-error-container);
-		color: var(--m3c-on-error-container);
-	}
 	.sub {
 		font-size: 0.75rem;
+		line-height: 1rem;
 		color: var(--m3c-on-surface-variant);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 	}
 	.actions {
+		grid-area: acts;
 		display: flex;
-		gap: 0.125rem;
-		flex: none;
+		justify-content: flex-end;
+		gap: 0.5rem;
+		margin-top: 0.5rem;
+		padding-right: 0.5rem;
+	}
+	/* Wide screens: actions sit inline, so every row is one line of controls. */
+	@media (width >= 52.5rem) {
+		.row {
+			grid-template-columns: 48px minmax(0, 1fr) auto auto;
+			grid-template-areas: 'art body acts menu';
+			align-items: center;
+		}
+		.actions {
+			margin-top: 0;
+			padding-right: 0.25rem;
+		}
+		.menu-btn {
+			margin-top: 0;
+		}
 	}
 	@media (width < 34rem) {
-		.row.wrap {
-			flex-wrap: wrap;
-		}
 		.svc {
 			display: none;
 		}
-		.wrap .actions {
-			width: 100%;
-			justify-content: flex-end;
-			margin-top: -0.75rem;
+	}
+	.menu {
+		position: fixed;
+		inset: auto;
+		margin: 0;
+		padding: 0.5rem 0;
+		border: none;
+		border-radius: var(--m3-shape-extra-small, 0.25rem);
+		min-width: 11rem;
+		background: var(--m3c-surface-container);
+		color: var(--m3c-on-surface);
+		box-shadow: var(--m3-elevation-2);
+	}
+	.item {
+		all: unset;
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		min-height: 3rem;
+		padding: 0 1rem;
+		cursor: pointer;
+		font-size: 0.875rem;
+	}
+	.item:hover,
+	.item:focus-visible {
+		background: color-mix(in oklab, var(--m3c-on-surface) 8%, transparent);
+	}
+	.item.danger {
+		color: var(--m3c-error);
+	}
+	/* Skeleton rows: same box as a real row. */
+	.sk-row {
+		grid-template-areas: 'art body';
+		grid-template-columns: 48px minmax(0, 1fr);
+	}
+	.sk {
+		display: block;
+		border-radius: 0.375rem;
+		background: var(--m3c-surface-container-highest);
+		animation: pulse 1.2s ease-in-out infinite alternate;
+	}
+	.sk-art {
+		grid-area: art;
+		width: 48px;
+		height: 72px;
+		border-radius: 0.5rem;
+	}
+	.sk-line {
+		height: 0.875rem;
+		width: 70%;
+		margin: 0.1875rem 0;
+	}
+	.sk-line.short {
+		width: 35%;
+		height: 1.375rem;
+	}
+	.sk-line.shorter {
+		width: 50%;
+		height: 0.75rem;
+	}
+	@keyframes pulse {
+		to {
+			opacity: 0.5;
 		}
 	}
-	.dlg {
-		margin: 0;
+	/* app.css's [data-danger] ties with m3-svelte's own variant rules on specificity and loses on
+	   load order; repeat it with the scope class until the shared rule is fixed. */
+	.actions :global(button.m3-container.text[data-danger]:not(:disabled)) {
+		color: var(--m3c-error);
 	}
 </style>

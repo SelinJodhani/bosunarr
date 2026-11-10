@@ -27,7 +27,7 @@
 	</header>
 	<ul class="scroller" bind:this={scroller}>
 		{#each list as it (it.key)}
-			<li><MediaCard item={it} /></li>
+			<li><MediaCard item={it} showType={row.id === 'trending'} /></li>
 		{/each}
 	</ul>
 </section>
@@ -69,6 +69,9 @@
 		scroll-snap-type: x proximity;
 		scroll-padding-inline: max(1rem, env(safe-area-inset-left));
 		scrollbar-width: none;
+	}
+	h2 {
+		margin: 0;
 	}
 	.scroller::-webkit-scrollbar {
 		display: none;
