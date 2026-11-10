@@ -15,13 +15,17 @@
 	import { categoryLabel, isCheckingState, isStopped, torrentState } from './format';
 	import Empty from './Empty.svelte';
 	import type { Torrent, TorrentAction, TorrentGroup } from './types';
+	import '$lib/servicepages/shared/chips.css';
 
 	let {
 		torrents,
 		isAdmin,
 		showClient,
 		toolbar,
-		onAdd
+		onAdd,
+		filter,
+		onreset,
+		chips
 	}: {
 		torrents: Torrent[];
 		isAdmin: boolean;
@@ -30,6 +34,12 @@
 		toolbar?: Snippet;
 		/** Shows an "Add torrent" action in the empty state. */
 		onAdd?: () => void;
+		/** Extra filter from the host page (e.g. a category); applied before search and the status chips. */
+		filter?: (t: Torrent) => boolean;
+		/** Called by "Show all" so the host can clear its own filter too. */
+		onreset?: () => void;
+		/** Chips placed before the status chips (e.g. the host's active category, removable). */
+		chips?: Snippet;
 	} = $props();
 
 	const GROUP_LABEL: Record<TorrentGroup, string> = {
@@ -65,10 +75,11 @@
 	];
 
 	// Search first, then count per filter: the chip numbers always match what tapping them would show.
+	const base = $derived(filter ? torrents.filter(filter) : torrents);
 	const searched = $derived.by(() => {
 		const needle = view.q.trim().toLowerCase();
-		if (!needle) return torrents;
-		return torrents.filter((t) => t.name.toLowerCase().includes(needle) || t.category.toLowerCase() === needle);
+		if (!needle) return base;
+		return base.filter((t) => t.name.toLowerCase().includes(needle) || t.category.toLowerCase() === needle);
 	});
 	const counts = $derived(Object.fromEntries(FILTERS.map((f) => [f.value, searched.filter(f.test).length])) as Record<Filter, number>);
 
@@ -159,16 +170,19 @@
 	{@render toolbar?.()}
 </div>
 
-<div class="chips no-scrollbar" role="toolbar" aria-label="Filter torrents">
-	{#each FILTERS as f (f.value)}
-		<Chip
-			variant="general"
-			selected={view.filter === f.value}
-			disabled={f.value !== 'all' && counts[f.value] === 0 && view.filter !== f.value}
-			onclick={() => (view.filter = f.value)}>{f.label}<span class="n">{counts[f.value]}</span></Chip
-		>
-	{/each}
-</div>
+{#if torrents.length}
+	<div class="chip-row scroll" role="toolbar" aria-label="Filter torrents">
+		{@render chips?.()}
+		{#each FILTERS as f (f.value)}
+			<Chip
+				variant="general"
+				selected={view.filter === f.value}
+				disabled={f.value !== 'all' && counts[f.value] === 0 && view.filter !== f.value}
+				onclick={() => (view.filter = f.value)}>{f.label}<span class="chip-n">{counts[f.value]}</span></Chip
+			>
+		{/each}
+	</div>
+{/if}
 
 {#if list.length === 0}
 	{#if torrents.length === 0}
@@ -188,6 +202,7 @@
 				onclick: () => {
 					view.q = '';
 					view.filter = 'all';
+					onreset?.();
 				}
 			}}
 		/>
@@ -299,19 +314,8 @@
 		width: 100%;
 		min-width: 0;
 	}
-	.chips {
-		display: flex;
-		gap: 0.5rem;
-		overflow-x: auto;
-		padding: 0.75rem 0;
-	}
-	.chips > :global(*) {
-		flex: none;
-	}
-	.n {
-		margin-left: 0.375rem;
-		font-variant-numeric: tabular-nums;
-		opacity: 0.8;
+	.chip-row {
+		margin: 0.5rem 0;
 	}
 	.list {
 		list-style: none;

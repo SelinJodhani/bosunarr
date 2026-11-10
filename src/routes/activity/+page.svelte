@@ -5,17 +5,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Button, Icon, LoadingIndicator, Menu, MenuItem, Tabs, snackbar } from 'm3-svelte';
-	import iMore from '@ktibow/iconset-material-symbols/more-vert';
+	import { Icon, LoadingIndicator, Tabs } from 'm3-svelte';
 	import iOffline from '@ktibow/iconset-material-symbols/sync-problem-rounded';
 	import iDone from '@ktibow/iconset-material-symbols/download-done-rounded';
 	import { speed } from '$lib/format';
-	import { act, liveActivity } from '$lib/activity/live.svelte';
+	import { liveActivity } from '$lib/activity/live.svelte';
 	import QueueList from '$lib/activity/QueueList.svelte';
 	import TorrentList from '$lib/activity/TorrentList.svelte';
+	import TorrentMenu from '$lib/activity/TorrentMenu.svelte';
 	import AddTorrent from '$lib/activity/AddTorrent.svelte';
 	import Empty from '$lib/activity/Empty.svelte';
-	import { iAdd, iDisk, iDown, iError, iPause, iResume, iServices, iUp } from '$lib/icons';
+	import { iDown, iError, iServices, iUp } from '$lib/icons';
 
 	const live = liveActivity();
 	const d = $derived(live.state.data);
@@ -42,37 +42,7 @@
 		return () => clearTimeout(timer);
 	});
 
-	/* Overflow menu (Add, Resume all, Pause all, client pages). */
-	let menuOpen = $state(false);
-	let menuRoot = $state<HTMLElement>();
-	$effect(() => {
-		if (!menuOpen) return;
-		const onDown = (e: PointerEvent) => menuRoot && !menuRoot.contains(e.target as Node) && (menuOpen = false);
-		const onKey = (e: KeyboardEvent) => e.key === 'Escape' && (menuOpen = false);
-		document.addEventListener('pointerdown', onDown);
-		document.addEventListener('keydown', onKey);
-		return () => {
-			document.removeEventListener('pointerdown', onDown);
-			document.removeEventListener('keydown', onKey);
-		};
-	});
-
-	let bulk = $state<'pauseAll' | 'resumeAll' | null>(null);
-	const canPauseAll = $derived(Boolean(d?.torrents.some((t) => !/^(paused|stopped)/.test(t.state))));
-	const canResumeAll = $derived(Boolean(d?.torrents.some((t) => /^(paused|stopped)/.test(t.state) || t.group === 'errored')));
-
-	async function all(action: 'pauseAll' | 'resumeAll') {
-		menuOpen = false;
-		if (!d || bulk) return;
-		bulk = action;
-		const err = await act({ action, ids: onlineClients.map((c) => `${c.id}:all`) });
-		bulk = null;
-		snackbar(err ?? (action === 'pauseAll' ? 'Paused all torrents' : 'Resumed all torrents'), {}, true);
-	}
-	function openAdd() {
-		menuOpen = false;
-		addOpen = true;
-	}
+	const openAdd = () => (addOpen = true);
 </script>
 
 <svelte:head><title>Activity · Bosunarr</title></svelte:head>
@@ -119,40 +89,7 @@
 		{:else}
 			<TorrentList torrents={d.torrents} {isAdmin} showClient={clientName} onAdd={onlineClients.length ? openAdd : undefined}>
 				{#snippet toolbar()}
-					<div class="more" bind:this={menuRoot}>
-						<Button
-							variant="tonal"
-							iconType="full"
-							aria-label={bulk ? (bulk === 'pauseAll' ? 'Pausing all torrents' : 'Resuming all torrents') : 'More actions'}
-							aria-haspopup="menu"
-							aria-expanded={menuOpen}
-							disabled={!!bulk}
-							onclick={() => (menuOpen = !menuOpen)}
-						>
-							{#if bulk}<LoadingIndicator size={24} aria-label="Working" />{:else}<Icon icon={iMore} />{/if}
-						</Button>
-						{#if menuOpen}
-							<div class="pop" role="menu" aria-label="Torrent actions">
-								<Menu>
-									{#if isAdmin}
-										<MenuItem icon={iAdd} disabled={!onlineClients.length} onclick={openAdd}>Add torrent</MenuItem>
-										<MenuItem icon={iResume} disabled={!canResumeAll || !onlineClients.length} onclick={() => all('resumeAll')}>Resume all</MenuItem>
-										<MenuItem icon={iPause} disabled={!canPauseAll || !onlineClients.length} onclick={() => all('pauseAll')}>Pause all</MenuItem>
-										<hr />
-									{/if}
-									{#each d.clients as c (c.id)}
-										<MenuItem
-											icon={iDisk}
-											onclick={() => {
-												menuOpen = false;
-												goto(`/services/${c.id}`);
-											}}>{c.name}{c.error ? ' · offline' : ''}</MenuItem
-										>
-									{/each}
-								</Menu>
-							</div>
-						{/if}
-					</div>
+					<TorrentMenu torrents={d.torrents} clients={d.clients} {isAdmin} onadd={openAdd} links />
 				{/snippet}
 			</TorrentList>
 		{/if}
@@ -205,21 +142,5 @@
 		color: var(--m3c-error);
 		font-size: 0.875rem;
 		margin: 0 0 0.75rem;
-	}
-	.more {
-		position: relative;
-		flex: none;
-	}
-	.pop {
-		position: absolute;
-		top: calc(100% + 0.25rem);
-		right: 0;
-		z-index: 20;
-		min-width: 13rem;
-	}
-	.pop hr {
-		border: none;
-		border-top: 1px solid var(--m3c-outline-variant);
-		margin: 0.5rem 0;
 	}
 </style>

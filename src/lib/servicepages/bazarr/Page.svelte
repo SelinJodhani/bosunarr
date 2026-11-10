@@ -25,6 +25,7 @@
 	import { bazarrAct } from './api';
 	import { providerIssue, providerName } from './providers';
 	import type { BazarrKind, BazarrOverview } from './types';
+	import '../shared/chips.css';
 
 	let { service, isAdmin }: ServicePageProps = $props();
 
@@ -103,14 +104,12 @@
 			{ value: o.wanted.movies.toLocaleString(), label: 'Movies missing', tone: o.wanted.movies ? 'info' : undefined, onclick: () => showWanted('movies') },
 			{ value: issues.length, label: 'Provider issues', tone: issues.length ? 'bad' : undefined, onclick: () => (tab = 'providers') }
 		]}
-		{notices}
-		stale={ov.state.error}
 	/>
 
-	<ServiceTabs items={tabs} bind:tab>
+	<ServiceTabs items={tabs} bind:tab {notices} stale={ov.state.error}>
 		{#if tab === 'wanted' || tab === 'history'}
 			<div class="toolbar">
-				<div class="chips" role="group" aria-label="Media type">
+				<div class="chip-row wrap" role="group" aria-label="Media type">
 					<Chip variant="general" icon={iTv} selected={kind === 'episodes'} onclick={() => setKind('episodes')}>Episodes</Chip>
 					<Chip variant="general" icon={iMovie} selected={kind === 'movies'} onclick={() => setKind('movies')}>Movies</Chip>
 				</div>
@@ -204,10 +203,6 @@
 	.toolbar p {
 		flex: 1 1 14rem;
 		min-width: 0;
-	}
-	.chips {
-		display: flex;
-		gap: 0.5rem;
 	}
 	.list,
 	.profiles {

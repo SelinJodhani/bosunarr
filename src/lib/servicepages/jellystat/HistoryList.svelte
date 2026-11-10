@@ -35,7 +35,7 @@
 				<div class="side">
 					<time datetime={r.at ?? undefined}>{when(r.at)}</time>
 					<span>
-						<span class="dur">{duration(r.seconds)}{r.plays > 1 ? ` · ${r.plays}×` : ''}</span>{#if r.method}<span class="method" class:transcode={r.method === 'Transcode'}> · {method(r.method)}</span>{/if}
+						<span class="dur">{duration(r.seconds)}{r.plays > 1 ? ` · ${r.plays}×` : ''}</span>{#if r.method}<span class="method" class:transcode={r.method === 'Transcode'}>{'\u00a0· '}{method(r.method)}</span>{/if}
 					</span>
 				</div>
 			</li>

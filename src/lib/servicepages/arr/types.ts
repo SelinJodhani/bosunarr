@@ -81,7 +81,8 @@ export type WantedItem = {
 	title: string;
 	subtitle: string | null;
 	date: string | null;
-	dateLabel: 'Aired' | 'Released' | 'In cinemas' | null;
+	/** "Releases" / "Airs" when the date is still ahead. */
+	dateLabel: 'Aired' | 'Airs' | 'Released' | 'Releases' | 'In cinemas' | null;
 	quality: string | null;
 	poster: string | null;
 	href: string | null;

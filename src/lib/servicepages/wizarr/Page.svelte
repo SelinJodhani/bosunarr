@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, Chip, Dialog, Icon, TextField, snackbar } from 'm3-svelte';
+	import { Button, Chip, Dialog, Icon, Menu, MenuItem, TextField, snackbar } from 'm3-svelte';
 	import iCopy from '@ktibow/iconset-material-symbols/content-copy-rounded';
 	import iCopied from '@ktibow/iconset-material-symbols/check-rounded';
 	import iDelete from '@ktibow/iconset-material-symbols/delete-rounded';
@@ -10,6 +10,9 @@
 	import iGroup from '@ktibow/iconset-material-symbols/group-rounded';
 	import iLink from '@ktibow/iconset-material-symbols/link-rounded';
 	import iSettings from '@ktibow/iconset-material-symbols/settings-rounded';
+	import iMore from '@ktibow/iconset-material-symbols/more-vert';
+	import iKey from '@ktibow/iconset-material-symbols/key-rounded';
+	import { closeOnBack } from '$lib/activity/closeOnBack.svelte';
 	import { live } from '$lib/live.svelte';
 	import type { ServicePageProps } from '../types';
 	import Summary from '../shared/Summary.svelte';
@@ -21,6 +24,7 @@
 	import type { CreatedInvite, WizarrInvite, WizarrOverview, WizarrUser } from './types';
 	import { copyText, fmtDate, inviteLink, isPast, send } from './client';
 	import CreateInvite from './CreateInvite.svelte';
+	import '../shared/chips.css';
 
 	let { service, isAdmin }: ServicePageProps = $props();
 
@@ -84,6 +88,8 @@
 	function access(i: WizarrInvite) {
 		return i.durationDays ? `${i.durationDays}-day access` : 'Permanent access';
 	}
+	/** Only worth a line on each user when the users are spread over more than one server. */
+	const multiServer = $derived(new Set((ov?.users ?? []).map((u) => u.server ?? '')).size > 1);
 	/** "Jellyfin" (type) is only worth showing when the server's name doesn't already say it. */
 	function serverLine(u: WizarrUser) {
 		const name = u.server ?? 'Unknown server';
@@ -106,6 +112,24 @@
 		copiedTimer = setTimeout(() => (copiedKey = null), 2000);
 	}
 	const label = (i: WizarrInvite) => i.code ?? `Invite #${i.id}`;
+	// Settings opens this service's edit dialog from ?edit=<id>.
+	const settingsHref = $derived(`/settings?edit=${service.id}`);
+
+	/* ---------- per-user ⋮ menu ---------- */
+	let menuFor = $state<number | null>(null);
+	const closeMenu = () => (menuFor = null);
+	closeOnBack(() => menuFor !== null, closeMenu);
+	$effect(() => {
+		if (menuFor === null) return;
+		const onDown = (e: PointerEvent) => !(e.target as Element | null)?.closest?.('.u-menu.open') && closeMenu();
+		const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeMenu();
+		document.addEventListener('pointerdown', onDown);
+		document.addEventListener('keydown', onKey);
+		return () => {
+			document.removeEventListener('pointerdown', onDown);
+			document.removeEventListener('keydown', onKey);
+		};
+	});
 
 	/* ---------- created ---------- */
 	let created = $state<CreatedInvite | null>(null);
@@ -153,19 +177,19 @@
 	{/if}
 {:else}
 	<Summary
-		meta={['Wizarr', ov.servers.length ? ov.servers.map((s) => s.name).join(', ') : null]}
+		meta={[ov.servers.length ? `${ov.servers.length === 1 ? 'Server' : 'Servers'}: ${ov.servers.map((s) => s.name).join(', ')}` : null]}
 		stats={[
 			{ value: ov.counts.users, label: 'Users', onclick: () => (tab = 'users') },
 			{ value: counts.Pending, label: 'Pending', tone: counts.Pending ? 'info' : undefined, onclick: () => ((tab = 'invites'), (filter = 'Pending')) },
 			{ value: counts.Used, label: 'Used', onclick: () => ((tab = 'invites'), (filter = 'Used')) },
 			{ value: counts.Expired, label: 'Expired', onclick: () => ((tab = 'invites'), (filter = 'Expired')) }
 		]}
-		notices={isAdmin ? ov.warnings.map((w) => ({ tone: 'warn' as const, text: w })) : []}
-		stale={data.state.error}
 	/>
 
 	<ServiceTabs
 		bind:tab
+		notices={isAdmin ? ov.warnings.map((w) => ({ tone: 'warn' as const, text: w })) : []}
+		stale={data.state.error}
 		items={[
 			{ name: 'Invitations', value: 'invites' },
 			{ name: 'Users', value: 'users' }
@@ -173,13 +197,17 @@
 	>
 		{#if tab === 'invites'}
 			<div class="bar">
-				<div class="chips no-scrollbar" role="toolbar" aria-label="Filter invitations">
-					{#each FILTERS as f (f.value)}
-						{#if f.value === 'all' || counts[f.value] > 0 || filter === f.value}
-							<Chip variant="general" selected={filter === f.value} onclick={() => (filter = f.value)}>{f.label} {counts[f.value]}</Chip>
-						{/if}
-					{/each}
-				</div>
+				{#if ov.invitations.length}
+					<div class="chip-row scroll" role="toolbar" aria-label="Filter invitations">
+						{#each FILTERS as f (f.value)}
+							{#if f.value === 'all' || counts[f.value] > 0 || filter === f.value}
+								<Chip variant="general" selected={filter === f.value} onclick={() => (filter = f.value)}>{f.label}<span class="chip-n">{counts[f.value]}</span></Chip>
+							{/if}
+						{/each}
+					</div>
+				{:else}
+					<span class="grow"></span>
+				{/if}
 				{#if isAdmin}
 					<Button variant="filled" onclick={() => (createOpen = true)}><Icon icon={iAdd} /> New invite</Button>
 				{/if}
@@ -189,7 +217,7 @@
 				<div class="notice">
 					<Icon icon={iLink} size={20} />
 					<p>Invite links need this service's <strong>Public URL</strong>. Until it's set, share the invite code instead.</p>
-					<Button variant="text" href="/settings"><Icon icon={iSettings} /> Settings</Button>
+					<Button variant="text" href={settingsHref}><Icon icon={iSettings} /> Settings</Button>
 				</div>
 			{/if}
 
@@ -228,13 +256,22 @@
 									{#each i.libraries as l, n (`l${n}`)}<span class="tag">{l}</span>{/each}
 								</div>
 							{/if}
-							{#if isAdmin && i.active && base && i.path}
-								{@const key = `inv${i.id}`}
+							{#if isAdmin && i.active && (i.code || (base && i.path))}
+								{@const linkKey = `inv${i.id}`}
+								{@const codeKey = `code${i.id}`}
 								<div class="actions">
-									<Button variant="tonal" onclick={() => copy(inviteLink(base, i.path ?? ''), key, 'link')}>
-										<Icon icon={copiedKey === key ? iCopied : iCopy} />
-										{copiedKey === key ? 'Copied' : 'Copy link'}
-									</Button>
+									{#if base && i.path}
+										<Button variant="tonal" onclick={() => copy(inviteLink(base, i.path ?? ''), linkKey, 'link')}>
+											<Icon icon={copiedKey === linkKey ? iCopied : iCopy} />
+											{copiedKey === linkKey ? 'Copied' : 'Copy link'}
+										</Button>
+									{/if}
+									{#if i.code}
+										<Button variant={base && i.path ? 'text' : 'tonal'} onclick={() => i.code && copy(i.code, codeKey, 'code')}>
+											<Icon icon={copiedKey === codeKey ? iCopied : iKey} />
+											{copiedKey === codeKey ? 'Copied' : 'Copy code'}
+										</Button>
+									{/if}
 								</div>
 							{/if}
 						</li>
@@ -262,23 +299,39 @@
 							<div class="u-main">
 								<span class="u-name">{u.username}</span>
 								{#if u.email}<span class="u-sub">{u.email}</span>{/if}
-								<span class="u-sub">{serverLine(u)}</span>
+								{#if multiServer}<span class="u-sub">{serverLine(u)}</span>{/if}
 								<span class="u-dates">
 									<span>Joined {fmtDate(u.created)}</span>
 									<span class:warn={isPast(u.expires)}>{u.expires ? `${isPast(u.expires) ? 'Expired' : 'Expires'} ${fmtDate(u.expires)}` : 'No expiry'}</span>
 								</span>
 							</div>
 							{#if isAdmin}
-								<Button
-									variant="text"
-									iconType="full"
-									aria-label={`Remove ${u.username}`}
-									onclick={() => {
-										delUser = u;
-										confirmName = '';
-										delUserOpen = true;
-									}}><Icon icon={iDelete} /></Button
-								>
+								{@const open = menuFor === u.id}
+								<div class="u-menu" class:open>
+									<Button
+										variant="text"
+										iconType="full"
+										aria-label={`More actions for ${u.username}`}
+										aria-haspopup="menu"
+										aria-expanded={open}
+										onclick={() => (menuFor = open ? null : u.id)}><Icon icon={iMore} /></Button
+									>
+									{#if open}
+										<div class="pop" role="menu" aria-label={`Actions for ${u.username}`}>
+											<Menu>
+												<MenuItem
+													icon={iDelete}
+													onclick={() => {
+														closeMenu();
+														delUser = u;
+														confirmName = '';
+														delUserOpen = true;
+													}}>Remove user…</MenuItem
+												>
+											</Menu>
+										</div>
+									{/if}
+								</div>
 							{/if}
 						</li>
 					{/each}
@@ -303,7 +356,7 @@
 				{:else}
 					<p>Share this code. People join at your Wizarr address and enter it there.</p>
 					<p class="hint">For a one-tap link, set this service's <strong>Public URL</strong> in Settings.</p>
-					<div><Button variant="tonal" href="/settings"><Icon icon={iSettings} /> Open Settings</Button></div>
+					<div><Button variant="tonal" href={settingsHref}><Icon icon={iSettings} /> Open Settings</Button></div>
 				{/if}
 			</div>
 		{/if}
@@ -459,17 +512,6 @@
 	}
 
 
-	.chips {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		gap: 0.5rem;
-		overflow-x: auto;
-		scrollbar-width: none;
-	}
-	.chips > :global(*) {
-		flex: none;
-	}
 	.bar > :global(button) {
 		flex: none;
 	}
@@ -477,7 +519,7 @@
 		.bar {
 			flex-wrap: wrap-reverse;
 		}
-		.chips {
+		.chip-row {
 			flex-basis: 100%;
 		}
 	}
@@ -581,6 +623,21 @@
 	}
 	.warn {
 		color: var(--m3c-error);
+	}
+	.grow {
+		flex: 1;
+	}
+	.u-menu {
+		position: relative;
+		flex: none;
+		margin-top: -0.375rem;
+	}
+	.pop {
+		position: absolute;
+		top: calc(100% + 0.25rem);
+		right: 0;
+		z-index: 20;
+		min-width: 12rem;
 	}
 
 </style>

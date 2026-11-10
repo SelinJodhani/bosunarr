@@ -25,6 +25,13 @@
 		return () => clearTimeout(t);
 	});
 
+	/** Enter searches right away and closes the phone keyboard. */
+	function search() {
+		if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+		const v = input.trim();
+		if (v !== q) onquery(v);
+	}
+
 	const url = $derived(`${base}/history?${new URLSearchParams({ page: String(page), size: String(SIZE), ...(q ? { q } : {}) })}`);
 </script>
 
@@ -37,6 +44,7 @@
 		autocomplete="off"
 		enterkeyhint="search"
 		maxlength={100}
+		enter={search}
 		trailing={input ? { icon: iClose, onclick: () => (input = ''), 'aria-label': 'Clear search' } : undefined}
 	/>
 </div>

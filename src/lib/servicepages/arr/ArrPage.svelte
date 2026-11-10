@@ -18,6 +18,7 @@
 	import Empty from '../shared/Empty.svelte';
 	import Loading from '../shared/Loading.svelte';
 	import Indeterminate from '../shared/Indeterminate.svelte';
+	import '../shared/chips.css';
 	import ConfirmDialog from '../shared/ConfirmDialog.svelte';
 	import { protocolLabel, sentence } from '../shared/format';
 	import type { SummaryNotice } from '../shared/types';
@@ -88,8 +89,15 @@
 		if (!d) return [];
 		const out: SummaryNotice[] = [];
 		if (d.system.update) {
-			const how = d.system.docker || d.system.updateMechanism === 'docker' ? ' — pull a newer container image' : '';
-			out.push({ tone: 'update', text: `${appName} ${d.system.update.version} is available${how}.` });
+			const u = d.system.update;
+			const how = d.system.docker || d.system.updateMechanism === 'docker' ? ' Pull the new image to install it.' : '';
+			const when = u.releaseDate ? `, released ${ago(u.releaseDate)}` : '';
+			out.push({
+				tone: 'update',
+				text: `Update available: ${u.version}${when}.${how}`,
+				href: `https://github.com/${appName}/${appName}/releases`,
+				linkLabel: 'Release notes'
+			});
 		}
 		for (const h of issues) {
 			out.push({ tone: h.type === 'error' ? 'bad' : h.type === 'warning' ? 'warn' : 'info', source: healthSource(h.source), text: h.message, href: h.wikiUrl ?? undefined });
@@ -195,11 +203,9 @@
 			{ value: d.missing?.toLocaleString() ?? null, label: 'Missing', onclick: () => showWanted('missing'), tone: d.missing ? 'info' : undefined },
 			{ value: d.cutoff?.toLocaleString() ?? null, label: 'Cutoff unmet', onclick: () => showWanted('cutoff') }
 		]}
-		{notices}
-		stale={ov.state.error}
 	/>
 
-	<ServiceTabs items={TABS} bind:tab>
+	<ServiceTabs items={TABS} bind:tab {notices} stale={ov.state.error}>
 		{#if tab === 'overview'}
 			<div class="cards">
 				{#if isAdmin || d.commands.length}
@@ -261,7 +267,7 @@
 		{:else if tab === 'wanted'}
 			{@const count = wantedKind === 'missing' ? d.missing : d.cutoff}
 			<div class="toolbar">
-				<div class="chips">
+				<div class="chip-row wrap">
 					<Chip variant="general" selected={wantedKind === 'missing'} onclick={() => ((wantedKind = 'missing'), (wantedPage = 1))}>
 						Missing{d.missing !== null ? ` · ${d.missing.toLocaleString()}` : ''}
 					</Chip>
@@ -280,7 +286,7 @@
 			{/key}
 		{:else if tab === 'history'}
 			<div class="toolbar">
-				<div class="chips">
+				<div class="chip-row scroll" role="toolbar" aria-label="Filter history">
 					{#each HISTORY_FILTERS as f (f.value)}
 						<Chip variant="general" selected={historyFilter === f.value} onclick={() => ((historyFilter = f.value), (historyPage = 1))}>{f.label}</Chip>
 					{/each}
@@ -303,7 +309,6 @@
 						{#if d.system.os}<dt>OS</dt><dd>{d.system.os}{d.system.docker ? ' (Docker)' : ''}</dd>{/if}
 						{#if d.system.runtime}<dt>Runtime</dt><dd>{d.system.runtime}</dd>{/if}
 						{#if d.system.database}<dt>Database</dt><dd>{d.system.database}</dd>{/if}
-						{#if d.system.update?.releaseDate}<dt>Update</dt><dd>{d.system.update.version}, released {ago(d.system.update.releaseDate)}</dd>{/if}
 					</dl>
 				</Card>
 
@@ -539,15 +544,6 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.5rem;
-	}
-	.chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		min-width: 0;
-	}
-	.chips > :global(*) {
-		flex: none;
 	}
 
 	/* setup */

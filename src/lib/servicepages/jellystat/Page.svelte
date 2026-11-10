@@ -37,15 +37,13 @@
 	];
 </script>
 
+<!-- No identity line: the header names the service and the period buttons say the range. -->
 <Summary
-	meta={['Jellystat', `Last ${ui.period} days`]}
 	stats={[
 		{ value: stats ? count(stats.plays) : null, label: 'Plays' },
 		{ value: stats ? duration(stats.minutes * 60) : null, label: 'Watch time' },
 		{ value: stats ? count(stats.activeUsers) : null, label: 'Active users' }
 	]}
-	notices={q.state.error && !d ? [{ tone: 'bad', text: `Couldn't load stats. ${q.state.error}` }] : []}
-	stale={d ? q.state.error : null}
 >
 	<div class="period">
 		<span class="plabel" id="js-period">Period</span>
@@ -57,7 +55,7 @@
 	</div>
 </Summary>
 
-<ServiceTabs items={TABS} bind:tab={ui.tab}>
+<ServiceTabs items={TABS} bind:tab={ui.tab} stale={d ? q.state.error : null}>
 	{#if ui.tab === 'overview'}
 		<Overview {base} data={d} loading={q.state.loading} error={q.state.error} period={ui.period} onretry={() => q.refresh()} />
 	{:else if ui.tab === 'history'}

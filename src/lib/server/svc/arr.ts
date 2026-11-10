@@ -371,8 +371,11 @@ function paged<T, U>(r: PageOf<T>, page: number, map: (x: T) => U): Paged<U> {
 	return { page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), total, records: (r.records ?? []).map(map) };
 }
 
+const isAhead = (iso: string) => +new Date(iso) > Date.now();
+
 function movieDate(m: Movie): Pick<WantedItem, 'date' | 'dateLabel'> {
-	if (m.digitalRelease || m.physicalRelease) return { date: m.digitalRelease ?? m.physicalRelease ?? null, dateLabel: 'Released' };
+	const release = m.digitalRelease ?? m.physicalRelease;
+	if (release) return { date: release, dateLabel: isAhead(release) ? 'Releases' : 'Released' };
 	if (m.inCinemas) return { date: m.inCinemas, dateLabel: 'In cinemas' };
 	return { date: null, dateLabel: null };
 }
@@ -390,7 +393,7 @@ export function wanted(s: ServiceRecord, which: WantedKind, page: number): Promi
 				title: e.series?.title ?? 'Unknown series',
 				subtitle: `S${pad(e.seasonNumber)}E${pad(e.episodeNumber)}${e.title ? ` · ${e.title}` : ''}`,
 				date: e.airDateUtc ?? null,
-				dateLabel: e.airDateUtc ? 'Aired' : null,
+				dateLabel: e.airDateUtc ? (isAhead(e.airDateUtc) ? 'Airs' : 'Aired') : null,
 				quality: e.episodeFile?.quality?.quality?.name ?? null,
 				poster: arrImage(s, e.series?.images, 'poster', 250),
 				href: `/library/${s.id}/series/${e.seriesId}`

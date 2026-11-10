@@ -152,9 +152,13 @@
 		<Loading label="Loading Jellyfin" />
 	{/if}
 {:else}
-	<Summary meta={[s.server.name, s.server.version && `Jellyfin ${s.server.version}`, s.server.os]} {stats} {notices} stale={sum.state.error} />
+	<!-- The server's own name only when it differs from what the header already says. -->
+	<Summary
+		meta={[s.server.name && s.server.name.toLowerCase() !== service.name.toLowerCase() && s.server.name, s.server.version && `Jellyfin ${s.server.version}`, s.server.os]}
+		{stats}
+	/>
 
-	<ServiceTabs items={tabs} bind:tab={ui.tab}>
+	<ServiceTabs items={tabs} bind:tab={ui.tab} {notices} stale={sum.state.error}>
 		{#if ui.tab === 'playing'}
 			{#if now.state.data}
 				{#if sessions.length}

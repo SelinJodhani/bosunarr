@@ -36,6 +36,7 @@
 	import { bytes } from '$lib/format';
 	import { CATEGORIES, type Indexer, type SearchResponse } from './types';
 	import { ageLabel, post } from './api';
+	import '../shared/chips.css';
 
 	let { api, isAdmin, indexers }: { api: string; isAdmin: boolean; indexers: Indexer[] } = $props();
 
@@ -175,11 +176,10 @@
 			trailing={view.q ? { icon: iClose, onclick: () => (view.q = ''), 'aria-label': 'Clear search' } : undefined}
 		/>
 	</div>
-	<Button variant="filled" iconType="full" aria-label="Search" disabled={!view.q.trim()} onclick={run}><Icon icon={iSearch} /></Button>
 	<SortMenu options={SORTS} bind:value={view.sort} />
 </div>
 
-<div class="chips" role="toolbar" aria-label="Search filters">
+<div class="chip-row scroll" role="toolbar" aria-label="Search filters">
 	<Chip variant="general" icon={iTune} selected={view.indexers.length > 0} onclick={() => (pickerOpen = true)}>{indexerLabel}</Chip>
 	{#each CATEGORIES as c (c.id)}
 		<Chip variant="general" selected={view.cats.includes(c.id)} onclick={() => toggleCat(c.id)}>{c.name}</Chip>
@@ -257,7 +257,10 @@
 {#if open}
 	<BottomSheet close={() => (openToken = null)}>
 		<div class="sheet">
-			<h2 class="sheet-title">{open.title}</h2>
+			<div class="sheet-head">
+				<h2 class="sheet-title">{open.title}</h2>
+				<Button variant="text" iconType="full" aria-label="Close" onclick={() => (openToken = null)}><Icon icon={iClose} /></Button>
+			</div>
 			<p class="sheet-sub">{open.indexer}</p>
 			<dl>
 				<dt>Size</dt><dd>{bytes(open.size)}</dd>
@@ -296,12 +299,6 @@
 	.search :global(input::-webkit-search-cancel-button) {
 		display: none;
 	}
-	.chips {
-		display: flex;
-		gap: 0.5rem;
-		overflow-x: auto;
-		scrollbar-width: none;
-	}
 	.progress {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
@@ -318,9 +315,6 @@
 		margin: 0 0 0.75rem;
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
-	}
-	.chips > :global(*) {
-		flex: none;
 	}
 	.empty,
 	.count {
@@ -419,7 +413,16 @@
 		max-width: 40rem;
 		margin: 0 auto;
 	}
+	.sheet-head {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: start;
+		gap: 0.5rem;
+		margin-right: -0.75rem;
+	}
 	.sheet-title {
+		margin: 0;
+		padding-top: 0.375rem;
 		font-size: 1.125rem;
 		line-height: 1.4;
 		overflow-wrap: anywhere;
