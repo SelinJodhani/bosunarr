@@ -39,9 +39,10 @@
 </script>
 
 {#if shown.length === 0}
-	<div class="empty">
-		<Icon icon={iNoEvents} size={40} />
-		<p class="title-medium">{emptyText}</p>
+	<!-- App-wide empty-state look (app.css). The snippet supplies its own hint / action. -->
+	<div class="empty-state">
+		<span class="es-icon"><Icon icon={iNoEvents} size={40} /></span>
+		<p class="es-title">{emptyText}</p>
 		{@render empty?.()}
 	</div>
 {:else}
@@ -106,22 +107,5 @@
 		padding-left: 0.25rem;
 		color: var(--m3c-on-surface-variant);
 		font-size: 0.875rem;
-	}
-	.empty {
-		display: grid;
-		justify-items: center;
-		gap: 0.5rem;
-		padding: 2.5rem 1rem;
-		color: var(--m3c-on-surface-variant);
-		text-align: center;
-	}
-	.empty :global(p) {
-		margin: 0;
-	}
-	.empty .title-medium {
-		color: var(--m3c-on-surface);
-	}
-	.empty :global(button) {
-		margin-top: 0.5rem;
 	}
 </style>

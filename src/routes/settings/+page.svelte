@@ -96,11 +96,11 @@
 		{#if data.user?.isAdmin && data.services.length > 0}<Button variant="tonal" onclick={add}><Icon icon={iAdd} /> Add</Button>{/if}
 	</div>
 	{#if data.services.length === 0}
-		<div class="empty">
-			<Icon icon={iServices} size={40} />
-			<p class="title-medium">{welcome ? 'Add your first service' : 'No services yet'}</p>
-			<p class="body-small">Bosunarr talks to your apps with their API keys. Keys are encrypted on this server and never sent to your browser.</p>
-			{#if data.user?.isAdmin}<Button variant="tonal" onclick={add}><Icon icon={iAdd} /> Add service</Button>{/if}
+		<div class="empty-state">
+			<span class="es-icon"><Icon icon={iServices} size={40} /></span>
+			<p class="es-title">{welcome ? 'Add your first service' : 'No services yet'}</p>
+			<p class="es-hint">Bosunarr talks to your apps with their API keys. Keys are encrypted on this server and never sent to your browser.</p>
+			{#if data.user?.isAdmin}<div class="es-action"><Button variant="tonal" onclick={add}><Icon icon={iAdd} /> Add service</Button></div>{/if}
 		</div>
 	{:else}
 		<ul>
@@ -111,7 +111,7 @@
 						<span class="badge" style:--c={SERVICE_TYPES[s.type]?.color} aria-hidden="true">{label[0]}</span>
 						<span class="svc-text">
 							<span class="svc-name">{s.name}</span>
-							<span class="svc-sub">{s.name.trim().toLowerCase() === label.toLowerCase() ? '' : `${label} · `}{host(s.url)}</span>
+							<span class="svc-sub">{#if s.name.trim().toLowerCase() !== label.toLowerCase()}<span class="svc-type">{label} ·</span>{" "}{/if}<span class="svc-host" title={host(s.url)}>{host(s.url)}</span></span>
 						</span>
 					</a>
 					{#if data.user?.isAdmin}
@@ -223,24 +223,6 @@
 		gap: 1rem;
 		min-height: 2.5rem;
 	}
-	.empty {
-		display: grid;
-		justify-items: center;
-		gap: 0.5rem;
-		padding: 2.5rem 1rem;
-		text-align: center;
-		color: var(--m3c-on-surface-variant);
-	}
-	.empty p {
-		margin: 0;
-		max-width: 22rem;
-	}
-	.empty .title-medium {
-		color: var(--m3c-on-surface);
-	}
-	.empty :global(button) {
-		margin-top: 0.5rem;
-	}
 	ul {
 		list-style: none;
 		margin: 0.5rem -0.5rem 0;
@@ -281,9 +263,20 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
+	/* "Radarr ·" and the host wrap as two units: on a narrow row the host moves to its own (second) line whole,
+	   instead of being cut off at "radarr4k.example.…". Only a host wider than the row is ellipsised. */
 	.svc-sub {
 		font-size: 0.8125rem;
+		line-height: 1.125rem;
 		color: var(--m3c-on-surface-variant);
+	}
+	.svc-type {
+		white-space: nowrap;
+	}
+	.svc-host {
+		display: inline-block;
+		max-width: 100%;
+		vertical-align: top;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;

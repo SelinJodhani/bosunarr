@@ -4,7 +4,6 @@
 	"description": "Manage your *arr media stack",
 	"start_url": "/",
 	"display": "standalone",
-	"background_color": "#141218",
-	"theme_color": "#141218",
+	"background_color": "#1d1b20",
 	"icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
 }

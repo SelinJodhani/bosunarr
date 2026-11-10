@@ -4,6 +4,7 @@
 	import { eta, speed } from '$lib/format';
 	import { iDownload, iUpload } from '$lib/icons';
 	import State from './State.svelte';
+	import iIdle from '@ktibow/iconset-material-symbols/file-download-off-rounded';
 	import { WIDGETS, type DownloadsData, type WidgetSize } from './types';
 
 	let { size }: { size: WidgetSize } = $props();
@@ -45,7 +46,11 @@
 				{/each}
 			</ul>
 		{:else if size !== 's'}
-			<p class="label idle">Nothing downloading</p>
+			<!-- Compact form of the app-wide empty state (app.css `.empty-state`). -->
+			<div class="empty-state compact idle">
+				<span class="es-icon"><Icon icon={iIdle} size={32} /></span>
+				<p class="es-title">Nothing downloading</p>
+			</div>
 		{/if}
 	{/if}
 </State>
@@ -104,7 +109,6 @@
 		font-variant-numeric: tabular-nums;
 	}
 	.idle {
-		margin: 0;
-		padding: 0.5rem 0;
+		padding-top: 0.5rem;
 	}
 </style>

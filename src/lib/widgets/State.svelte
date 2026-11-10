@@ -18,7 +18,7 @@
 <script lang="ts">
 	// Shared loading / error / empty states so every widget behaves the same.
 	import type { Snippet } from 'svelte';
-	import { Icon, LoadingIndicator } from 'm3-svelte';
+	import { Button, Icon, LoadingIndicator } from 'm3-svelte';
 	import type { IconifyIcon } from '@iconify/types';
 	import { iError } from '$lib/icons';
 	import iHistory from '@ktibow/iconset-material-symbols/history-rounded';
@@ -32,6 +32,8 @@
 		empty,
 		emptyText = 'Nothing here right now',
 		emptyIcon,
+		emptyHint,
+		emptyAction,
 		skeleton,
 		children
 	}: {
@@ -40,6 +42,9 @@
 		empty: boolean;
 		emptyText?: string;
 		emptyIcon?: IconifyIcon;
+		emptyHint?: string;
+		/** A way through from an empty widget, e.g. "Open Activity". */
+		emptyAction?: { label: string; href: string };
 		/** Shape of the loading placeholder. Without it a spinner is shown (screens outside the dashboard). */
 		skeleton?: SkeletonSpec;
 		children: Snippet;
@@ -115,9 +120,12 @@
 				{#if showDetail}<p class="detail">{failed.detail}</p>{/if}
 			</div>
 		{:else if empty}
-			<div class="state">
-				{#if emptyIcon}<Icon icon={emptyIcon} size={32} />{/if}
-				<p class="headline">{emptyText}</p>
+			<!-- Compact form of the app-wide empty state (app.css `.empty-state`). -->
+			<div class="empty-state compact">
+				{#if emptyIcon}<span class="es-icon"><Icon icon={emptyIcon} size={32} /></span>{/if}
+				<p class="es-title">{emptyText}</p>
+				{#if emptyHint}<p class="es-hint">{emptyHint}</p>{/if}
+				{#if emptyAction}<div class="es-action"><Button variant="text" href={emptyAction.href}>{emptyAction.label}</Button></div>{/if}
 			</div>
 		{:else}
 			{@render children()}

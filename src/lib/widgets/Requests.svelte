@@ -13,7 +13,7 @@
 	const shown = $derived(items.slice(0, max));
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={items.length === 0} emptyText="No pending requests — all caught up" emptyIcon={iAllDone} skeleton={{ rows: Math.min(max, 3), thumb: size === 's' ? 0 : 36 }}>
+<State loading={q.state.loading} error={q.state.error} empty={items.length === 0} emptyText="No pending requests" emptyHint="All caught up" emptyIcon={iAllDone} emptyAction={{ label: 'All requests', href: '/discover?tab=requests' }} skeleton={{ rows: Math.min(max, 3), thumb: size === 's' ? 0 : 36 }}>
 	<ul>
 		{#each shown as r (r.id)}
 			<li>

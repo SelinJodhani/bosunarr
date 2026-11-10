@@ -2,6 +2,7 @@
 	// Compact sort control: a tonal icon button that opens an M3 menu. Saves a full row on phones.
 	import { Button, Icon, Menu, MenuItem } from 'm3-svelte';
 	import { iCheck, iSort } from '$lib/icons';
+	import { useBackClose } from './backClose.svelte';
 
 	// `defaultValue`: when the current sort differs, the button turns filled and shows a dot so a custom sort is visible.
 	let {
@@ -14,6 +15,9 @@
 	let root = $state<HTMLElement>();
 	const current = $derived(options.find((o) => o.value === value)?.text ?? '');
 	const custom = $derived(defaultValue != null && value !== defaultValue);
+
+	// Android Back closes the menu instead of leaving the page.
+	useBackClose(() => open, () => (open = false));
 
 	function pick(v: string) {
 		value = v;

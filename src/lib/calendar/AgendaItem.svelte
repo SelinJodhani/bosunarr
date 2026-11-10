@@ -3,7 +3,7 @@
 	import Poster from '$lib/widgets/Poster.svelte';
 	import { timeLabel } from '$lib/format';
 	import { iCinema, iDownload, iOk, iSchedule, iTv, iUnmonitored } from '$lib/icons';
-	import { RELEASE_LABEL, STATUS_TEXT, type CalendarEntry } from './types';
+	import { STATUS_TEXT, releaseLabel, type CalendarEntry } from './types';
 
 	let { entry }: { entry: CalendarEntry } = $props();
 
@@ -28,7 +28,7 @@
 		<div class="title">
 			{entry.title}{#if entry.kind === 'movie' && entry.year}<span class="year">({entry.year})</span>{/if}
 		</div>
-		<div class="sub">{entry.episodeLabel ?? RELEASE_LABEL[entry.release]}</div>
+		<div class="sub">{entry.episodeLabel ?? releaseLabel(entry.releases ?? [entry.release])}</div>
 		{#if meta}<div class="meta">{meta}</div>{/if}
 		<div class="tags">
 			<span class="tag status {entry.status}" title={copiesText}>

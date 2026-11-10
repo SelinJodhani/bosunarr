@@ -16,6 +16,12 @@
 				if (a.scheme && a.scheme !== 'system') document.documentElement.dataset.scheme = a.scheme;
 				if (a.seed) document.documentElement.style.setProperty('--m3v-source', a.seed);
 			} catch {}
+			// First-paint status bar colour for the active scheme (the layout then syncs the exact surface colour).
+			try {
+				const s = document.documentElement.dataset.scheme;
+				const dark = s ? s === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+				document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#141218' : '#fef7ff');
+			} catch {}
 		</script>
 		%sveltekit.head%
 	</head>

@@ -31,7 +31,13 @@ export function humanError(raw: string): HumanError {
 		short = 'Not found — check the URL';
 	} else if (code && code >= 500) {
 		short = 'It hit a server error';
-	} else if (r.includes('unexpected response')) {
+	} else if (r.includes('redirected to another page')) {
+		short = 'Redirected to a login page';
+		hint = 'A proxy or SSO is in front of it — use the direct URL.';
+	} else if (r.includes('web page instead of its api')) {
+		short = 'Answered with a web page';
+		hint = 'Check the URL points at the service itself.';
+	} else if (r.includes('unexpected answer') || r.includes('unexpected response')) {
 		short = 'Unexpected answer';
 	}
 	return { service, short, hint, detail: raw };

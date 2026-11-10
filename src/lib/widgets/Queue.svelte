@@ -14,7 +14,7 @@
 	const shown = $derived(items.slice(0, max));
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={items.length === 0} emptyText="Queue is empty" emptyIcon={iDone} skeleton={{ rows: max, thumb: size === 's' ? 0 : 36, bar: true }}>
+<State loading={q.state.loading} error={q.state.error} empty={items.length === 0} emptyText="Queue is empty" emptyHint="Sonarr and Radarr aren't grabbing anything" emptyIcon={iDone} emptyAction={{ label: 'Open Activity', href: '/activity' }} skeleton={{ rows: max, thumb: size === 's' ? 0 : 36, bar: true }}>
 	<ul>
 		{#each shown as it (it.id)}
 			<li>

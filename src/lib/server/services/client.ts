@@ -109,45 +109,62 @@ export async function call<T = unknown>(s: ServiceRecord, path: string, init: Re
 		qbitSids.delete(s.id);
 		return call<T>(s, path, init, true);
 	}
+	// Only seen with `redirect: 'manual'` (the health probe): a redirect is usually a proxy/SSO login page.
+	if (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400))
+		throw new ServiceError(`${s.name} redirected to another page (a login?) — check the URL`, 502);
 	if (res.status === 401 || res.status === 403) throw new ServiceError(`${s.name} rejected the credentials`, 401);
 	if (!res.ok) throw new ServiceError(`${s.name} returned HTTP ${res.status}`, res.status >= 500 ? 502 : res.status);
 	const type = res.headers.get('content-type') ?? '';
 	return (type.includes('json') ? await res.json() : await res.text()) as T;
 }
 
-/** Endpoint used by "Test connection"; returns the reported version when available. */
+type Probe = {
+	/** Authenticated API endpoint that answers JSON (qBittorrent: plain-text version). */
+	path: string;
+	/** Must hold for the body, or the service counts as down (e.g. an HTML page or a proxy error served as 200). */
+	valid: (body: unknown) => boolean;
+	version?: (body: any) => string | undefined;
+};
+
+const isObj = (b: unknown): b is Record<string, unknown> => typeof b === 'object' && b !== null && !Array.isArray(b);
+const hasVersion = (b: unknown) => isObj(b) && typeof b.version === 'string';
+
+/**
+ * How "Test connection" and the Health widget check each type: an endpoint that needs the credentials and returns
+ * JSON of a known shape. Root paths or public pages would say "healthy" for a login redirect or a proxy error.
+ */
+const PROBES: Record<ServiceRecord['type'], Probe> = {
+	sonarr: { path: '/api/v3/system/status', valid: hasVersion, version: (b) => b.version },
+	radarr: { path: '/api/v3/system/status', valid: hasVersion, version: (b) => b.version },
+	lidarr: { path: '/api/v1/system/status', valid: hasVersion, version: (b) => b.version },
+	prowlarr: { path: '/api/v1/system/status', valid: hasVersion, version: (b) => b.version },
+	bazarr: { path: '/api/system/status', valid: (b) => isObj(b) && isObj(b.data), version: (b) => b.data?.bazarr_version },
+	// /settings/about needs an admin API key (/status is public).
+	jellyseerr: { path: '/api/v1/settings/about', valid: hasVersion, version: (b) => b.version },
+	overseerr: { path: '/api/v1/settings/about', valid: hasVersion, version: (b) => b.version },
+	// Needs the session cookie; answers plain text like "v5.0.4".
+	qbittorrent: { path: '/api/v2/app/version', valid: (b) => typeof b === 'string' && /^v?\d+\.\d+/.test(b.trim()), version: (b) => String(b).trim() },
+	jellyfin: { path: '/System/Info', valid: (b) => isObj(b) && typeof b.Version === 'string', version: (b) => b.Version },
+	// Needs x-api-token (unlike /proxy/*). Jellystat has no cheap version endpoint.
+	jellystat: { path: '/api/getLibraries', valid: Array.isArray },
+	// Needs X-Api-Key; returns counts {users, invites, pending, expired}.
+	wizarr: { path: '/api/status', valid: (b) => isObj(b) && typeof b.users === 'number' }
+};
+
+/** Used by "Test connection" and the Health widget; returns the reported version when available. */
 export async function testConnection(s: ServiceRecord): Promise<{ ok: true; version?: string; ms: number }> {
 	const started = performance.now();
-	let version: string | undefined;
-	switch (s.type) {
-		case 'sonarr':
-		case 'radarr':
-			version = (await call<{ version: string }>(s, '/api/v3/system/status')).version;
-			break;
-		case 'lidarr':
-		case 'prowlarr':
-			version = (await call<{ version: string }>(s, '/api/v1/system/status')).version;
-			break;
-		case 'bazarr':
-			version = (await call<{ data: { bazarr_version: string } }>(s, '/api/system/status')).data?.bazarr_version;
-			break;
-		case 'jellyseerr':
-		case 'overseerr':
-			version = (await call<{ version: string }>(s, '/api/v1/settings/about')).version;
-			break;
-		case 'qbittorrent':
-			version = String(await call<string>(s, '/api/v2/app/version'));
-			break;
-		case 'jellyfin':
-			version = (await call<{ Version: string }>(s, '/System/Info')).Version;
-			break;
-		case 'jellystat':
-			await call(s, '/api/getLibraries');
-			break;
-		case 'wizarr':
-			await call(s, '/api/status');
-			break;
-	}
+	const probe = PROBES[s.type];
+	// No redirect following: a 3xx to a login page must not count as up. 5xx and 401/403 already throw in call().
+	const body = await call<unknown>(s, probe.path, { redirect: 'manual' });
+	if (!probe.valid(body))
+		throw new ServiceError(
+			typeof body === 'string' && /<html|<!doctype/i.test(body)
+				? `${s.name} answered with a web page instead of its API — check the address`
+				: `${s.name} gave an unexpected answer — is this really ${s.type}?`,
+			502
+		);
+	const version = probe.version?.(body) || undefined;
 	return { ok: true, version, ms: Math.round(performance.now() - started) };
 }
 

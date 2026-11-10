@@ -2,7 +2,7 @@ import { cached, call, testConnection, ServiceError } from './services/client';
 import { listServices, servicesOfType, type ServiceRecord } from './services/store';
 import { arrImage } from './library';
 import { calendar } from './calendar';
-import { RELEASE_LABEL } from '$lib/calendar/types';
+import { RELEASE_LABEL, releaseLabel, type CalendarRelease } from '$lib/calendar/types';
 import type {
 	DiskItem,
 	DownloadsData,
@@ -118,6 +118,15 @@ export function queue(): Promise<QueueItem[]> {
 	);
 }
 
+/**
+ * Upcoming shows posters up to 160 css px wide, i.e. ~530 device px on a 3.3× phone. The calendar feed asks for
+ * thumbnail sizes (TMDb w185 / the arr's poster-250), which look soft there: ask for the next size up.
+ */
+const sharpPoster = (u: string | null) =>
+	u
+		?.replace(encodeURIComponent('/t/p/w185/'), encodeURIComponent('/t/p/w342/'))
+		.replace(encodeURIComponent('/poster-250.jpg'), encodeURIComponent('/poster-500.jpg')) ?? null;
+
 export function upcoming(days = 7): Promise<UpcomingItem[]> {
 	return cached(`w:upcoming:${days}`, 60_000, async () => {
 		const start = new Date();
@@ -128,21 +137,35 @@ export function upcoming(days = 7): Promise<UpcomingItem[]> {
 		if (r.errors.length && r.errors.length === servicesOfType('sonarr', 'radarr').length) throw new ServiceError(r.errors[0].error);
 		const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 		const [from, to] = [ymd(start), ymd(end)];
-		return r.entries
-			.filter((e) => e.monitored && (e.allDay ? e.date.slice(0, 10) >= from && e.date.slice(0, 10) < to : +new Date(e.date) >= +start && +new Date(e.date) < +end))
-			.map(
-				(e): UpcomingItem => ({
-					id: e.id,
-					kind: e.kind,
-					title: e.title,
-					subtitle: e.episodeLabel ?? RELEASE_LABEL[e.release],
-					date: e.date,
-					hasFile: e.status === 'downloaded',
-					poster: e.poster,
-					service: e.copies.map((c) => c.serviceName).join(', '),
-					href: e.href
-				})
-			);
+		const out: UpcomingItem[] = [];
+		/** Same movie, same day, several release types (digital + physical): one card. */
+		const movies = new Map<string, { item: UpcomingItem; releases: CalendarRelease[] }>();
+		for (const e of r.entries) {
+			if (!e.monitored) continue;
+			if (e.allDay ? !(e.date.slice(0, 10) >= from && e.date.slice(0, 10) < to) : !(+new Date(e.date) >= +start && +new Date(e.date) < +end)) continue;
+			const mk = e.kind === 'movie' ? `${e.date.slice(0, 10)}|${e.title.toLowerCase()}|${e.year ?? ''}` : null;
+			const hit = mk ? movies.get(mk) : undefined;
+			if (hit) {
+				if (!hit.releases.includes(e.release)) hit.releases.push(e.release);
+				hit.item.subtitle = releaseLabel(hit.releases);
+				hit.item.hasFile &&= e.status === 'downloaded';
+				continue;
+			}
+			const item: UpcomingItem = {
+				id: e.id,
+				kind: e.kind,
+				title: e.title,
+				subtitle: e.episodeLabel ?? RELEASE_LABEL[e.release],
+				date: e.date,
+				hasFile: e.status === 'downloaded',
+				poster: sharpPoster(e.poster),
+				service: e.copies.map((c) => c.serviceName).join(', '),
+				href: e.href
+			};
+			if (mk) movies.set(mk, { item, releases: [e.release] });
+			out.push(item);
+		}
+		return out;
 	});
 }
 
