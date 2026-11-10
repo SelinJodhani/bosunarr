@@ -26,6 +26,9 @@
 	const available = (k: WidgetKind) => WIDGETS[k].needs.length === 0 || WIDGETS[k].needs.some((t) => serviceTypes.has(t));
 	const onBoard = $derived(new Set(widgets.map((w) => w.kind)));
 	const spans = $derived(spansFor(widgets));
+	/** Every widget is either on the board or needs a service that isn't set up: nothing left to add. */
+	const nothingToAdd = $derived((Object.keys(WIDGETS) as WidgetKind[]).every((k) => onBoard.has(k) || !available(k)));
+	const addLabel = $derived(nothingToAdd ? 'Every available widget is already on your dashboard' : 'Add widget');
 
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
 	async function save() {
@@ -97,8 +100,9 @@
 				<!-- Icon-only on phones so the row never wraps; labelled from 40rem up. -->
 				<span class="compact"><Button variant="text" iconType="full" aria-label="Cancel editing" title="Cancel" onclick={cancel}><Icon icon={iClose} /></Button></span>
 				<span class="wide"><Button variant="text" onclick={cancel}>Cancel</Button></span>
-				<span class="compact"><Button variant="tonal" iconType="full" aria-label="Add widget" title="Add widget" onclick={() => (pickerOpen = true)}><Icon icon={iAdd} /></Button></span>
-				<span class="wide"><Button variant="tonal" onclick={() => (pickerOpen = true)}><Icon icon={iAdd} /> Add widget</Button></span>
+				<!-- Disabled buttons get no hover tooltip, so the wrapper carries the title. -->
+				<span class="compact" title={addLabel}><Button variant="tonal" iconType="full" aria-label={addLabel} disabled={nothingToAdd} onclick={() => (pickerOpen = true)}><Icon icon={iAdd} /></Button></span>
+				<span class="wide" title={nothingToAdd ? addLabel : undefined}><Button variant="tonal" aria-label={nothingToAdd ? addLabel : undefined} disabled={nothingToAdd} onclick={() => (pickerOpen = true)}><Icon icon={iAdd} /> {nothingToAdd ? 'All added' : 'Add widget'}</Button></span>
 				<Button variant="filled" onclick={done}><Icon icon={iCheck} /> Done</Button>
 			{:else}
 				<Button variant="text" onclick={startEditing}><Icon icon={iEdit} /> Edit</Button>
@@ -108,11 +112,11 @@
 </header>
 
 {#if data.services.length === 0}
-	<section class="empty">
-		<Icon icon={iServices} size={40} />
-		<h2 class="title-medium">Nothing to show yet</h2>
-		<p class="body-small">Add Sonarr, Radarr, qBittorrent, Jellyfin and friends in Settings and widgets appear here.</p>
-		<Button variant="tonal" href="/settings"><Icon icon={iAdd} /> Add a service</Button>
+	<section class="empty-state">
+		<span class="es-icon"><Icon icon={iServices} size={40} /></span>
+		<h2 class="es-title">Nothing to show yet</h2>
+		<p class="es-hint">Add Sonarr, Radarr, qBittorrent, Jellyfin and friends in Settings and widgets appear here.</p>
+		<div class="es-action"><Button variant="tonal" href="/settings"><Icon icon={iAdd} /> Add a service</Button></div>
 	</section>
 {:else}
 	<div class="grid" class:editing>
@@ -217,28 +221,14 @@
 			grid-column: span var(--span12);
 		}
 	}
-	.empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		gap: 0.5rem;
-		max-width: 36rem;
-		margin: 0 auto;
-		padding: 2.5rem 1rem;
-		color: var(--m3c-on-surface-variant);
-	}
-	.empty h2 {
-		margin: 0.5rem 0 0;
-		color: var(--m3c-on-surface);
-	}
-	.empty p {
-		margin: 0 0 0.5rem;
-	}
 	.picker {
 		list-style: none;
 		padding: 0;
 		margin: 0 -1.5rem;
+	}
+	/* Rows line up with the dialog headline (24 px), not ListItem's default 16 px. */
+	.picker :global(.m3-container) {
+		padding-inline: 1.5rem;
 	}
 	.picker :global([aria-disabled='true']) {
 		opacity: 0.5;

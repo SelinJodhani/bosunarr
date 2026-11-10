@@ -1,7 +1,7 @@
 // Calendar client helpers: local-time date maths and a stale-while-revalidate feed whose range can change.
 import { untrack } from 'svelte';
 import { CACHE_PREFIX, getJSON } from '$lib/http';
-import type { CalendarEntry, CalendarResult } from './types';
+import type { CalendarEntry, CalendarResult, CalendarStatus } from './types';
 
 /* ---------------------------------------------------------------- */
 /* Dates (always the device's local time zone)                       */
@@ -53,15 +53,47 @@ export function calendarUrl(start: Date, end: Date) {
 	return `/api/calendar?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`;
 }
 
-/** Group entries by local day, dropping duplicate ids (stale cached data must never produce duplicate keys). */
+/** Combined status of merged releases: missing wins, then upcoming; downloaded only when all are. */
+function mergeStatus(a: CalendarStatus, b: CalendarStatus): CalendarStatus {
+	if (a === 'missing' || b === 'missing') return 'missing';
+	if (a === 'unaired' || b === 'unaired') return 'unaired';
+	return 'downloaded';
+}
+
+/**
+ * Group entries by local day, dropping duplicate ids (stale cached data must never produce duplicate keys).
+ * Several releases of one movie on the same day (digital + physical) become one entry listing every release type.
+ */
 export function byDay(entries: CalendarEntry[]): Map<string, CalendarEntry[]> {
 	const seen = new Set<string>();
 	const map = new Map<string, CalendarEntry[]>();
+	const movies = new Map<string, CalendarEntry>();
 	for (const e of entries) {
 		const k = entryDay(e);
 		const id = `${k}|${e.id}`;
 		if (seen.has(id)) continue;
 		seen.add(id);
+		if (e.kind === 'movie') {
+			const mk = `${k}|${e.title.toLowerCase()}|${e.year ?? ''}`;
+			const hit = movies.get(mk);
+			if (hit) {
+				const releases = hit.releases!;
+				if (!releases.includes(e.release)) releases.push(e.release);
+				hit.status = mergeStatus(hit.status, e.status);
+				hit.monitored ||= e.monitored;
+				hit.is4k ||= e.is4k;
+				hit.poster ??= e.poster;
+				for (const c of e.copies) if (!hit.copies.some((x) => x.serviceId === c.serviceId)) hit.copies.push(c);
+				continue;
+			}
+			// A copy: the cached feed data must not be mutated.
+			const copy = { ...e, copies: [...e.copies], releases: [e.release] };
+			movies.set(mk, copy);
+			const list = map.get(k);
+			if (list) list.push(copy);
+			else map.set(k, [copy]);
+			continue;
+		}
 		const list = map.get(k);
 		if (list) list.push(e);
 		else map.set(k, [e]);

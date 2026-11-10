@@ -93,7 +93,8 @@
 	const groups = $derived(byDay(filtered));
 	const weekKeys = $derived(week.map(dayKey));
 	const todayKey = $derived(ready ? dayKey(new Date()) : '');
-	const showsToday = $derived(wide ? grid.days.some((d) => dayKey(d) === todayKey) && view.selected === todayKey : weekKeys.includes(todayKey));
+	/** "Today" is available whenever the selected day isn't today (even within the current week). */
+	const showsToday = $derived(view.selected === todayKey);
 
 	// Phones keep the header on one row: the year only appears when it isn't this year.
 	const title = $derived.by(() => {
@@ -229,14 +230,12 @@
 {/snippet}
 
 {#snippet chip(k: keyof Filters, label: string, icon: IconifyIcon)}
-	<!-- The padding around each 32 px chip also toggles it, for a 40 px tall touch target. -->
-	<span class="hit" role="presentation" onclick={(e) => e.target === e.currentTarget && toggle(k)}>
-		<Chip variant="general" {icon} selected={view.filters[k]} onclick={() => toggle(k)}>{label}</Chip>
-	</span>
+	<Chip variant="general" {icon} selected={view.filters[k]} onclick={() => toggle(k)}>{label}</Chip>
 {/snippet}
 
 {#snippet filters()}
-	<div class="filters no-scrollbar" role="group" aria-label="Filters">
+	<!-- .chip-row (app.css): 32 px chips with 40 px tall touch targets. -->
+	<div class="filters chip-row no-scrollbar" role="group" aria-label="Filters">
 		{@render chip('episodes', 'Episodes', iTv)}
 		{@render chip('movies', 'Movies', iCinema)}
 		{@render chip('monitoredOnly', 'Monitored only', iMonitored)}
@@ -335,10 +334,10 @@
 						<Agenda days={weekKeys} {groups} selected={view.selected} emptyText={weekHidden ? 'Everything this week is hidden' : 'Nothing releasing this week'}>
 							{#snippet empty()}
 								{#if weekHidden && filtersActive}
-									<p class="body-small">Your filters hide this week's releases.</p>
-									<Button variant="tonal" onclick={clearFilters}>Clear filters</Button>
+									<p class="es-hint">Your filters hide this week's releases.</p>
+									<div class="es-action"><Button variant="tonal" onclick={clearFilters}>Clear filters</Button></div>
 								{:else}
-									<p class="body-small">Swipe or use the arrows to see other weeks.</p>
+									<p class="es-hint">Swipe or use the arrows to see other weeks.</p>
 								{/if}
 							{/snippet}
 						</Agenda>
@@ -378,15 +377,12 @@
 		margin-right: 0.25rem;
 	}
 	.filters {
-		display: flex;
 		overflow-x: auto;
 		margin: -0.25rem -1rem 0;
-		padding: 0 0.75rem 0.5rem;
+		padding: 0.25rem 1rem 0.75rem;
 	}
-	.hit {
+	.filters > :global(*) {
 		flex: none;
-		display: flex;
-		padding: 0.25rem;
 	}
 	.progress {
 		height: 4px;

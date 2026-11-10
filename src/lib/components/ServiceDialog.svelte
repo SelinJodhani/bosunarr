@@ -169,7 +169,26 @@
 			: 'Used for “Open” links. Leave blank if the URL above works from your phone.'
 	);
 	const keepHint = $derived(editing ? ' Leave blank to keep the saved one.' : '');
+	/** Required fields are filled (when editing, blank credentials keep the saved ones). */
+	const complete = $derived(
+		url.trim() !== '' &&
+			(editing != null ||
+				(info.credentials === 'apiKey' ? apiKey.trim() !== '' : info.credentials === 'userPass' ? username.trim() !== '' && password !== '' : true))
+	);
+	const missingHint = 'Fill in the URL and credentials first';
 </script>
+
+<!-- The last field's supporting text doubles as the status line (test result, validation or save error): the
+     message fades in over it instead of reserving an empty band above the buttons. -->
+{#snippet helper(text: string)}
+	<div class="helper">
+		<p class="hint" class:gone={status.kind !== 'idle'} aria-hidden={status.kind !== 'idle'}>{text}</p>
+		<p class="status {status.kind}" class:gone={status.kind === 'idle'} role={status.kind === 'error' ? 'alert' : 'status'} aria-live="polite">
+			{#if status.kind === 'ok'}<Icon icon={iCheck} size={16} />{:else if status.kind === 'error'}<Icon icon={iError} size={16} />{/if}
+			<span>{status.message}</span>
+		</p>
+	</div>
+{/snippet}
 
 <Dialog headline={editing ? `Edit ${editing.name}` : 'Add a service'} bind:open>
 	<form
@@ -216,7 +235,7 @@
 				spellcheck="false"
 				onblur={fixUrls}
 			/>
-			<p class="hint">{publicHint}</p>
+			{#if info.credentials === 'none'}{@render helper(publicHint)}{:else}<p class="hint">{publicHint}</p>{/if}
 		</div>
 		{#if info.credentials === 'apiKey'}
 			<div class="field">
@@ -229,7 +248,7 @@
 					error={badField === 'apiKey'}
 					aria-invalid={badField === 'apiKey'}
 				/>
-				<p class="hint">{info.keyHint}.{keepHint}</p>
+				{@render helper(`${info.keyHint}.${keepHint}`)}
 			</div>
 		{:else if info.credentials === 'userPass'}
 			<TextField
@@ -251,26 +270,22 @@
 					error={badField === 'password'}
 					aria-invalid={badField === 'password'}
 				/>
-				<p class="hint">{info.keyHint}.{keepHint}</p>
+				{@render helper(`${info.keyHint}.${keepHint}`)}
 			</div>
 		{/if}
-		<p class="status {status.kind}" role={status.kind === 'error' ? 'alert' : 'status'} aria-live="polite">
-			{#if status.kind === 'ok'}<Icon icon={iCheck} size={20} />{:else if status.kind === 'error'}<Icon icon={iError} size={20} />{/if}
-			<span>{status.message}</span>
-		</p>
 		<!-- Enter in a field submits. -->
 		<button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
 	</form>
 	{#snippet buttons()}
 		<!-- After a failed save the test result is already showing; Test makes room for "Save anyway". -->
 		{#if !saveAnyway}
-			<Button variant="text" onclick={runTest} disabled={busy !== ''}>
+			<Button variant="text" onclick={runTest} disabled={busy !== '' || !complete} title={complete ? undefined : missingHint}>
 				<Icon icon={iTest} /> Test
 			</Button>
 		{/if}
 		<span class="spacer"></span>
 		<Button variant="text" onclick={() => (open = false)}>Cancel</Button>
-		<Button variant="filled" onclick={save} disabled={busy !== ''}>
+		<Button variant="filled" onclick={save} disabled={busy !== '' || !complete} title={complete ? undefined : missingHint}>
 			{busy === 'save' ? 'Saving…' : saveAnyway ? 'Save anyway' : 'Save'}
 		</Button>
 	{/snippet}
@@ -299,16 +314,30 @@
 		line-height: 1rem;
 		color: var(--m3c-on-surface-variant);
 	}
-	/* One slot, always present, so messages never resize the dialog. Room for two lines. */
+	/* Helper text and status share one cell and cross-fade: no reserved gap, and no jump for one-line messages. */
+	.helper {
+		display: grid;
+	}
+	.helper > p {
+		grid-area: 1 / 1;
+		transition: opacity 150ms;
+	}
+	.helper > .gone {
+		opacity: 0;
+	}
+	/* The status line stays in the accessibility tree (live region); the hidden hint does not. */
+	.helper > .hint.gone {
+		visibility: hidden;
+	}
 	.status {
 		display: flex;
 		align-items: flex-start;
-		gap: 0.5rem;
+		gap: 0.375rem;
 		margin: 0;
-		min-height: 2.5rem;
 		padding-inline: 1rem;
-		font-size: 0.875rem;
-		line-height: 1.25rem;
+		font-size: 0.75rem;
+		line-height: 1rem;
+		font-weight: 500;
 		color: var(--m3c-on-surface-variant);
 	}
 	.status :global(svg) {

@@ -128,3 +128,80 @@ a.m3-container.text[aria-disabled='true'] {
 .no-scrollbar::-webkit-scrollbar {
 	display: none;
 }
+
+/* ---------------------------------------------------------------------------
+   Empty states — one look everywhere (Activity, Discover, service screens, dashboard widgets).
+   Markup: <div class="empty-state"><span class="es-icon"><Icon size={40}/></span>
+           <p class="es-title">…</p><p class="es-hint">…</p><div class="es-action">…</div></div>
+   `.compact` is the dashboard-widget size (32 px icon, title-small, tighter padding).
+   --------------------------------------------------------------------------- */
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 0.25rem;
+	min-width: 0;
+	padding: 2.5rem 1rem;
+	color: var(--m3c-on-surface-variant);
+}
+.empty-state .es-icon {
+	display: grid;
+	color: var(--m3c-on-surface-variant);
+}
+.empty-state.error .es-icon {
+	color: var(--m3c-error);
+}
+.empty-state .es-title {
+	margin: 0;
+	max-width: 32rem;
+	font-size: 1rem;
+	line-height: 1.5rem;
+	font-weight: 500;
+	color: var(--m3c-on-surface);
+	overflow-wrap: anywhere;
+}
+.empty-state .es-hint {
+	margin: 0;
+	max-width: 32rem;
+	font-size: 0.75rem;
+	line-height: 1rem;
+	color: var(--m3c-on-surface-variant);
+	overflow-wrap: anywhere;
+}
+.empty-state .es-action {
+	margin-top: 0.75rem;
+}
+.empty-state.compact {
+	padding: 1rem 0.5rem;
+}
+.empty-state.compact .es-title {
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+}
+.empty-state.compact .es-action {
+	margin-top: 0.25rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Filter chips — app standard: M3 32 px visual height, ≥ 40 px touch target.
+   Put `.chip-row` on the element whose direct children are m3-svelte <Chip>s (or <Button size="xs">):
+   it lays them out in a row and grows each one's hit box (m3-layer's ::before) to 40 px tall without
+   changing layout. `.touch40` does the same for a single control (on the control or its direct parent).
+   A row that scrolls or clips keeps ≥ 0.25rem block padding so the grown hit box stays inside it.
+   --------------------------------------------------------------------------- */
+.chip-row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding-block: 0.25rem;
+}
+/* Only top/bottom change. !important because m3-svelte's Chip pins its ::before with `inset: -1px !important`
+   (percentages resolve against the control's padding box, so this always lands on a 40 px tall box). */
+:root .chip-row > .m3-layer::before,
+:root .touch40.m3-layer::before,
+:root .touch40 > .m3-layer::before {
+	top: min(-1px, calc(50% - 1.25rem)) !important;
+	bottom: min(-1px, calc(50% - 1.25rem)) !important;
+	height: auto !important;
+}

@@ -43,6 +43,11 @@ export type CalendarEntry = {
 	/** Library detail page of the primary copy. */
 	href: string;
 	copies: CalendarCopy[];
+	/**
+	 * Client-side only: set when several releases of one movie fall on the same day (e.g. digital and physical)
+	 * and were merged into this entry by `byDay()`.
+	 */
+	releases?: CalendarRelease[];
 };
 
 export type CalendarResult = {
@@ -62,6 +67,17 @@ export const RELEASE_LABEL: Record<CalendarRelease, string> = {
 	digital: 'Digital release',
 	physical: 'Physical release'
 };
+
+/** "Digital release", or for merged same-day releases "Digital & physical release", "In cinemas · Digital release". */
+export function releaseLabel(releases: CalendarRelease[]): string {
+	const home = (['digital', 'physical'] as const).filter((r) => releases.includes(r));
+	const parts: string[] = [];
+	if (releases.includes('airing')) parts.push(RELEASE_LABEL.airing);
+	if (releases.includes('cinema')) parts.push(RELEASE_LABEL.cinema);
+	if (home.length === 2) parts.push('Digital & physical release');
+	else if (home.length === 1) parts.push(RELEASE_LABEL[home[0]]);
+	return parts.join(' · ');
+}
 
 export const STATUS_TEXT: Record<CalendarStatus, string> = {
 	downloaded: 'Downloaded',

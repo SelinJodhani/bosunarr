@@ -15,11 +15,31 @@
 		{ href: '/settings', text: 'Settings', icon: iSettings }
 	];
 
+	/**
+	 * Computed colours come back in the theme's space (`oklab(…)`), which Android's status bar ignores:
+	 * paint it on a 1×1 canvas and read back sRGB as #rrggbb.
+	 */
+	let probe: CanvasRenderingContext2D | null | undefined;
+	function toHex(color: string): string | null {
+		if (/^#[\da-f]{6}$/i.test(color)) return color;
+		probe ??= Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d', { willReadFrequently: true });
+		if (!probe) return null;
+		probe.clearRect(0, 0, 1, 1);
+		probe.fillStyle = '#000';
+		probe.fillStyle = color;
+		probe.fillRect(0, 0, 1, 1);
+		const [r, g, b] = probe.getImageData(0, 0, 1, 1).data;
+		return '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('');
+	}
+
 	// Keep the browser/PWA status bar colour in step with the page background (light, dark or system).
 	$effect(() => {
 		const meta = document.querySelector('meta[name="theme-color"]');
 		if (!meta) return;
-		const sync = () => meta.setAttribute('content', getComputedStyle(document.body).backgroundColor);
+		const sync = () => {
+			const hex = toHex(getComputedStyle(document.body).backgroundColor);
+			if (hex) meta.setAttribute('content', hex);
+		};
 		sync();
 		const mq = matchMedia('(prefers-color-scheme: dark)');
 		const mo = new MutationObserver(sync);
@@ -110,6 +130,14 @@
 		z-index: 10;
 		padding-bottom: env(safe-area-inset-bottom);
 		background: var(--m3c-surface-container);
+	}
+	/* Phones: the bar's colour continues below it, so overscroll and any gesture-nav area Chrome lets the page draw
+	   behind (edge-to-edge, viewport-fit=cover) show the nav colour instead of the page or a dark gap. */
+	@media (width < 52.5rem) {
+		/* A shadow, not a pseudo-element: it paints below the bar without adding scrollable overflow. */
+		.nav {
+			box-shadow: 0 50vh 0 50vh var(--m3c-surface-container);
+		}
 	}
 	main {
 		flex: 1;

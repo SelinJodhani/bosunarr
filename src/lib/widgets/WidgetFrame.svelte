@@ -81,7 +81,8 @@
 	{#if staleOpen && staleInfo && !editing}
 		<p class="stale-detail">{staleInfo.service ? `${staleInfo.service}: ` : ''}{staleInfo.short}. Showing the last data received.</p>
 	{/if}
-	<div class="body">
+	<!-- While arranging, the widget's own links and buttons must not react to taps. -->
+	<div class="body" inert={editing}>
 		{#if missing}
 			<p class="body-small">Add {meta.needs.map((t) => SERVICE_TYPES[t].label).join(' or ')} in Settings to use this widget.</p>
 		{:else}
