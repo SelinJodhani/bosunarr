@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 	import { NavCMLX, NavCMLXItem, Snackbar } from 'm3-svelte';
 	import { iActivity, iCalendar, iDashboard, iDiscover, iLibrary, iSettings } from '$lib/icons';
 
@@ -14,6 +14,22 @@
 		{ href: '/activity', text: 'Activity', icon: iActivity },
 		{ href: '/settings', text: 'Settings', icon: iSettings }
 	];
+
+	// Keep the browser/PWA status bar colour in step with the page background (light, dark or system).
+	$effect(() => {
+		const meta = document.querySelector('meta[name="theme-color"]');
+		if (!meta) return;
+		const sync = () => meta.setAttribute('content', getComputedStyle(document.body).backgroundColor);
+		sync();
+		const mq = matchMedia('(prefers-color-scheme: dark)');
+		const mo = new MutationObserver(sync);
+		mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-scheme', 'style'] });
+		mq.addEventListener('change', sync);
+		return () => {
+			mo.disconnect();
+			mq.removeEventListener('change', sync);
+		};
+	});
 
 	const bare = $derived(['/login', '/setup'].includes(page.url.pathname));
 	// Service screens (/services/…) are opened from Settings and the dashboard, so they light up Settings.
@@ -37,9 +53,52 @@
 		</main>
 	</div>
 {/if}
-<Snackbar />
+<!-- Wrapper lifts snackbars above the phone nav bar (m3-svelte uses z-index 3; the nav is 10). -->
+<div class="snack"><Snackbar /></div>
+{#if navigating.to}<div class="nav-progress" role="progressbar" aria-label="Loading page"></div>{/if}
 
 <style>
+	.snack :global(.holder) {
+		z-index: 30;
+	}
+	@media (width < 52.5rem) {
+		.snack {
+			--m3v-bottom-offset: calc(4rem + env(safe-area-inset-bottom));
+		}
+	}
+	/* Thin indeterminate bar while a page loads; delayed so fast navigations don't flash it. */
+	.nav-progress {
+		position: fixed;
+		inset: 0 0 auto;
+		height: 3px;
+		z-index: 40;
+		overflow: hidden;
+		pointer-events: none;
+		opacity: 0;
+		animation: show 0s 150ms forwards;
+	}
+	.nav-progress::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		width: 40%;
+		background: var(--m3c-primary);
+		border-radius: 3px;
+		animation: slide 1s ease-in-out infinite;
+	}
+	@keyframes show {
+		to {
+			opacity: 1;
+		}
+	}
+	@keyframes slide {
+		from {
+			transform: translateX(-100%);
+		}
+		to {
+			transform: translateX(250%);
+		}
+	}
 	.shell {
 		min-height: 100dvh;
 		display: flex;

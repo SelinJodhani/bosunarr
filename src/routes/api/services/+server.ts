@@ -10,7 +10,7 @@ export const POST: RequestHandler = async (event) => {
 	const body = await event.request.json();
 	return handleApi(() => {
 		const id = createService(body);
-		invalidate('w:');
+		invalidate(''); // every feature caches per service: drop all of it
 		return { id };
 	});
 };

@@ -71,7 +71,7 @@ export const SERVICE_TYPES: Record<ServiceTypeId, ServiceTypeInfo> = {
 		credentials: 'apiKey',
 		defaultPort: 6767,
 		keyHint: 'Bazarr → Settings → General → Security → API Key',
-		color: '#9c27b0'
+		color: '#14b8a6'
 	},
 	jellyseerr: {
 		id: 'jellyseerr',
@@ -116,7 +116,7 @@ export const SERVICE_TYPES: Record<ServiceTypeId, ServiceTypeInfo> = {
 		credentials: 'apiKey',
 		defaultPort: 3000,
 		keyHint: 'Jellystat → Settings → API Keys',
-		color: '#8b5cf6'
+		color: '#f472b6'
 	},
 	wizarr: {
 		id: 'wizarr',
@@ -125,7 +125,7 @@ export const SERVICE_TYPES: Record<ServiceTypeId, ServiceTypeInfo> = {
 		credentials: 'apiKey',
 		defaultPort: 5690,
 		keyHint: 'Wizarr → Settings → API Keys',
-		color: '#e11d48'
+		color: '#f59e0b'
 	}
 };
 

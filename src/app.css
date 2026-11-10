@@ -83,3 +83,40 @@ h3 {
 		transition-duration: 0.01ms !important;
 	}
 }
+
+/* ---------------------------------------------------------------------------
+   App-wide overrides for m3-svelte (higher specificity than its scoped styles)
+   --------------------------------------------------------------------------- */
+
+/* Dialogs keep a 24 px margin on phones instead of touching the screen edges (M3). */
+dialog.m3-container.m3-container {
+	max-width: min(35rem, calc(100vw - 3rem));
+}
+
+/* Disabled text/outlined buttons have no container in M3. */
+button.m3-container.text:disabled,
+a.m3-container.text[aria-disabled='true'] {
+	background-color: transparent;
+}
+
+/* Destructive actions: <Button data-danger …> */
+button.m3-container.filled[data-danger]:not(:disabled) {
+	background-color: var(--m3c-error);
+	color: var(--m3c-on-error);
+}
+button.m3-container.tonal[data-danger]:not(:disabled) {
+	background-color: var(--m3c-error-container);
+	color: var(--m3c-on-error-container);
+}
+button.m3-container.text[data-danger]:not(:disabled),
+button.m3-container.outlined[data-danger]:not(:disabled) {
+	color: var(--m3c-error);
+}
+
+/* Horizontal carousels never show a scrollbar stub. */
+.no-scrollbar {
+	scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+	display: none;
+}

@@ -9,8 +9,7 @@ export const PUT: RequestHandler = async (event) => {
 	return handleApi(() => {
 		updateService(Number(event.params.id), body);
 		resetServiceSession(Number(event.params.id));
-		invalidate('w:');
-		invalidate('act:');
+		invalidate(''); // every feature caches per service: drop all of it
 		return { ok: true };
 	});
 };
@@ -20,8 +19,7 @@ export const DELETE: RequestHandler = (event) => {
 	return handleApi(() => {
 		deleteService(Number(event.params.id));
 		resetServiceSession(Number(event.params.id));
-		invalidate('w:');
-		invalidate('act:');
+		invalidate(''); // every feature caches per service: drop all of it
 		return { ok: true };
 	});
 };
