@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, Chip, Dialog, Switch, snackbar } from 'm3-svelte';
+	import { Button, Chip, Dialog, snackbar } from 'm3-svelte';
 	import { ago } from '$lib/format';
 	import type { Indexer } from './types';
 	import { post } from './api';
@@ -22,8 +22,7 @@
 	let confirmOpen = $state(false);
 	let busy = $state(false);
 
-	function ask(i: Indexer, e: Event) {
-		e.preventDefault();
+	function ask(i: Indexer) {
 		pending = i;
 		confirmOpen = true;
 	}
@@ -78,9 +77,18 @@
 					{/if}
 				</div>
 				{#if isAdmin}
-					<label class="switch" aria-label={`${i.enabled ? 'Disable' : 'Enable'} ${i.name}`}>
-						<Switch checked={i.enabled} disabled={busy} onclick={(e: Event) => ask(i, e)} />
-					</label>
+					<!-- A plain switch button: it never flips itself; the state only changes once Prowlarr confirms. -->
+					<button
+						class="switch"
+						class:on={i.enabled}
+						role="switch"
+						aria-checked={i.enabled}
+						aria-label={`${i.name} enabled`}
+						disabled={busy}
+						onclick={() => ask(i)}
+					>
+						<span class="handle"></span>
+					</button>
 				{/if}
 			</li>
 		{/each}
@@ -174,9 +182,48 @@
 	.state.bad {
 		color: var(--m3c-error);
 	}
+	/* M3 switch look (52×32 track, 16→24 px handle). */
 	.switch {
+		all: unset;
+		box-sizing: border-box;
 		flex: none;
-		display: inline-flex;
+		position: relative;
+		width: 3.25rem;
+		height: 2rem;
+		border-radius: 1rem;
+		border: 2px solid var(--m3c-outline);
+		background: var(--m3c-surface-container-highest);
+		cursor: pointer;
+		transition: background-color 150ms, border-color 150ms;
+	}
+	.switch .handle {
+		position: absolute;
+		top: 50%;
+		left: 0.375rem;
+		width: 1rem;
+		height: 1rem;
+		border-radius: 50%;
+		background: var(--m3c-outline);
+		transform: translateY(-50%);
+		transition: left 150ms, width 150ms, height 150ms, background-color 150ms;
+	}
+	.switch.on {
+		border-color: var(--m3c-primary);
+		background: var(--m3c-primary);
+	}
+	.switch.on .handle {
+		left: calc(100% - 1.5rem - 0.125rem);
+		width: 1.5rem;
+		height: 1.5rem;
+		background: var(--m3c-on-primary);
+	}
+	.switch:focus-visible {
+		outline: 2px solid var(--m3c-primary);
+		outline-offset: 2px;
+	}
+	.switch:disabled {
+		opacity: 0.38;
+		cursor: default;
 	}
 	.dlg-title {
 		margin: 0 0 0.5rem;

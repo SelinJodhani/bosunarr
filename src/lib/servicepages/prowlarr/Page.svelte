@@ -28,8 +28,12 @@
 	const enabled = $derived(d?.indexers.filter((i) => i.enabled) ?? []);
 	const failing = $derived(enabled.filter((i) => i.failure).length);
 
+	// Search fans out to every indexer, so it's admin-only (server enforces it too).
+	// svelte-ignore state_referenced_locally
+	if (!isAdmin && tab === 'search') tab = 'indexers';
+
 	const items = $derived([
-		{ name: 'Search', value: 'search' },
+		...(isAdmin ? [{ name: 'Search', value: 'search' }] : []),
 		{ name: `Indexers${d ? ` (${d.indexers.length})` : ''}`, value: 'indexers' },
 		{ name: 'Stats', value: 'stats' },
 		{ name: 'History', value: 'history' }
@@ -67,7 +71,7 @@
 <Tabs {items} bind:tab secondary />
 
 <div class="content">
-	{#if tab === 'search'}
+	{#if tab === 'search' && isAdmin}
 		<SearchTab {api} {isAdmin} indexers={d?.indexers ?? []} />
 	{:else if tab === 'indexers'}
 		{#if d}

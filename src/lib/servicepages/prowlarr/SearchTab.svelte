@@ -12,6 +12,8 @@
 		truncated: false,
 		searched: ''
 	});
+	/** The search in flight, shared across mounts so a new one (or another instance) cancels it. */
+	let controller: AbortController | null = null;
 </script>
 
 <script lang="ts">
@@ -36,7 +38,10 @@
 	$effect(() => {
 		const a = api;
 		untrack(() => {
-			if (view.api !== a) Object.assign(view, { api: a, q: '', cats: [], indexers: [], results: null, truncated: false, searched: '' });
+			if (view.api !== a) {
+				controller?.abort();
+				Object.assign(view, { api: a, q: '', cats: [], indexers: [], results: null, truncated: false, searched: '' });
+			}
 		});
 	});
 
@@ -61,21 +66,31 @@
 
 	async function run() {
 		const q = view.q.trim();
-		if (!q || busy) return;
+		if (!q) return; // a new search replaces (aborts) the one in flight
+		controller?.abort();
+		const mine = new AbortController();
+		controller = mine;
+		const forApi = api;
 		busy = true;
 		error = null;
 		const qs = new URLSearchParams({ q });
 		for (const c of view.cats) qs.append('cat', String(c));
 		for (const i of view.indexers) qs.append('indexer', String(i));
 		try {
-			const r = await getJSON<SearchResponse>(`${api}/search?${qs}`);
+			const r = await getJSON<SearchResponse>(`${forApi}/search?${qs}`, { signal: mine.signal });
+			// Drop late answers: a newer search started, or the page now shows another instance.
+			if (controller !== mine || view.api !== forApi) return;
 			view.results = r.results;
 			view.truncated = r.truncated;
 			view.searched = q;
 		} catch (e) {
+			if (mine.signal.aborted || view.api !== forApi) return;
 			error = e instanceof Error ? e.message : String(e);
 		} finally {
-			busy = false;
+			if (controller === mine) {
+				controller = null;
+				busy = false;
+			}
 		}
 	}
 
@@ -133,7 +148,7 @@
 			trailing={view.q ? { icon: iClose, onclick: () => (view.q = ''), 'aria-label': 'Clear search' } : undefined}
 		/>
 	</div>
-	<Button variant="filled" iconType="full" aria-label="Search" disabled={busy || !view.q.trim()} onclick={run}><Icon icon={iSearch} /></Button>
+	<Button variant="filled" iconType="full" aria-label="Search" disabled={!view.q.trim()} onclick={run}><Icon icon={iSearch} /></Button>
 	<SortMenu options={SORTS} bind:value={view.sort} />
 </div>
 
@@ -166,7 +181,7 @@
 						<span>{bytes(r.size)}</span>
 						<span>{ageLabel(r.ageHours)}</span>
 						{#if r.protocol === 'torrent'}
-							<span class="peers" class:dead={!r.seeders}>
+							<span class="peers" class:dead={r.seeders === 0}>
 								<Icon icon={iUp} size={14} />{r.seeders ?? '—'}
 								<Icon icon={iDown} size={14} />{r.leechers ?? '—'}
 							</span>

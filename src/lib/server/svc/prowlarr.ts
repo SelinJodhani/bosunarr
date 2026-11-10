@@ -138,38 +138,81 @@ export async function setIndexerEnabled(s: ServiceRecord, indexerId: unknown, en
 	// Prowlarr's PUT needs the full resource, so read it back and flip one field.
 	const current = await call<Record<string, unknown> & { id: number }>(s, `/api/v1/indexer/${id}`);
 	if (!current || typeof current !== 'object' || current.id !== id) throw new ServiceError('Indexer not found', 404);
-	await call(s, `/api/v1/indexer/${id}`, {
-		method: 'PUT',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ ...current, enable }),
-		signal: AbortSignal.timeout(30_000) // enabling makes Prowlarr test the indexer
-	});
+	await putIndexer(s, id, { ...current, enable });
 	invalidate(key(s, ''));
 	return { ok: true };
+}
+
+/**
+ * PUT that keeps Prowlarr's validation message. `call()` reduces a 400 to "returned HTTP 400", but when
+ * enabling fails (the indexer test failed) the body says why: `[{ propertyName, errorMessage }]`.
+ */
+async function putIndexer(s: ServiceRecord, id: number, body: unknown) {
+	let res: Response;
+	try {
+		res = await fetch(`${s.url}/api/v1/indexer/${id}`, {
+			method: 'PUT',
+			headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Api-Key': s.credentials.apiKey ?? '' },
+			body: JSON.stringify(body),
+			signal: AbortSignal.timeout(30_000) // enabling makes Prowlarr test the indexer
+		});
+	} catch (e) {
+		const reason = e instanceof Error && e.name === 'TimeoutError' ? 'timed out' : 'is unreachable';
+		throw new ServiceError(`${s.name} ${reason}`, 504);
+	}
+	if (res.ok) return;
+	if (res.status === 401 || res.status === 403) throw new ServiceError(`${s.name} rejected the credentials`, 401);
+	const data = (res.headers.get('content-type') ?? '').includes('json') ? await res.json().catch(() => null) : null;
+	const messages = (Array.isArray(data) ? data : [data])
+		.map((x) => (x && typeof x === 'object' ? (x as { errorMessage?: unknown; message?: unknown }).errorMessage ?? (x as { message?: unknown }).message : null))
+		.filter((m): m is string => typeof m === 'string' && m.trim() !== '')
+		.map((m) => m.trim().slice(0, 300));
+	if (res.status === 400 && messages.length) throw new ServiceError(`${s.name}: ${[...new Set(messages)].join(' · ')}`, 400);
+	throw new ServiceError(`${s.name} returned HTTP ${res.status}`, res.status >= 500 ? 502 : res.status);
 }
 
 /* ---------------------------------------------------------------- */
 /* Search + grab                                                     */
 /* ---------------------------------------------------------------- */
 const RELEASE_TTL_MS = 25 * 60_000; // Prowlarr keeps releases grabbable for 30 minutes
-const MAX_RELEASES = 5_000;
+const SWEEP_EVERY_MS = 60_000;
 const MAX_RESULTS = 500;
-/** token → what Prowlarr needs to grab it. Kept server-side so guids (often with passkeys) never leave. */
-const releases = new Map<string, { serviceId: number; guid: string; indexerId: number; title: string; at: number }>();
+/** Per (service, user) bucket cap: a few recent searches. Oldest tokens go first when exceeded. */
+const MAX_PER_BUCKET = MAX_RESULTS * 4;
 
-function remember(serviceId: number, r: PRelease): string {
-	const now = Date.now();
-	if (releases.size >= MAX_RELEASES) {
-		for (const [k, v] of releases) if (now - v.at > RELEASE_TTL_MS || releases.size >= MAX_RELEASES) releases.delete(k);
+type Release = { guid: string; indexerId: number; title: string; at: number };
+/**
+ * `${serviceId}:${userId}` → token → what Prowlarr needs to grab it. Kept server-side so guids (often
+ * with passkeys) never leave, and a token only works for the user and service that searched.
+ * Maps keep insertion order, so the first entries are always the oldest.
+ */
+const releases = new Map<string, Map<string, Release>>();
+let lastSweep = 0;
+
+function sweep(now: number) {
+	if (now - lastSweep < SWEEP_EVERY_MS) return;
+	lastSweep = now;
+	for (const [b, bucket] of releases) {
+		for (const [t, r] of bucket) {
+			if (now - r.at <= RELEASE_TTL_MS) break; // the rest are newer
+			bucket.delete(t);
+		}
+		if (!bucket.size) releases.delete(b);
 	}
+}
+
+const bucketKey = (serviceId: number, userId: number) => `${serviceId}:${userId}`;
+
+function remember(bucket: Map<string, Release>, r: PRelease, now: number): string {
 	const token = randomBytes(12).toString('base64url');
-	releases.set(token, { serviceId, guid: r.guid, indexerId: r.indexerId, title: r.title ?? '', at: now });
+	bucket.set(token, { guid: r.guid, indexerId: r.indexerId, title: r.title ?? '', at: now });
+	if (bucket.size > MAX_PER_BUCKET) bucket.delete(bucket.keys().next().value!);
 	return token;
 }
 
 const CATEGORY_IDS = new Set<number>(CATEGORIES.map((c) => c.id));
 
-export async function search(s: ServiceRecord, params: URLSearchParams): Promise<SearchResponse> {
+export async function search(s: ServiceRecord, userId: number, params: URLSearchParams): Promise<SearchResponse> {
 	const query = (params.get('q') ?? '').trim();
 	if (!query) throw new ServiceError('Enter something to search for', 400);
 	if (query.length > 200) throw new ServiceError('Search is too long', 400);
@@ -185,9 +228,14 @@ export async function search(s: ServiceRecord, params: URLSearchParams): Promise
 	if (!Array.isArray(list)) throw new ServiceError(`${s.name} sent an unexpected search response`, 502);
 
 	const valid = list.filter((r) => r && typeof r.guid === 'string' && Number.isInteger(r.indexerId));
+	const now = Date.now();
+	sweep(now);
+	const b = bucketKey(s.id, userId);
+	const bucket = releases.get(b) ?? new Map<string, Release>();
+	releases.set(b, bucket);
 	const results = valid.slice(0, MAX_RESULTS).map(
 		(r): SearchResult => ({
-			token: remember(s.id, r),
+			token: remember(bucket, r, now),
 			title: String(r.title ?? '(untitled)'),
 			indexerId: r.indexerId,
 			indexer: String(r.indexer ?? ''),
@@ -205,10 +253,10 @@ export async function search(s: ServiceRecord, params: URLSearchParams): Promise
 	return { results, truncated: valid.length > MAX_RESULTS };
 }
 
-export async function grab(s: ServiceRecord, token: unknown): Promise<{ ok: true; title: string }> {
+export async function grab(s: ServiceRecord, userId: number, token: unknown): Promise<{ ok: true; title: string }> {
 	if (typeof token !== 'string' || !/^[\w-]{8,32}$/.test(token)) throw new ServiceError('Invalid release', 400);
-	const r = releases.get(token);
-	if (!r || r.serviceId !== s.id || Date.now() - r.at > RELEASE_TTL_MS) {
+	const r = releases.get(bucketKey(s.id, userId))?.get(token);
+	if (!r || Date.now() - r.at > RELEASE_TTL_MS) {
 		throw new ServiceError('This result has expired — search again', 410);
 	}
 	try {
@@ -220,6 +268,7 @@ export async function grab(s: ServiceRecord, token: unknown): Promise<{ ok: true
 		});
 	} catch (e) {
 		if (e instanceof ServiceError && e.status === 404) throw new ServiceError(`${s.name} no longer has this release cached — search again`, 410);
+		if (e instanceof ServiceError && e.status === 409) throw new ServiceError('The indexer refused the download', 409);
 		throw e;
 	}
 	invalidate(key(s, 'history'));
