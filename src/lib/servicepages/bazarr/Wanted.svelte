@@ -26,11 +26,19 @@
 	async function search(it: WantedItem) {
 		busy[it.key] = true;
 		const r = await bazarrAct(serviceId, { action: 'search', kind: it.kind, id: it.id });
-		busy[it.key] = false;
 		snackbar(r.message, {}, true);
-		data.refresh();
-		onchange?.();
+		if (!r.ok) {
+			busy[it.key] = false;
+			return;
+		}
+		// The search runs in the background on the server; check back once it has had time to finish.
+		setTimeout(async () => {
+			await data.refresh();
+			busy[it.key] = false;
+			onchange?.();
+		}, SETTLE_MS);
 	}
+	const SETTLE_MS = 8_000;
 </script>
 
 <State loading={data.state.loading} error={data.state.error} empty={!d} emptyText="">

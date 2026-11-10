@@ -119,8 +119,18 @@ const HISTORY_ACTIONS: HistoryAction[] = ['deleted', 'downloaded', 'manual', 'up
 /* ---------------------------------------------------------------- */
 const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
+const POSTER_WAIT_MS = 1500;
+
+/**
+ * Library items by `${kind}:${arrId}`. Waits briefly at most: if the library isn't cached and is slow to
+ * build, the list renders without posters now and gets them on a later poll (the build keeps going in
+ * `cached()` and fills the cache).
+ */
 async function posterIndex(): Promise<Map<string, LibraryItem[]>> {
-	const lib = await library().catch(() => null);
+	const lib = await Promise.race([
+		library().catch(() => null),
+		new Promise<null>((r) => setTimeout(() => r(null), POSTER_WAIT_MS))
+	]);
 	const idx = new Map<string, LibraryItem[]>();
 	for (const it of lib?.items ?? []) {
 		const k = `${it.kind}:${it.id}`;
@@ -200,6 +210,8 @@ export function overview(s: ServiceRecord): Promise<BazarrOverview> {
 			radarrVersion: str(st.radarr_version),
 			startTime: typeof st.start_time === 'number' ? st.start_time : null,
 			wanted: { episodes: num(bd.episodes), movies: num(bd.movies) },
+			// badges.py: `live_str if client.connected else "DOWN"`, where live_str is "LIVE" or "" (when the
+			// "show live badge" setting is off). So only "DOWN" means disconnected; "" (→ null) is connected.
 			sonarrSignalr: str(bd.sonarr_signalr),
 			radarrSignalr: str(bd.radarr_signalr),
 			health: health.status === 'fulfilled' && Array.isArray(health.value?.data) ? health.value.data.map((h) => ({ object: String(h.object ?? ''), issue: String(h.issue ?? '') })) : [],
@@ -303,30 +315,43 @@ async function searchOne(s: ServiceRecord, kind: BazarrKind, id: number): Promis
 	const missing = (row.missing_subtitles ?? []).filter((l) => l.code2);
 	if (!missing.length) throw new ServiceError('That item no longer needs subtitles', 404);
 
-	const signal = () => AbortSignal.timeout(SEARCH_TIMEOUT_MS);
-	for (const l of missing) {
-		const params: Record<string, string | number> = {
-			language: l.code2!,
-			forced: l.forced ? 'true' : 'false',
-			hi: l.hi ? 'true' : 'false'
-		};
-		if (kind === 'episodes') {
-			params.seriesid = row.sonarrSeriesId;
-			params.episodeid = id;
-			await call(s, `/api/episodes/subtitles?${qs(params)}`, { method: 'PATCH', signal: signal() });
-		} else {
-			params.radarrid = id;
-			await call(s, `/api/movies/subtitles?${qs(params)}`, { method: 'PATCH', signal: signal() });
-		}
-	}
-	invalidate(`bz:${s.id}:`);
-	const after = await call<{ data: Array<{ missing_subtitles: BzLang[] }> }>(s, path).catch(() => null);
-	const left = after?.data?.[0]?.missing_subtitles?.length ?? 0;
 	const name = kind === 'episodes' ? `${row.seriesTitle} ${episodeLabel(row.episode_number) ?? ''}`.trim() : row.title;
-	return {
-		message: left === 0 ? `Found subtitles for ${name}` : left < missing.length ? `Found some subtitles for ${name}; ${left} still missing` : `No subtitles found yet for ${name}`
-	};
+	const runKey = `${s.id}:${kind}:${id}`;
+	if (running.has(runKey)) return { message: `Already searching for ${name}` };
+
+	// Bazarr's PATCH only answers when the provider search is done (can exceed a reverse proxy's timeout),
+	// so run it in the background and answer now. The Wanted list picks up results on its next poll.
+	running.add(runKey);
+	void (async () => {
+		try {
+			for (const l of missing) {
+				const params: Record<string, string | number> = {
+					language: l.code2!,
+					forced: l.forced ? 'true' : 'false',
+					hi: l.hi ? 'true' : 'false'
+				};
+				const signal = AbortSignal.timeout(SEARCH_TIMEOUT_MS);
+				if (kind === 'episodes') {
+					params.seriesid = row.sonarrSeriesId;
+					params.episodeid = id;
+					await call(s, `/api/episodes/subtitles?${qs(params)}`, { method: 'PATCH', signal });
+				} else {
+					params.radarrid = id;
+					await call(s, `/api/movies/subtitles?${qs(params)}`, { method: 'PATCH', signal });
+				}
+			}
+		} catch (e) {
+			console.warn(`[bazarr] subtitle search failed on ${s.name} (${kind} ${id}): ${errMsg(e)}`);
+		} finally {
+			running.delete(runKey);
+			invalidate(`bz:${s.id}:`);
+		}
+	})();
+	return { message: `Searching subtitles for ${name}…` };
 }
+
+/** Per-item searches in progress, so repeated taps don't stack parallel provider searches. */
+const running = new Set<string>();
 
 const TASKS: Record<BazarrKind, string> = {
 	episodes: 'wanted_search_missing_subtitles_series',
