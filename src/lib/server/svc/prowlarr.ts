@@ -138,7 +138,24 @@ export async function setIndexerEnabled(s: ServiceRecord, indexerId: unknown, en
 	// Prowlarr's PUT needs the full resource, so read it back and flip one field.
 	const current = await call<Record<string, unknown> & { id: number }>(s, `/api/v1/indexer/${id}`);
 	if (!current || typeof current !== 'object' || current.id !== id) throw new ServiceError('Indexer not found', 404);
-	await putIndexer(s, id, { ...current, enable });
+	try {
+		await putIndexer(s, id, { ...current, enable });
+	} catch (e) {
+		// Enabling makes Prowlarr test the indexer; its validation text is written for its own log view.
+		if (enable && e instanceof ServiceError && e.status === 400) {
+			const name = typeof current.name === 'string' && current.name ? current.name : 'The indexer';
+			const raw = e.message.replace(/^[^:]*:\s*/, '');
+			const reason = /unable to connect|connection|timed? ?out|unreachable|name or service/i.test(raw)
+				? `Prowlarr couldn't connect to ${name}`
+				: /captcha|cloudflare/i.test(raw)
+					? `${name} is behind a CAPTCHA or Cloudflare check that Prowlarr couldn't pass`
+					: /api ?key|credential|unauthori[sz]ed|login|password|cookie/i.test(raw)
+						? `${name} rejected the login details saved in Prowlarr`
+						: `${name} failed Prowlarr's test`;
+			throw new ServiceError(`${reason}, so it stays disabled. Check the indexer's settings in Prowlarr.`, 400);
+		}
+		throw e;
+	}
 	invalidate(key(s, ''));
 	return { ok: true };
 }

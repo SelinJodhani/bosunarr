@@ -11,12 +11,13 @@
 	import iExtracted from '@ktibow/iconset-material-symbols/unarchive-rounded';
 	import iOther from '@ktibow/iconset-material-symbols/closed-caption-rounded';
 	import { live } from '$lib/live.svelte';
-	import State from '$lib/widgets/State.svelte';
+	import State from '../shared/State.svelte';
+	import Pager from '../shared/Pager.svelte';
 	import LangTags from './LangTags.svelte';
-	import Pager from './Pager.svelte';
+	import { providerName } from './providers';
 	import type { BazarrKind, HistoryAction, HistoryPage } from './types';
 
-	let { serviceId, kind, page = $bindable() }: { serviceId: number; kind: BazarrKind; page: number } = $props();
+	let { serviceId, kind, page, onpage }: { serviceId: number; kind: BazarrKind; page: number; onpage: (p: number) => void } = $props();
 
 	// Re-created by the parent when kind/page change.
 	// svelte-ignore state_referenced_locally
@@ -36,11 +37,16 @@
 	};
 </script>
 
-<State loading={data.state.loading} error={data.state.error} empty={!d} emptyText="">
+<State
+	loading={data.state.loading}
+	error={data.state.error}
+	empty={!d || d.items.length === 0}
+	icon={iOther}
+	title="No subtitle history yet"
+	hint="Downloaded, upgraded and deleted subtitles show up here."
+	onretry={() => data.refresh()}
+>
 	{#if d}
-		{#if d.items.length === 0}
-			<p class="empty">No subtitle history yet.</p>
-		{:else}
 			<ul class="list">
 				{#each d.items as h (h.key)}
 					{@const a = ACTIONS[h.action]}
@@ -55,7 +61,7 @@
 							<div class="meta">
 								<span class="act">{a.label}</span>
 								{#if h.language}<LangTags langs={[h.language]} />{/if}
-								{#if h.provider}<span>{h.provider}</span>{/if}
+								{#if h.provider}<span>{providerName(h.provider)}</span>{/if}
 								{#if h.score}<span class="score">{h.score}</span>{/if}
 								{#if h.upgradable}<span class="upg">Upgradable</span>{/if}
 							</div>
@@ -63,8 +69,7 @@
 					</li>
 				{/each}
 			</ul>
-		{/if}
-		<Pager bind:page total={d.total} pageSize={d.pageSize} />
+		<Pager {page} pages={Math.max(1, Math.ceil(d.total / d.pageSize))} total={d.total} noun="event" {onpage} />
 	{/if}
 </State>
 
@@ -107,6 +112,7 @@
 	.body {
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.25rem;
 	}
 	.line1 {
@@ -156,8 +162,5 @@
 	}
 	.upg {
 		color: var(--m3c-tertiary);
-	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
 	}
 </style>

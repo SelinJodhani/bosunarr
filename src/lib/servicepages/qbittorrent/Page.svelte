@@ -1,22 +1,32 @@
+<script lang="ts" module>
+	// Remembered while moving around the app.
+	const ui = $state({ tab: 'torrents' });
+</script>
+
 <script lang="ts">
-	import { Button, Chip, Icon, LoadingIndicator, Switch, snackbar } from 'm3-svelte';
-	import iDown from '@ktibow/iconset-material-symbols/arrow-downward-rounded';
-	import iUp from '@ktibow/iconset-material-symbols/arrow-upward-rounded';
+	import { BottomSheet, Button, Chip, Icon, Switch, snackbar } from 'm3-svelte';
 	import iAdd from '@ktibow/iconset-material-symbols/add-rounded';
 	import iPause from '@ktibow/iconset-material-symbols/pause-rounded';
 	import iResume from '@ktibow/iconset-material-symbols/play-arrow-rounded';
-	import iConnected from '@ktibow/iconset-material-symbols/wifi-rounded';
-	import iDisconnected from '@ktibow/iconset-material-symbols/wifi-off-rounded';
-	import iFirewalled from '@ktibow/iconset-material-symbols/warning-rounded';
-	import iAlt from '@ktibow/iconset-material-symbols/slow-motion-video-rounded';
+	import iAlt from '@ktibow/iconset-material-symbols/speed-rounded';
 	import iCategory from '@ktibow/iconset-material-symbols/category-rounded';
 	import iTag from '@ktibow/iconset-material-symbols/label-rounded';
+	import iDrop from '@ktibow/iconset-material-symbols/arrow-drop-down-rounded';
+	import iCheck from '@ktibow/iconset-material-symbols/check-rounded';
+	import iFeed from '@ktibow/iconset-material-symbols/sync-problem-rounded';
 	import { bytes, speed } from '$lib/format';
 	import { live } from '$lib/live.svelte';
 	import { act, liveActivity } from '$lib/activity/live.svelte';
 	import TorrentList from '$lib/activity/TorrentList.svelte';
 	import AddTorrent from '$lib/activity/AddTorrent.svelte';
 	import type { ServicePageProps } from '../types';
+	import Summary from '../shared/Summary.svelte';
+	import ServiceTabs from '../shared/ServiceTabs.svelte';
+	import Card from '../shared/Card.svelte';
+	import Empty from '../shared/Empty.svelte';
+	import Loading from '../shared/Loading.svelte';
+	import { nb, sentence } from '../shared/format';
+	import type { SummaryNotice } from '../shared/types';
 	import type { QbitConnection, QbitOverview } from './types';
 
 	let { service, isAdmin }: ServicePageProps = $props();
@@ -34,10 +44,17 @@
 	const client = $derived(snap?.clients.find((c) => c.id === service.id));
 	const torrents = $derived(snap?.torrents.filter((x) => x.serviceId === service.id) ?? []);
 
+	const TABS = [
+		{ name: 'Torrents', value: 'torrents' },
+		{ name: 'Limits', value: 'limits' },
+		{ name: 'About', value: 'about' }
+	];
+
 	/* ---------------- Category / tag filters ---------------- */
 	const NONE = '\u0000none';
 	let category = $state<string | null>(null);
 	let tag = $state<string | null>(null);
+	let sheet = $state<'category' | 'tag' | null>(null);
 
 	function countBy(keys: (x: (typeof torrents)[number]) => string[]) {
 		const m = new Map<string, number>();
@@ -58,6 +75,23 @@
 				(tag === null || (tag === NONE ? x.tags.length === 0 : x.tags.includes(tag)))
 		)
 	);
+	const nameOf = (v: string | null, kind: 'category' | 'tag') => (v === null ? 'All' : v === NONE ? (kind === 'category' ? 'Uncategorized' : 'Untagged') : v);
+	const sheetOptions = $derived.by(() => {
+		if (!sheet) return [];
+		const list = sheet === 'category' ? catList : tagList;
+		const counts = sheet === 'category' ? catCounts : tagCounts;
+		const current = sheet === 'category' ? category : tag;
+		return [
+			{ value: null, label: sheet === 'category' ? 'All categories' : 'All tags', count: torrents.length },
+			...list.map((v) => ({ value: v as string | null, label: v, count: counts.get(v) ?? 0 })),
+			...(counts.get(NONE) || current === NONE ? [{ value: NONE as string | null, label: nameOf(NONE, sheet), count: counts.get(NONE) ?? 0 }] : [])
+		];
+	});
+	function pick(v: string | null) {
+		if (sheet === 'category') category = v;
+		else tag = v;
+		sheet = null;
+	}
 
 	/* ---------------- Alternative speed ---------------- */
 	let altPending = $state<boolean | null>(null);
@@ -71,10 +105,10 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ enabled })
 		}).catch(() => null);
-		const err = !res ? 'Network error' : res.ok ? null : ((await res.json().catch(() => ({})))?.error ?? `HTTP ${res.status}`);
+		const err = !res ? 'You seem to be offline' : res.ok ? null : ((await res.json().catch(() => ({})))?.error ?? `HTTP ${res.status}`);
 		await ov.refresh();
 		altPending = null;
-		snackbar(err ?? (enabled ? 'Alternative speed limits on' : 'Alternative speed limits off'), {}, true);
+		snackbar(err ? `Couldn't switch speed limits. ${sentence(err)}` : enabled ? 'Alternative speed limits on' : 'Alternative speed limits off', {}, true);
 	}
 
 	/* ---------------- Bulk actions ---------------- */
@@ -84,370 +118,259 @@
 		busy = true;
 		const err = await act({ action, ids: [`${service.id}:all`] });
 		busy = false;
-		snackbar(err ?? (action === 'pauseAll' ? 'Paused all torrents' : 'Resumed all torrents'), {}, true);
+		snackbar(err ? sentence(err) : action === 'pauseAll' ? 'Paused all torrents' : 'Resumed all torrents', {}, true);
 	}
 
 	/* ---------------- Formatting ---------------- */
-	const limit = (n: number) => (n > 0 ? speed(n) : 'Unlimited');
-	const CONN: Record<QbitConnection, { label: string; icon: typeof iConnected }> = {
-		connected: { label: 'Connected', icon: iConnected },
-		firewalled: { label: 'Firewalled', icon: iFirewalled },
-		disconnected: { label: 'Disconnected', icon: iDisconnected },
-		unknown: { label: 'Unknown', icon: iDisconnected }
+	/** Drops the decimal once there are three digits ("682.6 GB" → "683 GB") so tiles never truncate. */
+	const tile = (v: string) => {
+		const [n, unit] = v.split(' ');
+		return nb(Number(n) >= 100 ? `${Math.round(Number(n))} ${unit}` : v);
 	};
-	const cap = (n: number) => (n < 0 ? 'no limit' : String(n));
+	const limit = (n: number) => (n > 0 ? nb(speed(n)) : 'Unlimited');
+	const CONN: Record<QbitConnection, string> = {
+		connected: 'Connected',
+		firewalled: 'Firewalled',
+		disconnected: 'Disconnected',
+		unknown: 'Connection unknown'
+	};
+	const cap = (n: number) => (n < 0 ? 'No limit' : String(n));
 	function minutes(m: number) {
 		if (m < 60) return `${m} min`;
 		const h = Math.floor(m / 60);
 		return h >= 48 && m % 1440 === 0 ? `${m / 1440} days` : `${h} h${m % 60 ? ` ${m % 60} min` : ''}`;
 	}
+	const notices = $derived.by((): SummaryNotice[] => {
+		if (!t) return [];
+		if (t.connection === 'disconnected') return [{ tone: 'bad', text: 'qBittorrent has no network connection.' }];
+		if (t.connection === 'firewalled') return [{ tone: 'warn', text: "qBittorrent is firewalled: peers can't connect to it, so speeds may be lower." }];
+		return [];
+	});
 </script>
 
 {#if !o}
 	{#if ov.state.error}
-		<p class="error" role="alert">{ov.state.error}</p>
+		<Empty error title={`Couldn't reach ${service.name}`} hint={sentence(ov.state.error)} onretry={() => ov.refresh()} />
 	{:else}
-		<div class="center"><LoadingIndicator aria-label="Loading qBittorrent" /></div>
+		<Loading label="Loading qBittorrent" />
 	{/if}
 {:else if t}
-	{@const conn = CONN[t.connection]}
-	<div class="page">
-		{#if ov.state.error}<p class="error" role="alert">Showing the last data: {ov.state.error}</p>{/if}
-
-		<div class="top">
-			<!-- Transfer -->
-			<section class="card transfer" aria-label="Transfer">
-				<div class="speeds">
-					<div class="speed">
-						<span class="lbl-m"><Icon icon={iDown} size={16} /> Download</span>
-						<strong class="big">{speed(t.down)}</strong>
-						<span class="body-small sub">Limit {limit(t.downLimit)}</span>
-					</div>
-					<div class="speed">
-						<span class="lbl-m"><Icon icon={iUp} size={16} /> Upload</span>
-						<strong class="big">{speed(t.up)}</strong>
-						<span class="body-small sub">Limit {limit(t.upLimit)}</span>
-					</div>
-					<span class="conn c-{t.connection}" title="Connection status"><Icon icon={conn.icon} size={16} />{conn.label}</span>
-				</div>
-				<dl class="stats">
-					<div><dt>Session</dt><dd>↓ {bytes(t.sessionDown)} · ↑ {bytes(t.sessionUp)}</dd></div>
-					<div><dt>All-time</dt><dd>↓ {bytes(t.allTimeDown)} · ↑ {bytes(t.allTimeUp)}</dd></div>
-					<div><dt>Global ratio</dt><dd>{t.ratio === null ? '—' : t.ratio.toFixed(2)}</dd></div>
-					<div><dt>Free space</dt><dd>{t.freeSpace === null ? '—' : bytes(t.freeSpace)}</dd></div>
-					<div><dt>DHT nodes</dt><dd>{t.dhtNodes.toLocaleString()}</dd></div>
-					<div><dt>Peers</dt><dd>{t.peers.toLocaleString()}</dd></div>
-				</dl>
-			</section>
-
-			<!-- Alternative speed limits -->
-			<section class="card alt" class:on={altOn} aria-label="Speed limits">
-				<div class="alt-head">
-					<span class="alt-icon"><Icon icon={iAlt} size={24} /></span>
-					<div class="alt-text">
-						<h2 class="h-small">Alternative speed limits</h2>
-						<p class="body-small">
-							{#if altPending !== null}Switching…{:else if altOn}On — {o.prefs ? `↓ ${limit(o.prefs.altDownLimit)} · ↑ ${limit(o.prefs.altUpLimit)}` : 'reduced limits'}{:else}Off — normal limits{/if}
-						</p>
-					</div>
-					<!-- The label forwards clicks on the switch's track to its input. -->
-					<label class="sw">
-						<Switch
-							aria-label="Alternative speed limits"
-							disabled={!isAdmin || altPending !== null}
-							bind:checked={() => altOn, (v) => setAlt(v)}
-						/>
-					</label>
-				</div>
-				{#if o.prefs}
-					<table class="limits">
-						<thead><tr><th scope="col"></th><th scope="col">Download</th><th scope="col">Upload</th></tr></thead>
-						<tbody>
-							<tr class:active={!altOn}><th scope="row">Normal</th><td>{limit(o.prefs.downLimit)}</td><td>{limit(o.prefs.upLimit)}</td></tr>
-							<tr class:active={altOn}><th scope="row">Alternative</th><td>{limit(o.prefs.altDownLimit)}</td><td>{limit(o.prefs.altUpLimit)}</td></tr>
-						</tbody>
-					</table>
-					{#if o.prefs.altScheduled}<p class="body-small note">A schedule in qBittorrent also switches these automatically.</p>{/if}
-				{/if}
-				{#if !isAdmin}<p class="body-small note">Only admins can change this.</p>{/if}
-			</section>
+	<Summary
+		meta={[o.version ? `qBittorrent ${o.version.replace(/^v/, '')}` : 'qBittorrent', CONN[t.connection]]}
+		stats={[
+			{ value: tile(speed(t.down)), label: 'Download', tone: t.down > 0 ? 'info' : undefined },
+			{ value: tile(speed(t.up)), label: 'Upload' },
+			{ value: t.freeSpace === null ? null : tile(bytes(t.freeSpace)), label: 'Free space' }
+		]}
+		{notices}
+		stale={ov.state.error}
+	>
+		<div class="alt" class:on={altOn}>
+			<span class="alt-icon"><Icon icon={iAlt} size={20} /></span>
+			<span class="alt-text">
+				<span class="alt-title">Alternative speed limits</span>
+				<span class="alt-sub">
+					{#if altPending !== null}Switching…{:else if altOn}On · ↓&nbsp;{o.prefs ? limit(o.prefs.altDownLimit) : 'reduced'} · ↑&nbsp;{o.prefs ? limit(o.prefs.altUpLimit) : 'reduced'}{:else}Off · normal limits{/if}
+				</span>
+			</span>
+			<!-- The label forwards clicks on the switch's track to its input. -->
+			<label class="sw">
+				<Switch aria-label="Alternative speed limits" disabled={!isAdmin || altPending !== null} bind:checked={() => altOn, (v) => setAlt(v)} />
+			</label>
 		</div>
+	</Summary>
 
-		<div class="body">
-			<!-- Torrents -->
-			<section class="torrents" aria-label="Torrents">
-				<h2 class="title-medium">Torrents{client ? ` (${torrents.length})` : ''}</h2>
-				{#if !snap}
-					<div class="center"><LoadingIndicator aria-label="Loading torrents" /></div>
-				{:else if !client}
-					<p class="empty">This instance isn't in the activity feed yet.</p>
-				{:else if client.error}
-					<p class="error" role="alert">{client.error}</p>
-				{:else}
-					{#if isAdmin}
-						<div class="bulk">
-							<Button variant="filled" onclick={() => (addOpen = true)}><Icon icon={iAdd} /> Add</Button>
-							<Button variant="tonal" disabled={busy} aria-label="Resume all" onclick={() => all('resumeAll')}><Icon icon={iResume} /><span class="lbl">Resume<span class="all">&nbsp;all</span></span></Button>
-							<Button variant="tonal" disabled={busy} aria-label="Pause all" onclick={() => all('pauseAll')}><Icon icon={iPause} /><span class="lbl">Pause<span class="all">&nbsp;all</span></span></Button>
-						</div>
-					{/if}
-
-					{#if catList.length}
-						<div class="chips" role="toolbar" aria-label="Filter by category">
-							<span class="chip-label" title="Category"><Icon icon={iCategory} size={18} /></span>
-							<Chip variant="general" selected={category === null} onclick={() => (category = null)}>All categories</Chip>
-							{#each catList as c (c)}
-								<Chip variant="general" selected={category === c} onclick={() => (category = category === c ? null : c)}>{c} {catCounts.get(c) ?? 0}</Chip>
-							{/each}
-							{#if catCounts.get(NONE) || category === NONE}
-								<Chip variant="general" selected={category === NONE} onclick={() => (category = category === NONE ? null : NONE)}>Uncategorized {catCounts.get(NONE) ?? 0}</Chip>
-							{/if}
-						</div>
-					{/if}
-					{#if tagList.length}
-						<div class="chips" role="toolbar" aria-label="Filter by tag">
-							<span class="chip-label" title="Tag"><Icon icon={iTag} size={18} /></span>
-							<Chip variant="general" selected={tag === null} onclick={() => (tag = null)}>All tags</Chip>
-							{#each tagList as g (g)}
-								<Chip variant="general" selected={tag === g} onclick={() => (tag = tag === g ? null : g)}>{g} {tagCounts.get(g) ?? 0}</Chip>
-							{/each}
-							{#if tagCounts.get(NONE) || tag === NONE}
-								<Chip variant="general" selected={tag === NONE} onclick={() => (tag = tag === NONE ? null : NONE)}>Untagged {tagCounts.get(NONE) ?? 0}</Chip>
-							{/if}
-						</div>
-					{/if}
-
-					<TorrentList torrents={shown} {isAdmin} showClient={() => service.name} />
+	<ServiceTabs items={TABS} bind:tab={ui.tab}>
+		{#if ui.tab === 'torrents'}
+			{#if !snap}
+				<Loading label="Loading torrents" />
+			{:else if !client}
+				<Empty icon={iFeed} title="This instance isn't in the activity feed yet" hint="It appears within a few seconds of being added." />
+			{:else if client.error}
+				<Empty error title="Couldn't load torrents" hint={sentence(client.error)} />
+			{:else}
+				{#if isAdmin}
+					<div class="bulk">
+						<Button variant="filled" onclick={() => (addOpen = true)}><Icon icon={iAdd} /> Add</Button>
+						<Button variant="tonal" disabled={busy} aria-label="Resume all" onclick={() => all('resumeAll')}><Icon icon={iResume} /><span class="lbl">Resume<span class="all">&nbsp;all</span></span></Button>
+						<Button variant="tonal" disabled={busy} aria-label="Pause all" onclick={() => all('pauseAll')}><Icon icon={iPause} /><span class="lbl">Pause<span class="all">&nbsp;all</span></span></Button>
+					</div>
 				{/if}
-			</section>
 
-			<!-- About + preferences -->
-			<aside class="card about" aria-label="About and preferences">
-				<h2 class="h-small">About</h2>
-				<dl class="kv">
-					<dt>Version</dt><dd>{o.version ?? '—'}</dd>
-					<dt>Web API</dt><dd>{o.webApiVersion ?? '—'}</dd>
-				</dl>
+				{#if catList.length || tagList.length || catCounts.get(NONE) !== torrents.length}
+					<div class="filters" role="toolbar" aria-label="Category and tag filters">
+						<Chip variant="general" icon={iCategory} trailingIcon={iDrop} selected={category !== null} onclick={() => (sheet = 'category')}>
+							Category: {nameOf(category, 'category')}
+						</Chip>
+						{#if tagList.length || tag !== null}
+							<Chip variant="general" icon={iTag} trailingIcon={iDrop} selected={tag !== null} onclick={() => (sheet = 'tag')}>Tag: {nameOf(tag, 'tag')}</Chip>
+						{/if}
+					</div>
+				{/if}
+
+				<TorrentList torrents={shown} {isAdmin} showClient={() => service.name} />
+			{/if}
+		{:else if ui.tab === 'limits'}
+			<div class="cards">
+				<Card title="Speed limits">
+					{#if o.prefs}
+						<table class="limits">
+							<thead><tr><th scope="col"><span class="sr-only">Mode</span></th><th scope="col">Download</th><th scope="col">Upload</th></tr></thead>
+							<tbody>
+								<tr class:active={!altOn}><th scope="row">Normal{#if !altOn}<span class="now">In use</span>{/if}</th><td>{limit(o.prefs.downLimit)}</td><td>{limit(o.prefs.upLimit)}</td></tr>
+								<tr class:active={altOn}><th scope="row">Alternative{#if altOn}<span class="now">In use</span>{/if}</th><td>{limit(o.prefs.altDownLimit)}</td><td>{limit(o.prefs.altUpLimit)}</td></tr>
+							</tbody>
+						</table>
+						{#if o.prefs.altScheduled}<p class="note">A schedule in qBittorrent also switches these automatically.</p>{/if}
+					{:else}
+						<p class="note">Couldn't read qBittorrent's preferences.</p>
+					{/if}
+					{#if !isAdmin}<p class="note">Only admins can switch speed limits.</p>{/if}
+				</Card>
 				{#if o.prefs}
 					{@const p = o.prefs}
-					{#if p.savePath !== null}
-						<h2 class="h-small">Downloads</h2>
+					<Card title="Queueing & seeding">
 						<dl class="kv">
-							<dt>Save path</dt><dd class="path">{p.savePath || '—'}</dd>
-							{#if p.tempPath}<dt>Incomplete</dt><dd class="path">{p.tempPath}</dd>{/if}
+							<dt>Queueing</dt><dd>{p.queueing ? 'On' : 'Off'}</dd>
+							{#if p.queueing}
+								<dt>Active downloads</dt><dd>{cap(p.maxActiveDownloads)}</dd>
+								<dt>Active uploads</dt><dd>{cap(p.maxActiveUploads)}</dd>
+								<dt>Active torrents</dt><dd>{cap(p.maxActiveTorrents)}</dd>
+							{/if}
+							<dt>Max ratio</dt><dd>{p.maxRatio === null ? 'No limit' : p.maxRatio.toFixed(2)}</dd>
+							<dt>Max seeding time</dt><dd>{p.maxSeedingTime === null ? 'No limit' : minutes(p.maxSeedingTime)}</dd>
+							{#if p.maxRatio !== null || p.maxSeedingTime !== null}<dt>Then</dt><dd>{p.maxRatioAction}</dd>{/if}
 						</dl>
-					{/if}
-					<h2 class="h-small">Queueing</h2>
+						<p class="note">Read-only. Change these in qBittorrent's own settings.</p>
+					</Card>
+				{/if}
+			</div>
+		{:else}
+			<div class="cards">
+				<Card title="Transfer">
 					<dl class="kv">
-						{#if p.queueing}
-							<dt>Downloads</dt><dd>{cap(p.maxActiveDownloads)}</dd>
-							<dt>Uploads</dt><dd>{cap(p.maxActiveUploads)}</dd>
-							<dt>Torrents</dt><dd>{cap(p.maxActiveTorrents)}</dd>
-						{:else}
-							<dt>Status</dt><dd>Off</dd>
+						<dt>This session</dt><dd><span class="pair">↓&nbsp;{nb(bytes(t.sessionDown))}</span> <span class="pair">↑&nbsp;{nb(bytes(t.sessionUp))}</span></dd>
+						<dt>All time</dt><dd><span class="pair">↓&nbsp;{nb(bytes(t.allTimeDown))}</span> <span class="pair">↑&nbsp;{nb(bytes(t.allTimeUp))}</span></dd>
+						<dt>Global ratio</dt><dd>{t.ratio === null ? '—' : t.ratio.toFixed(2)}</dd>
+						<dt>Peers</dt><dd>{t.peers.toLocaleString()}</dd>
+						<dt>DHT nodes</dt><dd>{t.dhtNodes.toLocaleString()}</dd>
+					</dl>
+				</Card>
+				<Card title="About">
+					<dl class="kv">
+						<dt>Version</dt><dd>{o.version ?? '—'}</dd>
+						<dt>Web API</dt><dd>{o.webApiVersion ?? '—'}</dd>
+						{#if o.prefs}
+							{@const p = o.prefs}
+							{#if p.savePath !== null}
+								<dt>Save path</dt><dd class="path">{p.savePath || '—'}</dd>
+								{#if p.tempPath}<dt>Incomplete</dt><dd class="path">{p.tempPath}</dd>{/if}
+							{/if}
+							<dt>DHT</dt><dd>{p.dht ? 'On' : 'Off'}</dd>
+							{#if p.listenPort !== null}<dt>Listen port</dt><dd>{p.listenPort}</dd>{/if}
 						{/if}
 					</dl>
-					<h2 class="h-small">Seeding limits</h2>
-					<dl class="kv">
-						<dt>Max ratio</dt><dd>{p.maxRatio === null ? 'No limit' : p.maxRatio.toFixed(2)}</dd>
-						<dt>Max time</dt><dd>{p.maxSeedingTime === null ? 'No limit' : minutes(p.maxSeedingTime)}</dd>
-						{#if p.maxRatio !== null || p.maxSeedingTime !== null}<dt>Then</dt><dd>{p.maxRatioAction}</dd>{/if}
-					</dl>
-					<h2 class="h-small">Network</h2>
-					<dl class="kv">
-						<dt>DHT</dt><dd>{p.dht ? 'On' : 'Off'}</dd>
-						{#if p.listenPort !== null}<dt>Listen port</dt><dd>{p.listenPort}</dd>{/if}
-					</dl>
-					<p class="body-small note">Read-only. Change these in qBittorrent's own settings.</p>
-				{:else}
-					<p class="body-small note">Couldn't read preferences.</p>
-				{/if}
-			</aside>
-		</div>
-	</div>
+				</Card>
+			</div>
+		{/if}
+	</ServiceTabs>
 
 	{#if client && !client.error}<AddTorrent bind:open={addOpen} clients={[client]} />{/if}
+
+	{#if sheet}
+		<BottomSheet close={() => (sheet = null)}>
+			<div class="sheet">
+				<h2 class="sheet-title">Filter by {sheet}</h2>
+				<ul class="options">
+					{#each sheetOptions as opt (opt.value ?? '')}
+						{@const current = (sheet === 'category' ? category : tag) === opt.value}
+						<li>
+							<button class="opt" class:current aria-pressed={current} onclick={() => pick(opt.value)}>
+								<span class="check">{#if current}<Icon icon={iCheck} size={20} />{/if}</span>
+								<span class="opt-label">{opt.label}</span>
+								<span class="opt-count">{opt.count}</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</BottomSheet>
+	{/if}
 {:else}
-	<p class="error" role="alert">{ov.state.error ?? 'qBittorrent sent no transfer data. Try reloading.'}</p>
+	<Empty error title="qBittorrent sent no transfer data" hint={ov.state.error ? sentence(ov.state.error) : 'Try again in a moment.'} onretry={() => ov.refresh()} />
 {/if}
 
 <style>
-	.page {
+	.cards {
 		display: grid;
-		gap: 1rem;
-	}
-	.top,
-	.body {
-		display: grid;
-		gap: 1rem;
 		grid-template-columns: minmax(0, 1fr);
+		gap: 0.75rem;
 		align-items: start;
 	}
 	@media (width >= 56rem) {
-		.top {
-			grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-			align-items: stretch;
+		.cards {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
-	@media (width >= 72rem) {
-		.body {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
-		}
-	}
-	.card {
-		padding: 1rem 1.25rem;
-		border-radius: var(--radius-l);
-		background: var(--m3c-surface-container-low);
-		min-width: 0;
-	}
-	h2 {
+	.note {
 		margin: 0;
-	}
-	.h-small {
-		font-size: 0.875rem;
-		line-height: 1.25rem;
-		font-weight: 500;
-	}
-	.lbl-m {
 		font-size: 0.75rem;
 		line-height: 1rem;
-		font-weight: 500;
-		letter-spacing: 0.03em;
-	}
-	.center {
-		display: grid;
-		place-items: center;
-		padding: 3rem 0;
-	}
-	.error {
-		color: var(--m3c-error);
-		font-size: 0.875rem;
-		margin: 0;
-	}
-	.empty,
-	.note {
 		color: var(--m3c-on-surface-variant);
-	}
-	.note {
-		margin: 0.75rem 0 0;
 	}
 
-	/* Transfer */
-	.speeds {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: 0.25rem 1rem;
-	}
-	.speed {
-		display: grid;
-		gap: 0.125rem;
-		min-width: 0;
-	}
-	.speed .lbl-m {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		color: var(--m3c-on-surface-variant);
-	}
-	.big {
-		font-size: 1.75rem;
-		line-height: 2.25rem;
-		font-weight: 500;
-		font-variant-numeric: tabular-nums;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.sub {
-		color: var(--m3c-on-surface-variant);
-	}
-	.conn {
-		grid-column: 1 / -1;
-		justify-self: start;
-		margin-top: 0.5rem;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		padding: 0.25rem 0.75rem;
-		border-radius: 1rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		background: var(--m3c-secondary-container);
-		color: var(--m3c-on-secondary-container);
-	}
-	.c-firewalled {
-		background: var(--m3c-tertiary-container);
-		color: var(--m3c-on-tertiary-container);
-	}
-	.c-disconnected,
-	.c-unknown {
-		background: var(--m3c-error-container);
-		color: var(--m3c-on-error-container);
-	}
-	.stats {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.75rem 1rem;
-		margin: 1rem 0 0;
-	}
-	@media (width >= 40rem) {
-		.stats {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-		}
-	}
-	.stats div {
-		min-width: 0;
-	}
-	.stats dt {
-		font-size: 0.75rem;
-		color: var(--m3c-on-surface-variant);
-	}
-	.stats dd {
-		margin: 0;
-		font-size: 0.875rem;
-		font-weight: 500;
-		font-variant-numeric: tabular-nums;
-		overflow-wrap: anywhere;
-	}
-
-	/* Alternative speed */
-	.alt.on {
-		background: var(--m3c-tertiary-container);
-		color: var(--m3c-on-tertiary-container);
-	}
-	.alt-head {
+	/* Alternative speed: a quiet row in the summary; "on" only tints the icon and adds a thin outline. */
+	.alt {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr) auto;
 		align-items: center;
 		gap: 0.75rem;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--radius-m);
+		background: var(--m3c-surface-container-high);
+		border: 1px solid transparent;
+	}
+	.alt.on {
+		border-color: var(--m3c-tertiary);
 	}
 	.alt-icon {
 		display: grid;
 		place-items: center;
-		width: 2.5rem;
-		height: 2.5rem;
+		width: 2.25rem;
+		height: 2.25rem;
 		border-radius: 50%;
 		background: var(--m3c-surface-container-highest);
 		color: var(--m3c-on-surface-variant);
 	}
 	.alt.on .alt-icon {
-		background: var(--m3c-tertiary);
-		color: var(--m3c-on-tertiary);
+		background: var(--m3c-tertiary-container);
+		color: var(--m3c-on-tertiary-container);
 	}
-	.alt.on :is(.body-small, .note) {
-		color: inherit;
+	.alt-text {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		min-width: 0;
+	}
+	.alt-title {
+		font-size: 0.875rem;
+		font-weight: 500;
+	}
+	.alt-sub {
+		font-size: 0.75rem;
+		color: var(--m3c-on-surface-variant);
+		overflow-wrap: anywhere;
+	}
+	.alt.on .alt-sub {
+		color: var(--m3c-tertiary);
 	}
 	.sw {
 		display: flex;
 		cursor: pointer;
 	}
-	.alt-text p {
-		margin: 0.125rem 0 0;
-		opacity: 0.85;
-	}
+
+	/* Limits */
 	.limits {
 		width: 100%;
-		margin-top: 1rem;
 		border-collapse: collapse;
 		font-size: 0.875rem;
 		font-variant-numeric: tabular-nums;
@@ -458,28 +381,28 @@
 		text-align: left;
 		padding: 0.375rem 0.5rem 0.375rem 0;
 		overflow-wrap: anywhere;
+		vertical-align: top;
 	}
 	.limits thead th {
 		font-size: 0.75rem;
 		font-weight: 500;
-		opacity: 0.75;
+		color: var(--m3c-on-surface-variant);
 	}
 	.limits tbody th {
 		font-weight: 400;
 	}
-	.limits tr.active {
+	.limits tr.active th,
+	.limits tr.active td {
 		font-weight: 600;
 	}
-	.limits tr.active th {
-		font-weight: 600;
+	.now {
+		display: block;
+		font-size: 0.6875rem;
+		font-weight: 500;
+		color: var(--m3c-primary);
 	}
 
 	/* Torrents */
-	.torrents {
-		display: grid;
-		gap: 0.5rem;
-		min-width: 0;
-	}
 	.bulk {
 		display: flex;
 		gap: 0.5rem;
@@ -495,35 +418,17 @@
 			display: none;
 		}
 	}
-	.chips {
+	.filters {
 		display: flex;
-		align-items: center;
+		flex-wrap: wrap;
 		gap: 0.5rem;
-		overflow-x: auto;
-		scrollbar-width: none;
-		padding: 0.125rem 0;
-	}
-	.chips > :global(*) {
-		flex: none;
-	}
-	.chip-label {
-		display: grid;
-		place-items: center;
-		color: var(--m3c-on-surface-variant);
 	}
 
-	/* About */
-	.about {
-		display: grid;
-		gap: 0.5rem;
-	}
-	.about h2:not(:first-child) {
-		margin-top: 0.5rem;
-	}
+	/* One aligned key/value grid per card. */
 	.kv {
 		display: grid;
-		grid-template-columns: max-content minmax(0, 1fr);
-		gap: 0.25rem 1rem;
+		grid-template-columns: minmax(7.5rem, max-content) minmax(0, 1fr);
+		gap: 0.5rem 1rem;
 		margin: 0;
 		font-size: 0.875rem;
 	}
@@ -535,8 +440,66 @@
 		overflow-wrap: anywhere;
 		font-variant-numeric: tabular-nums;
 	}
+	.pair {
+		white-space: nowrap;
+	}
+	.pair + .pair {
+		margin-left: 0.5rem;
+	}
 	.kv dd.path {
 		font-family: ui-monospace, monospace;
 		font-size: 0.75rem;
+	}
+
+	/* Filter sheet */
+	.sheet {
+		padding: 0 1rem 1.5rem;
+		max-width: 40rem;
+		margin: 0 auto;
+	}
+	.sheet-title {
+		padding: 0 0.5rem 0.5rem;
+		font-size: 1.125rem;
+	}
+	.options {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.opt {
+		all: unset;
+		box-sizing: border-box;
+		display: grid;
+		grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		min-height: 3rem;
+		padding: 0 0.75rem 0 0.5rem;
+		border-radius: 1.5rem;
+		cursor: pointer;
+	}
+	.opt:hover {
+		background: var(--m3c-surface-container-high);
+	}
+	.opt:focus-visible {
+		outline: 2px solid var(--m3c-primary);
+	}
+	.opt.current {
+		background: var(--m3c-secondary-container);
+		color: var(--m3c-on-secondary-container);
+	}
+	.check {
+		display: grid;
+	}
+	.opt-label {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.opt-count {
+		font-size: 0.8125rem;
+		font-variant-numeric: tabular-nums;
+		color: var(--m3c-on-surface-variant);
 	}
 </style>

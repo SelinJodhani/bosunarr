@@ -1,24 +1,29 @@
 <script lang="ts">
-	// Shared Sonarr / Radarr service screen: status, wanted, history and setup summary.
+	// Shared Sonarr / Radarr service screen: summary, tasks + storage, wanted, history and setup.
 	import { untrack } from 'svelte';
-	import { Button, Chip, Dialog, Icon, LinearProgress, LinearProgressEstimate, LoadingIndicator, snackbar, Tabs } from 'm3-svelte';
+	import { Button, Chip, Icon, LinearProgress, snackbar } from 'm3-svelte';
 	import iRss from '@ktibow/iconset-material-symbols/rss-feed-rounded';
 	import iSearch from '@ktibow/iconset-material-symbols/travel-explore-rounded';
 	import iUpgrade from '@ktibow/iconset-material-symbols/upgrade-rounded';
 	import iRefresh from '@ktibow/iconset-material-symbols/refresh-rounded';
-	import iError from '@ktibow/iconset-material-symbols/error-rounded';
-	import iWarning from '@ktibow/iconset-material-symbols/warning-rounded';
-	import iInfo from '@ktibow/iconset-material-symbols/info-rounded';
-	import iOk from '@ktibow/iconset-material-symbols/check-circle-rounded';
-	import iOpen from '@ktibow/iconset-material-symbols/open-in-new-rounded';
-	import iArrow from '@ktibow/iconset-material-symbols/arrow-forward-rounded';
-	import iUpdate from '@ktibow/iconset-material-symbols/system-update-rounded';
+	import iTasks from '@ktibow/iconset-material-symbols/task-alt-rounded';
+	import iDisk from '@ktibow/iconset-material-symbols/hard-disk-rounded';
 	import { live } from '$lib/live.svelte';
 	import { ago, bytes } from '$lib/format';
 	import type { ServicePageProps } from '../types';
+	import Summary from '../shared/Summary.svelte';
+	import ServiceTabs from '../shared/ServiceTabs.svelte';
+	import Card from '../shared/Card.svelte';
+	import Badge from '../shared/Badge.svelte';
+	import Empty from '../shared/Empty.svelte';
+	import Loading from '../shared/Loading.svelte';
+	import Indeterminate from '../shared/Indeterminate.svelte';
+	import ConfirmDialog from '../shared/ConfirmDialog.svelte';
+	import { protocolLabel, sentence } from '../shared/format';
+	import type { SummaryNotice } from '../shared/types';
 	import WantedList from './WantedList.svelte';
 	import HistoryList from './HistoryList.svelte';
-	import { dateTime, healthSource, protocol, since, taskStatus, until, uptime } from './format';
+	import { dateTime, healthSource, since, taskStatus, until, uptime } from './format';
 	import type { ArrCommand, ArrOverview, HistoryFilter, WantedKind } from './types';
 
 	let { service, isAdmin }: ServicePageProps = $props();
@@ -28,10 +33,11 @@
 	const ov = live<ArrOverview>(base, 30_000);
 	const d = $derived(ov.state.data);
 	const movies = $derived(service.type === 'radarr');
+	const appName = $derived(movies ? 'Radarr' : 'Sonarr');
 
-	let tab = $state('status');
+	let tab = $state('overview');
 	const TABS = [
-		{ name: 'Status', value: 'status' },
+		{ name: 'Overview', value: 'overview' },
 		{ name: 'Wanted', value: 'wanted' },
 		{ name: 'History', value: 'history' },
 		{ name: 'Setup', value: 'setup' }
@@ -54,58 +60,106 @@
 		tab = 'wanted';
 	}
 
-	// Ticking clock for uptime (once a minute is plenty).
+	// Ticking clock for uptime and "x minutes ago" (once a minute is plenty).
 	let now = $state(Date.now());
 	$effect(() => {
 		const t = setInterval(() => (now = Date.now()), 60_000);
 		return () => clearInterval(t);
 	});
 
+	/* -------------------------------- summary -------------------------------- */
+	const PARTS: Record<string, string> = {
+		queue: 'the queue',
+		health: 'health checks',
+		disks: 'disk space',
+		'root folders': 'root folders',
+		indexers: 'indexers',
+		'download clients': 'download clients',
+		profiles: 'quality profiles',
+		tags: 'tags'
+	};
+	const issues = $derived(
+		(d?.health ?? [])
+			.filter((h) => h.type !== 'ok')
+			// The update shows once, as its own notice.
+			.filter((h) => !(d?.system.update && /update/i.test(h.source)))
+	);
+	const notices = $derived.by((): SummaryNotice[] => {
+		if (!d) return [];
+		const out: SummaryNotice[] = [];
+		if (d.system.update) {
+			const how = d.system.docker || d.system.updateMechanism === 'docker' ? ' — pull a newer container image' : '';
+			out.push({ tone: 'update', text: `${appName} ${d.system.update.version} is available${how}.` });
+		}
+		for (const h of issues) {
+			out.push({ tone: h.type === 'error' ? 'bad' : h.type === 'warning' ? 'warn' : 'info', source: healthSource(h.source), text: h.message, href: h.wikiUrl ?? undefined });
+		}
+		if (d.partial.length) {
+			const what = d.partial.map((p) => PARTS[p] ?? p);
+			out.push({ tone: 'warn', text: `Couldn't load ${what.join(', ')}. Trying again shortly.` });
+		}
+		return out;
+	});
+
 	/* -------------------------------- actions -------------------------------- */
-	const ACTIONS = $derived<Record<ArrCommand, { label: string; icon: typeof iRss; title: string; body: string }>>({
-		rss: {
-			label: 'RSS sync',
-			icon: iRss,
-			title: 'Run an RSS sync?',
-			body: 'Checks every RSS-enabled indexer for new releases and grabs anything wanted.'
-		},
+	const ACTIONS = $derived<Record<ArrCommand, { label: string; icon: typeof iRss; confirm: string | null; body: string }>>({
+		rss: { label: 'RSS sync', icon: iRss, confirm: null, body: '' },
 		missing: {
 			label: 'Search missing',
 			icon: iSearch,
-			title: `Search all missing ${movies ? 'movies' : 'episodes'}?`,
+			confirm: `Search all missing ${movies ? 'movies' : 'episodes'}?`,
 			body: `Searches your indexers for every monitored ${movies ? 'movie' : 'episode'} that isn't on disk${d?.missing ? ` (${d.missing.toLocaleString()})` : ''}. On a big library this can hit indexer limits.`
 		},
 		cutoff: {
 			label: 'Search upgrades',
 			icon: iUpgrade,
-			title: 'Search all cutoff unmet?',
+			confirm: 'Search all cutoff unmet?',
 			body: `Looks for better releases for everything below its quality cutoff${d?.cutoff ? ` (${d.cutoff.toLocaleString()})` : ''}.`
 		},
 		refresh: {
 			label: 'Refresh & scan',
 			icon: iRefresh,
-			title: `Refresh & scan all ${movies ? 'movies' : 'series'}?`,
+			confirm: `Refresh & scan all ${movies ? 'movies' : 'series'}?`,
 			body: 'Refreshes metadata and rescans every folder on disk. It can take a while on large libraries.'
 		}
 	});
 	const ACTION_ORDER: ArrCommand[] = ['rss', 'missing', 'cutoff', 'refresh'];
 
+	const isRunning = (s: string) => s === 'started' || s === 'queued';
+	const runningCmds = $derived(new Set((d?.commands ?? []).filter((c) => isRunning(c.status) && c.command).map((c) => c.command)));
+	/** Started from here but not yet reported back by the arr: keeps its button disabled in between. */
+	let launched = $state<Partial<Record<ArrCommand, number>>>({});
+	const blocked = (c: ArrCommand) => runningCmds.has(c) || launched[c] !== undefined;
+
+	// Once the arr lists the command (running or finished), its own status takes over.
+	$effect(() => {
+		const cmds = d?.commands ?? [];
+		untrack(() => {
+			for (const c of Object.keys(launched) as ArrCommand[]) {
+				const t = launched[c] ?? 0;
+				if (cmds.some((x) => x.command === c && (!x.started || +new Date(x.started) >= t - 5_000)) || Date.now() - t > 30_000) delete launched[c];
+			}
+		});
+	});
+
 	let confirmOpen = $state(false);
 	let pending = $state<ArrCommand | null>(null);
-	let busy = $state(false);
-
 	let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => () => clearTimeout(refreshTimer));
 
-	function ask(c: ArrCommand) {
-		pending = c;
-		confirmOpen = true;
+	function trigger(c: ArrCommand) {
+		if (blocked(c)) return;
+		if (ACTIONS[c].confirm) {
+			pending = c;
+			confirmOpen = true;
+		} else {
+			start(c).then((err) => err && snackbar(`Couldn't start ${ACTIONS[c].label.toLowerCase()}. ${err}`, {}, true));
+		}
 	}
 
-	async function run() {
-		const c = pending;
-		if (!c) return;
-		busy = true;
+	/** Starts a command; resolves to an error message or null. */
+	async function start(c: ArrCommand): Promise<string | null> {
+		launched[c] = Date.now();
 		try {
 			const r = await fetch(`${base}/command`, {
 				method: 'POST',
@@ -117,113 +171,43 @@
 			snackbar(typeof body?.message === 'string' ? body.message : `${ACTIONS[c].label} started`, {}, true);
 			clearTimeout(refreshTimer);
 			refreshTimer = setTimeout(() => ov.refresh(), 1500);
+			return null;
 		} catch (e) {
-			snackbar(`Couldn't start ${ACTIONS[c].label.toLowerCase()}: ${e instanceof Error ? e.message : e}`, {}, true);
-		} finally {
-			busy = false;
-			confirmOpen = false;
+			delete launched[c];
+			return sentence(e instanceof Error ? e.message : String(e));
 		}
 	}
 
-	const HEALTH_ICON = { error: iError, warning: iWarning, notice: iInfo, ok: iOk } as const;
-	const issues = $derived((d?.health ?? []).filter((h) => h.type !== 'ok'));
-	const running = $derived((d?.commands ?? []).some((c) => c.status === 'started' || c.status === 'queued'));
+	const ok = (b: boolean) => (b ? 'ok' : 'off');
 </script>
 
-<Tabs items={TABS} bind:tab secondary />
-
-<div class="content">
-	{#if !d}
-		{#if ov.state.error}
-			<section class="card"><p class="error" role="alert">{ov.state.error}</p></section>
-		{:else}
-			<div class="center"><LoadingIndicator aria-label="Loading status" /></div>
-		{/if}
+{#if !d}
+	{#if ov.state.error}
+		<Empty error title={`Couldn't reach ${service.name}`} hint={sentence(ov.state.error)} onretry={() => ov.refresh()} />
 	{:else}
-		{#if ov.state.error}<p class="stale" role="status" title={ov.state.error}>Couldn't refresh — showing last known data ({ov.state.error})</p>{/if}
-		{#if d.partial.length}<p class="stale" role="status">Couldn't load: {d.partial.join(', ')}</p>{/if}
+		<Loading label={`Loading ${service.name}`} />
+	{/if}
+{:else}
+	<Summary
+		meta={[`${appName} ${d.system.version}`, d.system.startTime && `Up ${uptime(d.system.startTime, now)}`]}
+		stats={[
+			{ value: d.queue ? d.queue.count.toLocaleString() : null, label: 'In queue', href: '/activity', tone: d.queue?.errors ? 'bad' : d.queue?.warnings ? 'warn' : undefined },
+			{ value: d.missing?.toLocaleString() ?? null, label: 'Missing', onclick: () => showWanted('missing'), tone: d.missing ? 'info' : undefined },
+			{ value: d.cutoff?.toLocaleString() ?? null, label: 'Cutoff unmet', onclick: () => showWanted('cutoff') }
+		]}
+		{notices}
+		stale={ov.state.error}
+	/>
 
-		{#if tab === 'status'}
+	<ServiceTabs items={TABS} bind:tab>
+		{#if tab === 'overview'}
 			<div class="cards">
-				<section class="card">
-					<h2>System</h2>
-					{#if d.system.update}
-						<div class="update">
-							<Icon icon={iUpdate} />
-							<span>
-								Update available: <strong>{d.system.update.version}</strong>
-								{#if d.system.update.releaseDate}<span class="muted"> · released {ago(d.system.update.releaseDate)}</span>{/if}
-								{#if d.system.docker || d.system.updateMechanism === 'docker'}<span class="muted block">Update by pulling a newer container image.</span>{/if}
-							</span>
-						</div>
-					{/if}
-					<dl>
-						<dt>Version</dt>
-						<dd>{d.system.version}</dd>
-						{#if d.system.startTime}
-							<dt>Uptime</dt>
-							<dd title={`Started ${dateTime(d.system.startTime)}`}>{uptime(d.system.startTime, now)}</dd>
-						{/if}
-						{#if d.system.branch}<dt>Branch</dt><dd>{d.system.branch}</dd>{/if}
-						{#if d.system.os}<dt>OS</dt><dd>{d.system.os}{d.system.docker ? ' (Docker)' : ''}</dd>{/if}
-						{#if d.system.runtime}<dt>Runtime</dt><dd>{d.system.runtime}</dd>{/if}
-						{#if d.system.database}<dt>Database</dt><dd>{d.system.database}</dd>{/if}
-					</dl>
-				</section>
-
-				<section class="card">
-					<h2>At a glance</h2>
-					<div class="stats">
-						<a class="stat" href="/activity" class:bad={d.queue?.errors} class:warn={!d.queue?.errors && d.queue?.warnings}>
-							<span class="num">{d.queue ? d.queue.count.toLocaleString() : '–'}</span>
-							<span class="lbl">In queue</span>
-						</a>
-						<button class="stat" onclick={() => showWanted('missing')}>
-							<span class="num">{d.missing?.toLocaleString() ?? '–'}</span>
-							<span class="lbl">Missing</span>
-						</button>
-						<button class="stat" onclick={() => showWanted('cutoff')}>
-							<span class="num">{d.cutoff?.toLocaleString() ?? '–'}</span>
-							<span class="lbl">Cutoff unmet</span>
-						</button>
-					</div>
-					{#if d.queue && (d.queue.errors || d.queue.warnings)}
-						<p class="muted small">Some queue items need attention.</p>
-					{/if}
-					<div class="row-end">
-						<Button variant="text" href="/activity">Open Activity <Icon icon={iArrow} /></Button>
-					</div>
-				</section>
-
-				<section class="card">
-					<h2>Health</h2>
-					{#if issues.length === 0}
-						<p class="healthy"><Icon icon={iOk} /> No issues</p>
-					{:else}
-						<ul class="issues">
-							{#each issues as h, i (`${h.source}:${i}`)}
-								<li class="issue issue-{h.type}">
-									<Icon icon={HEALTH_ICON[h.type]} />
-									<div class="issue-body">
-										<span class="issue-src">{healthSource(h.source)}</span>
-										<span>{h.message}</span>
-										{#if h.wikiUrl}
-											<a href={h.wikiUrl} target="_blank" rel="noopener noreferrer">How to fix <Icon icon={iOpen} size={14} /></a>
-										{/if}
-									</div>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</section>
-
 				{#if isAdmin || d.commands.length}
-					<section class="card">
-						<h2>Tasks</h2>
+					<Card title="Tasks" icon={iTasks}>
 						{#if isAdmin}
 							<div class="actions">
 								{#each ACTION_ORDER as c (c)}
-									<Button variant="tonal" onclick={() => ask(c)}><Icon icon={ACTIONS[c].icon} />{ACTIONS[c].label}</Button>
+									<Button variant="tonal" disabled={blocked(c)} onclick={() => trigger(c)}><Icon icon={ACTIONS[c].icon} />{ACTIONS[c].label}</Button>
 								{/each}
 							</div>
 						{/if}
@@ -231,20 +215,21 @@
 							<ul class="tasks">
 								{#each d.commands as c (c.id)}
 									<li>
-										<span class="task-name">{c.name}</span>
-										<span class="task-st st-{c.status}">{taskStatus(c.status)}{c.started ? ` · ${since(c.ended ?? c.started, now)}` : ''}</span>
+										<div class="task-line">
+											<span class="task-name">{c.name}</span>
+											<span class="task-st st-{c.status}">{taskStatus(c.status)}{c.started && !isRunning(c.status) ? ` · ${since(c.ended ?? c.started, now)}` : ''}</span>
+										</div>
+										{#if isRunning(c.status)}<Indeterminate label={`${c.name} running`} />{/if}
 									</li>
 								{/each}
 							</ul>
-							{#if running}<LinearProgressEstimate sToHalfway={20} aria-label="Tasks running" />{/if}
 						{:else}
 							<p class="muted small">No recent tasks.</p>
 						{/if}
-					</section>
+					</Card>
 				{/if}
 
-				<section class="card wide">
-					<h2>Storage</h2>
+				<Card title="Storage" icon={iDisk}>
 					{#if d.disks.length === 0}
 						<p class="muted">No disks reported.</p>
 					{:else}
@@ -271,9 +256,10 @@
 							{/each}
 						</ul>
 					{/if}
-				</section>
+				</Card>
 			</div>
 		{:else if tab === 'wanted'}
+			{@const count = wantedKind === 'missing' ? d.missing : d.cutoff}
 			<div class="toolbar">
 				<div class="chips">
 					<Chip variant="general" selected={wantedKind === 'missing'} onclick={() => ((wantedKind = 'missing'), (wantedPage = 1))}>
@@ -283,8 +269,8 @@
 						Cutoff unmet{d.cutoff !== null ? ` · ${d.cutoff.toLocaleString()}` : ''}
 					</Chip>
 				</div>
-				{#if isAdmin}
-					<Button variant="text" onclick={() => ask(wantedKind)}>
+				{#if isAdmin && count}
+					<Button variant="tonal" disabled={blocked(wantedKind)} onclick={() => trigger(wantedKind)}>
 						<Icon icon={wantedKind === 'missing' ? iSearch : iUpgrade} />Search all
 					</Button>
 				{/if}
@@ -301,14 +287,29 @@
 				</div>
 			</div>
 			{#key `${historyFilter}:${historyPage}`}
-				<HistoryList url={`${base}/history?event=${historyFilter}&page=${historyPage}`} onpage={(p) => (historyPage = p)} />
+				<HistoryList url={`${base}/history?event=${historyFilter}&page=${historyPage}`} filtered={historyFilter !== 'all'} onpage={(p) => (historyPage = p)} />
 			{/key}
 		{:else}
 			<div class="cards">
-				<section class="card">
-					<h2>Indexers</h2>
+				<Card title="System">
+					<dl>
+						<dt>Version</dt>
+						<dd>{d.system.version}</dd>
+						{#if d.system.startTime}
+							<dt>Started</dt>
+							<dd>{dateTime(d.system.startTime)}</dd>
+						{/if}
+						{#if d.system.branch}<dt>Branch</dt><dd>{d.system.branch}</dd>{/if}
+						{#if d.system.os}<dt>OS</dt><dd>{d.system.os}{d.system.docker ? ' (Docker)' : ''}</dd>{/if}
+						{#if d.system.runtime}<dt>Runtime</dt><dd>{d.system.runtime}</dd>{/if}
+						{#if d.system.database}<dt>Database</dt><dd>{d.system.database}</dd>{/if}
+						{#if d.system.update?.releaseDate}<dt>Update</dt><dd>{d.system.update.version}, released {ago(d.system.update.releaseDate)}</dd>{/if}
+					</dl>
+				</Card>
+
+				<Card title="Indexers">
 					{#if d.indexers.length === 0}
-						<p class="muted">No indexers — add them in {movies ? 'Radarr' : 'Sonarr'} or sync them from Prowlarr.</p>
+						<p class="muted">No indexers — add them in {appName} or sync them from Prowlarr.</p>
 					{:else}
 						<ul class="plist">
 							{#each d.indexers as x (x.id)}
@@ -317,15 +318,13 @@
 									<div class="pl-line">
 										<span class="pl-name">{x.name}</span>
 										{#if x.disabledTill}
-											<span class="badge bad" title={x.lastFailure ? `Last failure ${dateTime(x.lastFailure)}` : undefined}>Failing</span>
-										{:else if off}
-											<span class="badge">Disabled</span>
+											<Badge tone="bad" title={x.lastFailure ? `Last failure ${dateTime(x.lastFailure)}` : undefined}>Failing</Badge>
 										{:else}
-											<span class="badge ok">Enabled</span>
+											<Badge tone={ok(!off)}>{off ? 'Disabled' : 'Enabled'}</Badge>
 										{/if}
 									</div>
 									<div class="pl-sub">
-										{protocol(x.protocol)}{x.implementation ? ` · ${x.implementation}` : ''} · priority {x.priority}
+										{protocolLabel(x.protocol)}{x.implementation ? ` · ${x.implementation}` : ''} · priority {x.priority}
 									</div>
 									{#if !off}
 										<div class="pl-sub">
@@ -337,10 +336,9 @@
 							{/each}
 						</ul>
 					{/if}
-				</section>
+				</Card>
 
-				<section class="card">
-					<h2>Download clients</h2>
+				<Card title="Download clients">
 					{#if d.downloadClients.length === 0}
 						<p class="muted">No download clients.</p>
 					{:else}
@@ -350,23 +348,20 @@
 									<div class="pl-line">
 										<span class="pl-name">{x.name}</span>
 										{#if x.disabledTill}
-											<span class="badge bad">Failing</span>
-										{:else if x.enabled}
-											<span class="badge ok">Enabled</span>
+											<Badge tone="bad">Failing</Badge>
 										{:else}
-											<span class="badge">Disabled</span>
+											<Badge tone={ok(x.enabled)}>{x.enabled ? 'Enabled' : 'Disabled'}</Badge>
 										{/if}
 									</div>
-									<div class="pl-sub">{protocol(x.protocol)}{x.implementation && x.implementation !== x.name ? ` · ${x.implementation}` : ''} · priority {x.priority}</div>
+									<div class="pl-sub">{protocolLabel(x.protocol)}{x.implementation && x.implementation !== x.name ? ` · ${x.implementation}` : ''} · priority {x.priority}</div>
 									{#if x.disabledTill}<div class="pl-sub bad-text">Paused until {until(x.disabledTill)} after failures</div>{/if}
 								</li>
 							{/each}
 						</ul>
 					{/if}
-				</section>
+				</Card>
 
-				<section class="card">
-					<h2>Quality profiles</h2>
+				<Card title="Quality profiles">
 					{#if d.profiles.length === 0}
 						<p class="muted">No quality profiles.</p>
 					{:else}
@@ -375,18 +370,17 @@
 								<li>
 									<div class="pl-line">
 										<span class="pl-name">{p.name}</span>
-										<span class="badge">{p.upgradeAllowed ? 'Upgrades on' : 'No upgrades'}</span>
+										<Badge tone={p.upgradeAllowed ? 'info' : 'off'}>{p.upgradeAllowed ? 'Upgrades on' : 'No upgrades'}</Badge>
 									</div>
 									{#if p.cutoff && p.upgradeAllowed}<div class="pl-sub">Upgrade until {p.cutoff}</div>{/if}
-									<div class="pl-sub quals">{p.qualities.length ? p.qualities.join(', ') : 'No qualities allowed'}</div>
+									<div class="pl-sub">{p.qualities.length ? p.qualities.join(', ') : 'No qualities allowed'}</div>
 								</li>
 							{/each}
 						</ul>
 					{/if}
-				</section>
+				</Card>
 
-				<section class="card">
-					<h2>Tags</h2>
+				<Card title="Tags">
 					{#if d.tags.length === 0}
 						<p class="muted">No tags.</p>
 					{:else}
@@ -400,32 +394,22 @@
 						</ul>
 						<p class="muted small">Numbers count everything a tag is attached to ({movies ? 'movies' : 'series'}, indexers, profiles…).</p>
 					{/if}
-				</section>
+				</Card>
 			</div>
 		{/if}
-	{/if}
-</div>
+	</ServiceTabs>
+{/if}
 
-<Dialog headline={pending ? ACTIONS[pending].title : ''} bind:open={confirmOpen}>
-	{#if pending}<p class="dlg">{ACTIONS[pending].body}</p>{/if}
-	{#snippet buttons()}
-		<Button variant="text" onclick={() => (confirmOpen = false)}>Cancel</Button>
-		<Button variant="filled" disabled={busy} onclick={run}>{pending ? ACTIONS[pending].label : 'Run'}</Button>
-	{/snippet}
-</Dialog>
+<ConfirmDialog
+	bind:open={confirmOpen}
+	headline={pending ? (ACTIONS[pending].confirm ?? '') : ''}
+	confirm={pending ? ACTIONS[pending].label : 'Run'}
+	onconfirm={() => (pending ? start(pending) : Promise.resolve(null))}
+>
+	{#if pending}<p>{ACTIONS[pending].body}</p>{/if}
+</ConfirmDialog>
 
 <style>
-	.content {
-		margin-top: 1rem;
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 0.75rem;
-	}
-	.center {
-		display: grid;
-		place-items: center;
-		padding: 3rem 0;
-	}
 	.cards {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
@@ -436,48 +420,22 @@
 		.cards {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
-		.card.wide {
-			grid-column: 1 / -1;
-		}
-	}
-	.card {
-		min-width: 0;
-		padding: 1rem 1.125rem;
-		border-radius: var(--radius-l);
-		background: var(--m3c-surface-container-low);
-	}
-	h2 {
-		margin: 0 0 0.75rem;
-		font-size: 1rem;
-		font-weight: 600;
 	}
 	p {
 		margin: 0;
 	}
 	.muted {
 		color: var(--m3c-on-surface-variant);
+		font-size: 0.875rem;
 	}
 	.small {
-		margin-top: 0.5rem;
 		font-size: 0.8125rem;
-	}
-	.block {
-		display: block;
-		font-size: 0.8125rem;
-	}
-	.error {
-		color: var(--m3c-error);
-	}
-	.stale {
-		overflow-wrap: anywhere;
-		font-size: 0.8125rem;
-		color: var(--m3c-error);
 	}
 
 	/* system */
 	dl {
 		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-columns: max-content minmax(0, 1fr);
 		gap: 0.375rem 1rem;
 		margin: 0;
 		font-size: 0.875rem;
@@ -489,140 +447,32 @@
 		margin: 0;
 		overflow-wrap: anywhere;
 	}
-	.update {
-		display: flex;
-		gap: 0.625rem;
-		align-items: flex-start;
-		padding: 0.625rem 0.75rem;
-		margin-bottom: 0.875rem;
-		border-radius: var(--radius-m);
-		background: var(--m3c-tertiary-container);
-		color: var(--m3c-on-tertiary-container);
-		font-size: 0.875rem;
-	}
-	.update .muted {
-		color: inherit;
-		opacity: 0.8;
-	}
-
-	/* at a glance */
-	.stats {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.5rem;
-	}
-	.stat {
-		display: grid;
-		gap: 0.125rem;
-		padding: 0.75rem 0.5rem;
-		border: 0;
-		border-radius: var(--radius-m);
-		background: var(--m3c-surface-container-high);
-		color: inherit;
-		font: inherit;
-		text-align: center;
-		text-decoration: none;
-		cursor: pointer;
-	}
-	.stat:hover {
-		background: var(--m3c-surface-container-highest);
-	}
-	.stat.warn .num {
-		color: var(--m3c-tertiary);
-	}
-	.stat.bad .num {
-		color: var(--m3c-error);
-	}
-	.num {
-		font-size: 1.5rem;
-		font-weight: 500;
-		font-variant-numeric: tabular-nums;
-	}
-	.lbl {
-		font-size: 0.75rem;
-		color: var(--m3c-on-surface-variant);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.row-end {
-		display: flex;
-		justify-content: flex-end;
-		margin: 0.5rem -0.5rem -0.5rem 0;
-	}
-
-	/* health */
-	.healthy {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: var(--m3c-tertiary);
-	}
-	.issues {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		gap: 0.5rem;
-	}
-	.issue {
-		display: flex;
-		gap: 0.625rem;
-		align-items: flex-start;
-		font-size: 0.875rem;
-	}
-	.issue > :global(svg) {
-		flex: none;
-		margin-top: 0.0625rem;
-	}
-	.issue-error > :global(svg) {
-		color: var(--m3c-error);
-	}
-	.issue-warning > :global(svg) {
-		color: var(--m3c-tertiary);
-	}
-	.issue-notice > :global(svg) {
-		color: var(--m3c-primary);
-	}
-	.issue-body {
-		min-width: 0;
-		display: grid;
-		gap: 0.125rem;
-		overflow-wrap: anywhere;
-	}
-	.issue-src {
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--m3c-on-surface-variant);
-	}
-	.issue a {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		color: var(--m3c-primary);
-		font-size: 0.8125rem;
-		justify-self: start;
-	}
 
 	/* tasks */
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		margin-bottom: 0.75rem;
 	}
 	.tasks {
 		list-style: none;
-		margin: 0 0 0.5rem;
+		margin: 0;
 		padding: 0;
 		display: grid;
-		gap: 0.375rem;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.5rem;
 		font-size: 0.875rem;
 	}
 	.tasks li {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.375rem;
+	}
+	.task-line {
 		display: flex;
 		justify-content: space-between;
 		gap: 0.75rem;
+		min-width: 0;
 	}
 	.task-name {
 		min-width: 0;
@@ -651,18 +501,13 @@
 		grid-template-columns: minmax(0, 1fr);
 		gap: 1rem;
 	}
-	@media (min-width: 60rem) {
-		.disks {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-			column-gap: 1.5rem;
-		}
-	}
 	.disk-line {
 		display: flex;
 		justify-content: space-between;
 		gap: 0.5rem;
 		font-size: 0.875rem;
 		margin-bottom: 0.375rem;
+		min-width: 0;
 	}
 	.path {
 		min-width: 0;
@@ -699,6 +544,10 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
+		min-width: 0;
+	}
+	.chips > :global(*) {
+		flex: none;
 	}
 
 	/* setup */
@@ -707,6 +556,7 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.875rem;
 	}
 	.pl-line {
@@ -714,6 +564,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.5rem;
+		min-width: 0;
 	}
 	.pl-name {
 		min-width: 0;
@@ -729,22 +580,6 @@
 	}
 	.bad-text {
 		color: var(--m3c-error);
-	}
-	.badge {
-		flex: none;
-		padding: 0.125rem 0.5rem;
-		border-radius: 0.5rem;
-		font-size: 0.75rem;
-		background: var(--m3c-surface-container-highest);
-		color: var(--m3c-on-surface-variant);
-	}
-	.badge.ok {
-		background: var(--m3c-secondary-container);
-		color: var(--m3c-on-secondary-container);
-	}
-	.badge.bad {
-		background: var(--m3c-error-container);
-		color: var(--m3c-on-error-container);
 	}
 	.tags {
 		list-style: none;
@@ -780,8 +615,5 @@
 		background: var(--m3c-surface-container-highest);
 		font-size: 0.75rem;
 		text-align: center;
-	}
-	.dlg {
-		margin: 0;
 	}
 </style>

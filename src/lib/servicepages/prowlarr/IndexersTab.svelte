@@ -1,68 +1,81 @@
+<script lang="ts" module>
+	export type IndexerFilter = 'all' | 'enabled' | 'disabled' | 'failing';
+	/** Shared with the page so the summary tiles can open a filtered list. */
+	export const indexerView = $state({ filter: 'all' as IndexerFilter });
+</script>
+
 <script lang="ts">
-	import { Button, Chip, Dialog, snackbar } from 'm3-svelte';
+	import { Chip, snackbar } from 'm3-svelte';
+	import iSearchOff from '@ktibow/iconset-material-symbols/search-off-rounded';
 	import { ago } from '$lib/format';
+	import Empty from '../shared/Empty.svelte';
+	import ConfirmDialog from '../shared/ConfirmDialog.svelte';
+	import { protocolLabel } from '../shared/format';
 	import type { Indexer } from './types';
-	import { post } from './api';
+	import { implementationLabel, post } from './api';
 
 	let { api, isAdmin, indexers, refresh }: { api: string; isAdmin: boolean; indexers: Indexer[]; refresh: () => Promise<void> } = $props();
 
-	type Filter = 'all' | 'enabled' | 'disabled' | 'failing';
-	let filter = $state<Filter>('all');
-	const FILTERS: Array<{ value: Filter; label: string; test: (i: Indexer) => boolean }> = [
+	const FILTERS: Array<{ value: IndexerFilter; label: string; test: (i: Indexer) => boolean }> = [
 		{ value: 'all', label: 'All', test: () => true },
 		{ value: 'enabled', label: 'Enabled', test: (i) => i.enabled },
 		{ value: 'disabled', label: 'Disabled', test: (i) => !i.enabled },
 		{ value: 'failing', label: 'Failing', test: (i) => i.enabled && i.failure !== null }
 	];
-	const counts = $derived(Object.fromEntries(FILTERS.map((f) => [f.value, indexers.filter(f.test).length])) as Record<Filter, number>);
-	const list = $derived(indexers.filter((FILTERS.find((f) => f.value === filter) ?? FILTERS[0]).test));
+	const counts = $derived(Object.fromEntries(FILTERS.map((f) => [f.value, indexers.filter(f.test).length])) as Record<IndexerFilter, number>);
+	const list = $derived(indexers.filter((FILTERS.find((f) => f.value === indexerView.filter) ?? FILTERS[0]).test));
 
 	/* Toggling asks first; the switch shows the real state until Prowlarr confirms. */
 	let pending = $state<Indexer | null>(null);
 	let confirmOpen = $state(false);
-	let busy = $state(false);
+	let busyId = $state<number | null>(null);
 
 	function ask(i: Indexer) {
 		pending = i;
 		confirmOpen = true;
 	}
 
-	async function apply() {
+	async function apply(): Promise<string | null> {
 		const i = pending;
-		if (!i) return;
-		busy = true;
+		if (!i) return null;
+		busyId = i.id;
 		const err = await post(`${api}/indexers/${i.id}`, { enable: !i.enabled });
 		if (!err) await refresh();
-		busy = false;
-		confirmOpen = false;
-		snackbar(err ?? `${i.name} ${i.enabled ? 'disabled' : 'enabled'}`, {}, true);
+		busyId = null;
+		if (!err) snackbar(`${i.name} ${i.enabled ? 'disabled' : 'enabled'}`, {}, true);
+		return err;
 	}
 
 	const PRIVACY: Record<string, string> = { public: 'Public', private: 'Private', semiPrivate: 'Semi-private' };
 	const until = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 </script>
 
-<div class="chips" role="toolbar" aria-label="Filter indexers">
+<div class="chips no-scrollbar" role="toolbar" aria-label="Filter indexers">
 	{#each FILTERS as f (f.value)}
-		{#if f.value === 'all' || counts[f.value] > 0 || filter === f.value}
-			<Chip variant="general" selected={filter === f.value} onclick={() => (filter = f.value)}>{f.label} {counts[f.value]}</Chip>
+		{#if f.value === 'all' || counts[f.value] > 0 || indexerView.filter === f.value}
+			<Chip variant="general" selected={indexerView.filter === f.value} onclick={() => (indexerView.filter = f.value)}>{f.label} {counts[f.value]}</Chip>
 		{/if}
 	{/each}
 </div>
 
 {#if list.length === 0}
-	<p class="empty">{indexers.length ? 'No indexers match' : 'No indexers set up in Prowlarr yet.'}</p>
+	{#if indexers.length}
+		<Empty icon={iSearchOff} title="No indexers match this filter" />
+	{:else}
+		<Empty icon={iSearchOff} title="No indexers yet" hint="Add indexers in Prowlarr; they show up here." />
+	{/if}
 {:else}
 	<ul class="list">
 		{#each list as i (i.id)}
+			{@const impl = implementationLabel(i.implementation)}
 			<li class="row" class:off={!i.enabled}>
 				<div class="body">
 					<span class="name">{i.name}</span>
 					<span class="meta">
-						<span class="proto p-{i.protocol}">{i.protocol}</span>
+						<span class="proto p-{i.protocol}">{protocolLabel(i.protocol)}</span>
 						{#if i.privacy}<span>{PRIVACY[i.privacy] ?? i.privacy}</span>{/if}
 						<span>Priority {i.priority}</span>
-						{#if i.implementation}<span>{i.implementation}</span>{/if}
+						{#if impl}<span>{impl}</span>{/if}
 					</span>
 					{#if !i.enabled}
 						<span class="state">Disabled</span>
@@ -83,8 +96,8 @@
 						class:on={i.enabled}
 						role="switch"
 						aria-checked={i.enabled}
-						aria-label={`${i.name} enabled`}
-						disabled={busy}
+						aria-label={i.name}
+						disabled={busyId === i.id}
 						onclick={() => ask(i)}
 					>
 						<span class="handle"></span>
@@ -95,34 +108,31 @@
 	</ul>
 {/if}
 
-<Dialog headline={pending?.enabled ? 'Disable indexer?' : 'Enable indexer?'} bind:open={confirmOpen}>
+<ConfirmDialog
+	bind:open={confirmOpen}
+	headline={pending?.enabled ? 'Disable indexer?' : 'Enable indexer?'}
+	confirm={pending?.enabled ? 'Disable' : 'Enable'}
+	danger={pending?.enabled}
+	onconfirm={apply}
+>
 	<p class="dlg-title">{pending?.name}</p>
 	<p class="dlg-sub">
 		{pending?.enabled
 			? 'Prowlarr stops searching it and stops syncing it to your apps.'
 			: 'Prowlarr tests the indexer first; it stays disabled if the test fails.'}
 	</p>
-	{#snippet buttons()}
-		<Button variant="text" onclick={() => (confirmOpen = false)}>Cancel</Button>
-		<Button variant="filled" disabled={busy || !pending} onclick={apply}>{pending?.enabled ? 'Disable' : 'Enable'}</Button>
-	{/snippet}
-</Dialog>
+</ConfirmDialog>
 
 <style>
 	.chips {
 		display: flex;
 		gap: 0.5rem;
 		overflow-x: auto;
-		padding: 0 0 0.75rem;
-		scrollbar-width: none;
 	}
 	.chips > :global(*) {
 		flex: none;
 	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
-	}
-	.list {
+		.list {
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -226,7 +236,6 @@
 		cursor: default;
 	}
 	.dlg-title {
-		margin: 0 0 0.5rem;
 		font-weight: 500;
 		overflow-wrap: anywhere;
 	}

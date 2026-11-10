@@ -28,7 +28,7 @@ export type ArrDisk = {
 
 export type ArrQueueSummary = { count: number; errors: boolean; warnings: boolean };
 
-export type ArrCommandInfo = { id: number; name: string; status: string; started: string | null; ended: string | null };
+export type ArrCommandInfo = { id: number; name: string; command?: ArrCommand | null; status: string; started: string | null; ended: string | null };
 
 export type ArrIndexer = {
 	id: number;

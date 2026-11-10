@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { live } from '$lib/live.svelte';
-	import State from '$lib/widgets/State.svelte';
+	import iHistory from '@ktibow/iconset-material-symbols/history-rounded';
+	import State from '../shared/State.svelte';
 	import type { JsHistory } from './types';
 	import { duration, method, when } from './format';
 
@@ -16,22 +17,26 @@
 	});
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={rows.length === 0} emptyText={searching ? 'No plays match that search' : 'No plays recorded yet'}>
+<State
+	loading={q.state.loading}
+	error={q.state.error}
+	empty={rows.length === 0}
+	icon={iHistory}
+	title={searching ? 'No plays match that search' : 'No plays recorded yet'}
+	onretry={() => q.refresh()}
+>
 	<ul>
 		{#each rows as r (r.id)}
 			<li>
 				<div class="main">
 					<div class="title" title={r.title}>{r.title}</div>
-					{#if r.subtitle}<div class="ep">{r.subtitle}</div>{/if}
-					<div class="sub">
-						<span class="user">{r.user}</span>
-						{#if r.client || r.device}<span>{[r.client, r.device].filter(Boolean).join(' · ')}</span>{/if}
-					</div>
+					<div class="sub">{[r.subtitle, r.user, r.client || r.device].filter(Boolean).join(' · ')}</div>
 				</div>
 				<div class="side">
-					<span class="dur">{duration(r.seconds)}{r.plays > 1 ? ` · ${r.plays}×` : ''}</span>
-					{#if r.method}<span class="method" class:transcode={r.method === 'Transcode'}>{method(r.method)}</span>{/if}
 					<time datetime={r.at ?? undefined}>{when(r.at)}</time>
+					<span>
+						<span class="dur">{duration(r.seconds)}{r.plays > 1 ? ` · ${r.plays}×` : ''}</span>{#if r.method}<span class="method" class:transcode={r.method === 'Transcode'}> · {method(r.method)}</span>{/if}
+					</span>
 				</div>
 			</li>
 		{/each}
@@ -52,20 +57,23 @@
 	li {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
 		gap: 0.75rem;
-		padding: 0.75rem 1rem;
+		min-height: 4rem;
+		padding: 0.625rem 1rem;
 	}
 	li + li {
 		border-top: 1px solid var(--m3c-outline-variant);
 	}
-	.main {
+	.main,
+	.side {
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.125rem;
 	}
 	.title,
-	.ep,
-	.sub span {
+	.sub {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -73,35 +81,19 @@
 	.title {
 		font-weight: 500;
 	}
-	.ep,
 	.sub {
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
 	}
-	.sub {
-		display: flex;
-		min-width: 0;
-	}
-	.sub span + span::before {
-		content: '\00a0·\00a0';
-	}
-	.user {
-		flex: none;
-		max-width: 50%;
-		color: var(--m3c-on-surface);
-	}
 	.side {
-		display: grid;
 		justify-items: end;
-		align-content: start;
-		gap: 0.125rem;
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
 		text-align: right;
 		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 	.dur {
-		font-size: 0.875rem;
 		color: var(--m3c-on-surface);
 	}
 	.method.transcode {

@@ -80,7 +80,7 @@
 		</div>
 	</div>
 	<details>
-		<summary>Show as table</summary>
+		<summary>Show as a table</summary>
 		<div class="table-wrap">
 			<table>
 				<caption class="sr-only">Plays per day</caption>
@@ -168,10 +168,23 @@
 	}
 	details summary {
 		cursor: pointer;
+		display: flex;
+		align-items: center;
+		min-height: 2.5rem;
+		padding: 0 0.75rem;
+		margin: 0 0 -0.5rem -0.75rem;
+		border-radius: 1.25rem;
 		font-size: 0.8125rem;
+		font-weight: 500;
 		color: var(--m3c-primary);
 		width: fit-content;
-		padding: 0.25rem 0;
+		list-style: none;
+	}
+	details summary::-webkit-details-marker {
+		display: none;
+	}
+	details summary:hover {
+		background: color-mix(in srgb, var(--m3c-primary) 8%, transparent);
 	}
 	.table-wrap {
 		max-height: 18rem;

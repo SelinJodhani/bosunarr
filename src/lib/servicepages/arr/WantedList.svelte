@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { live } from '$lib/live.svelte';
-	import Poster from '$lib/widgets/Poster.svelte';
-	import State from '$lib/widgets/State.svelte';
-	import Pager from './Pager.svelte';
+	import Art from '../shared/Art.svelte';
+	import iDone from '@ktibow/iconset-material-symbols/task-alt-rounded';
+	import State from '../shared/State.svelte';
+	import Pager from '../shared/Pager.svelte';
 	import { shortDate } from './format';
 	import type { Paged, WantedItem, WantedKind } from './types';
 
@@ -13,15 +14,15 @@
 	const q = live<Paged<WantedItem>>(untrack(() => url), 60_000);
 	const data = $derived(q.state.data);
 	const items = $derived(data?.records ?? []);
-	const empty = $derived(kind === 'missing' ? 'Nothing missing — everything monitored is on disk' : 'Everything meets its quality cutoff');
+	const empty = $derived(kind === 'missing' ? 'Nothing missing: everything monitored is on disk' : 'Everything meets its quality cutoff');
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={items.length === 0} emptyText={empty}>
+<State loading={q.state.loading} error={q.state.error} empty={items.length === 0} icon={iDone} title={empty} onretry={() => q.refresh()}>
 	<ul class="list">
 		{#each items as w (w.id)}
 			<li>
 				<a class="row" href={w.href ?? undefined}>
-					<Poster src={w.poster} width={40} alt="" />
+					<Art src={w.poster} width={40} />
 					<span class="body">
 						<span class="title">{w.title}</span>
 						{#if w.subtitle}<span class="sub">{w.subtitle}</span>{/if}
@@ -71,6 +72,7 @@
 		flex: 1;
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.125rem;
 	}
 	.title,

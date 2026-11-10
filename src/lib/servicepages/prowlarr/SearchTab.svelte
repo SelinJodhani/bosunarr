@@ -18,7 +18,8 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { BottomSheet, Button, Checkbox, Chip, Dialog, Icon, LoadingIndicator, TextField, snackbar } from 'm3-svelte';
+	import { goto } from '$app/navigation';
+	import { BottomSheet, Button, Checkbox, Chip, Icon, LoadingIndicator, TextField, snackbar } from 'm3-svelte';
 	import iSearch from '@ktibow/iconset-material-symbols/search-rounded';
 	import iClose from '@ktibow/iconset-material-symbols/close-rounded';
 	import iTune from '@ktibow/iconset-material-symbols/tune-rounded';
@@ -26,6 +27,10 @@
 	import iOpen from '@ktibow/iconset-material-symbols/open-in-new-rounded';
 	import iUp from '@ktibow/iconset-material-symbols/arrow-upward-rounded';
 	import iDown from '@ktibow/iconset-material-symbols/arrow-downward-rounded';
+	import iSearchOff from '@ktibow/iconset-material-symbols/search-off-rounded';
+	import iManage from '@ktibow/iconset-material-symbols/manage-search-rounded';
+	import Empty from '../shared/Empty.svelte';
+	import { protocolLabel, sentence } from '../shared/format';
 	import SortMenu from '$lib/components/SortMenu.svelte';
 	import { getJSON } from '$lib/http';
 	import { bytes } from '$lib/format';
@@ -58,8 +63,11 @@
 	let error = $state<string | null>(null);
 	let pickerOpen = $state(false);
 	let openToken = $state<string | null>(null);
-	let confirmOpen = $state(false);
 	let grabbing = $state(false);
+	/** Seconds since the search started, for the progress text. */
+	let elapsed = $state(0);
+	let tick: ReturnType<typeof setInterval> | undefined;
+	$effect(() => () => clearInterval(tick));
 
 	const enabledIndexers = $derived(indexers.filter((i) => i.enabled));
 	const open = $derived(openToken ? view.results?.find((r) => r.token === openToken) : undefined);
@@ -67,12 +75,17 @@
 	async function run() {
 		const q = view.q.trim();
 		if (!q) return; // a new search replaces (aborts) the one in flight
+		// Hide the phone keyboard so the results are visible.
+		if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 		controller?.abort();
 		const mine = new AbortController();
 		controller = mine;
 		const forApi = api;
 		busy = true;
 		error = null;
+		elapsed = 0;
+		clearInterval(tick);
+		tick = setInterval(() => elapsed++, 1000);
 		const qs = new URLSearchParams({ q });
 		for (const c of view.cats) qs.append('cat', String(c));
 		for (const i of view.indexers) qs.append('indexer', String(i));
@@ -90,8 +103,16 @@
 			if (controller === mine) {
 				controller = null;
 				busy = false;
+				clearInterval(tick);
 			}
 		}
+	}
+
+	function cancel() {
+		controller?.abort();
+		controller = null;
+		busy = false;
+		clearInterval(tick);
 	}
 
 	function toggleCat(id: number) {
@@ -123,14 +144,20 @@
 				: `${view.indexers.length} indexers`
 	);
 
+	const searchCount = $derived(view.indexers.length || enabledIndexers.length);
+
+	// Sending is the confirmation: the sheet already shows exactly what will be sent.
 	async function grab() {
-		if (!open) return;
+		if (!open || grabbing) return;
 		grabbing = true;
 		const err = await post(`${api}/grab`, { token: open.token });
 		grabbing = false;
-		confirmOpen = false;
-		snackbar(err ?? 'Sent to the download client', {}, true);
-		if (!err) openToken = null;
+		if (err) {
+			snackbar(`Couldn't send it. ${sentence(err)}`, {}, true);
+			return;
+		}
+		openToken = null;
+		snackbar(`Sent to the ${open?.protocol === 'usenet' ? 'Usenet' : 'torrent'} client`, { 'Open Activity': () => goto('/activity') }, true);
 	}
 </script>
 
@@ -160,13 +187,18 @@
 </div>
 
 {#if busy}
-	<div class="center"><LoadingIndicator aria-label="Searching" /></div>
+	<div class="progress" role="status">
+		<LoadingIndicator aria-label="Searching" />
+		<p class="p-title">Searching {searchCount} indexer{searchCount === 1 ? '' : 's'}…</p>
+		<p class="p-sub">{elapsed < 5 ? 'Results appear once every indexer has answered.' : `${elapsed} s — slow indexers can take up to a minute.`}</p>
+		<Button variant="tonal" onclick={cancel}>Cancel</Button>
+	</div>
 {:else if error}
-	<p class="error" role="alert">{error}</p>
+	<Empty error title="The search failed" hint={sentence(error)} onretry={run} />
 {:else if view.results === null}
-	<p class="empty">Search across {enabledIndexers.length || 'your'} enabled indexers. Pick categories or indexers to narrow it down.</p>
+	<Empty icon={iManage} title="Search your indexers" hint={`Searches ${enabledIndexers.length ? `all ${enabledIndexers.length} enabled indexers` : 'every enabled indexer'}. Pick categories or indexers above to narrow it down.`} />
 {:else if sorted.length === 0}
-	<p class="empty">No results for “{view.searched}”.</p>
+	<Empty icon={iSearchOff} title={`No results for “${view.searched}”`} hint="Try fewer words, or fewer category filters." />
 {:else}
 	<p class="count body-small">
 		{sorted.length} results for “{view.searched}”{view.truncated ? ' (showing the first 500)' : ''}
@@ -178,15 +210,17 @@
 					<span class="title">{r.title}</span>
 					<span class="meta">
 						<span class="idx">{r.indexer}</span>
-						<span>{bytes(r.size)}</span>
-						<span>{ageLabel(r.ageHours)}</span>
+						<span class="proto p-{r.protocol}">{protocolLabel(r.protocol)}</span>
+					</span>
+					<span class="meta">
+						<span class="fact">{bytes(r.size)}</span>
+						<span class="fact">{ageLabel(r.ageHours)}</span>
 						{#if r.protocol === 'torrent'}
-							<span class="peers" class:dead={r.seeders === 0}>
+							<span class="fact peers" class:dead={r.seeders === 0} aria-label={`${r.seeders ?? 'unknown'} seeders, ${r.leechers ?? 'unknown'} peers`}>
 								<Icon icon={iUp} size={14} />{r.seeders ?? '—'}
 								<Icon icon={iDown} size={14} />{r.leechers ?? '—'}
 							</span>
 						{/if}
-						<span class="proto p-{r.protocol}">{r.protocol}</span>
 					</span>
 				</button>
 			</li>
@@ -205,7 +239,7 @@
 						<label class="check">
 							<Checkbox><input type="checkbox" checked={view.indexers.includes(i.id)} onchange={() => toggleIndexer(i.id)} /></Checkbox>
 							<span class="pick-name">{i.name}</span>
-							<span class="proto p-{i.protocol}">{i.protocol}</span>
+							<span class="proto p-{i.protocol}">{protocolLabel(i.protocol)}</span>
 						</label>
 					</li>
 				{:else}
@@ -228,14 +262,14 @@
 			<dl>
 				<dt>Size</dt><dd>{bytes(open.size)}</dd>
 				<dt>Age</dt><dd>{ageLabel(open.ageHours)}{open.publishDate ? ` · ${new Date(open.publishDate).toLocaleDateString()}` : ''}</dd>
-				<dt>Protocol</dt><dd>{open.protocol}</dd>
+				<dt>Protocol</dt><dd>{protocolLabel(open.protocol)}</dd>
 				{#if open.protocol === 'torrent'}<dt>Seeders / peers</dt><dd>{open.seeders ?? '—'} / {open.leechers ?? '—'}</dd>{/if}
-				{#if open.grabs !== null}<dt>Grabs</dt><dd>{open.grabs}</dd>{/if}
+				{#if open.grabs !== null}<dt>Grabs</dt><dd>{open.grabs.toLocaleString()}</dd>{/if}
 				{#if open.categories.length}<dt>Categories</dt><dd>{open.categories.join(', ')}</dd>{/if}
 			</dl>
 			<div class="actions">
 				{#if isAdmin}
-					<Button variant="filled" onclick={() => (confirmOpen = true)}><Icon icon={iSend} /> Send to download client</Button>
+					<Button variant="filled" disabled={grabbing} onclick={grab}><Icon icon={iSend} /> {grabbing ? 'Sending…' : 'Send to download client'}</Button>
 				{/if}
 				{#if open.infoUrl}
 					<Button variant="tonal" href={open.infoUrl} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} /> Indexer page</Button>
@@ -245,14 +279,6 @@
 	</BottomSheet>
 {/if}
 
-<Dialog headline="Send to download client?" bind:open={confirmOpen}>
-	<p class="dlg-title">{open?.title}</p>
-	<p class="dlg-sub">Prowlarr sends it to its default {open?.protocol === 'usenet' ? 'Usenet' : 'torrent'} client.</p>
-	{#snippet buttons()}
-		<Button variant="text" onclick={() => (confirmOpen = false)}>Cancel</Button>
-		<Button variant="filled" disabled={grabbing || !open} onclick={grab}>Send</Button>
-	{/snippet}
-</Dialog>
 
 <style>
 	.toolbar {
@@ -274,26 +300,34 @@
 		display: flex;
 		gap: 0.5rem;
 		overflow-x: auto;
-		padding: 0.75rem 0;
 		scrollbar-width: none;
+	}
+	.progress {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		justify-items: center;
+		gap: 0.25rem;
+		padding: 2rem 1rem;
+		text-align: center;
+	}
+	.p-title {
+		margin: 0.5rem 0 0;
+		font-weight: 500;
+	}
+	.p-sub {
+		margin: 0 0 0.75rem;
+		font-size: 0.75rem;
+		color: var(--m3c-on-surface-variant);
 	}
 	.chips > :global(*) {
 		flex: none;
-	}
-	.center {
-		display: grid;
-		place-items: center;
-		padding: 2rem 0;
 	}
 	.empty,
 	.count {
 		color: var(--m3c-on-surface-variant);
 	}
 	.count {
-		margin: 0 0 0.5rem;
-	}
-	.error {
-		color: var(--m3c-error);
+		margin: 0;
 	}
 	.list {
 		list-style: none;
@@ -305,7 +339,7 @@
 	}
 	.list li {
 		content-visibility: auto;
-		contain-intrinsic-size: auto 4.5rem;
+		contain-intrinsic-size: auto 5.5rem;
 	}
 	.row {
 		all: unset;
@@ -338,20 +372,24 @@
 	}
 	.meta {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.125rem 0.75rem;
+		gap: 0.75rem;
+		min-width: 0;
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
 		font-variant-numeric: tabular-nums;
 	}
 	.idx {
+		flex: 1;
 		font-weight: 600;
 		color: var(--m3c-primary);
 		min-width: 0;
-		max-width: 100%;
 		overflow: hidden;
 		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.fact {
+		flex: none;
 		white-space: nowrap;
 	}
 	.peers {
@@ -363,8 +401,10 @@
 		color: var(--m3c-error);
 	}
 	.proto {
+		flex: none;
 		margin-left: auto;
 		padding: 0 0.375rem;
+		white-space: nowrap;
 		border-radius: 0.375rem;
 		background: var(--m3c-secondary-container);
 		color: var(--m3c-on-secondary-container);
@@ -408,13 +448,13 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		justify-content: flex-end;
 	}
 	.picks {
 		list-style: none;
 		margin: 0 0 1rem;
 		padding: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 	}
 	.check {
 		display: flex;
@@ -427,15 +467,5 @@
 		flex: 1;
 		min-width: 0;
 		overflow-wrap: anywhere;
-	}
-	.dlg-title {
-		margin: 0 0 0.5rem;
-		font-weight: 500;
-		overflow-wrap: anywhere;
-	}
-	.dlg-sub {
-		margin: 0;
-		color: var(--m3c-on-surface-variant);
-		font-size: 0.875rem;
 	}
 </style>

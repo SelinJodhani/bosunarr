@@ -102,14 +102,14 @@
 				/>
 				<div class="field">
 					<TextField label="Access (days)" inputmode="numeric" autocomplete="off" bind:value={duration} error={durationError} />
-					<p class="hint">{durationError ? '1–3650 days' : 'How long new users keep access. Blank = forever.'}</p>
+					<p class="hint" class:bad={durationError} id="wz-duration-hint">{durationError ? 'Enter a number from 1 to 3650.' : 'How long new users keep access. Leave blank for forever.'}</p>
 				</div>
 			</div>
 
 			<label class="sw">
 				<span>
 					<span class="sw-title">Unlimited uses</span>
-					<span class="hint">{unlimited ? 'Anyone with the link can join until it expires' : 'Single use: the first person to join uses it up'}</span>
+					<span class="hint">{unlimited ? 'On: anyone with the link can join until it expires.' : 'Off: the first person to join uses it up.'}</span>
 				</span>
 				<Switch bind:checked={unlimited} />
 			</label>
@@ -141,8 +141,9 @@
 <style>
 	.form {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 1rem;
-		width: min(30rem, 78vw);
+		width: min(30rem, 100%);
 	}
 	fieldset {
 		border: 0;
@@ -150,6 +151,7 @@
 		padding: 0;
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.5rem;
 	}
 	legend {
@@ -176,6 +178,7 @@
 	}
 	.field {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.25rem;
 		min-width: 0;
 	}
@@ -183,6 +186,9 @@
 		margin: 0;
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
+	}
+	.hint.bad {
+		color: var(--m3c-error);
 	}
 	.sw {
 		display: flex;
@@ -192,6 +198,7 @@
 	}
 	.sw > span {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.125rem;
 		min-width: 0;
 	}

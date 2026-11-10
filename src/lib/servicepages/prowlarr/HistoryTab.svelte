@@ -4,7 +4,12 @@
 </script>
 
 <script lang="ts">
-	import { Chip, Icon, LoadingIndicator } from 'm3-svelte';
+	import { Chip, Icon } from 'm3-svelte';
+	import iHistory from '@ktibow/iconset-material-symbols/history-rounded';
+	import Empty from '../shared/Empty.svelte';
+	import Loading from '../shared/Loading.svelte';
+	import Pager from '../shared/Pager.svelte';
+	import { sentence } from '../shared/format';
 	import iSearch from '@ktibow/iconset-material-symbols/search-rounded';
 	import iGrab from '@ktibow/iconset-material-symbols/download-rounded';
 	import iRss from '@ktibow/iconset-material-symbols/rss-feed-rounded';
@@ -29,6 +34,15 @@
 	];
 	const counts = $derived(Object.fromEntries(FILTERS.map((f) => [f.value, records.filter(f.test).length])) as Record<Filter, number>);
 	const list = $derived(records.filter((FILTERS.find((f) => f.value === view.filter) ?? FILTERS[0]).test));
+	// Prowlarr returns the latest 100 events; show them 25 at a time.
+	const SIZE = 25;
+	let page = $state(1);
+	const pages = $derived(Math.max(1, Math.ceil(list.length / SIZE)));
+	const shown = $derived(list.slice((Math.min(page, pages) - 1) * SIZE, Math.min(page, pages) * SIZE));
+	function setFilter(f: Filter) {
+		view.filter = f;
+		page = 1;
+	}
 
 	const ICON = { query: iSearch, grab: iGrab, rss: iRss, auth: iKey, other: iInfo };
 	const KIND = { query: 'Search', grab: 'Grab', rss: 'RSS', auth: 'Login', other: 'Event' };
@@ -38,22 +52,22 @@
 <div class="chips" role="toolbar" aria-label="Filter history">
 	{#each FILTERS as f (f.value)}
 		{#if f.value === 'all' || counts[f.value] > 0 || view.filter === f.value}
-			<Chip variant="general" selected={view.filter === f.value} onclick={() => (view.filter = f.value)}>{f.label} {counts[f.value]}</Chip>
+			<Chip variant="general" selected={view.filter === f.value} onclick={() => setFilter(f.value)}>{f.label} {counts[f.value]}</Chip>
 		{/if}
 	{/each}
 </div>
 
 {#if !h.state.data}
 	{#if h.state.error}
-		<p class="error" role="alert">{h.state.error}</p>
+		<Empty error title="Couldn't load history" hint={sentence(h.state.error)} onretry={() => h.refresh()} />
 	{:else}
-		<div class="center"><LoadingIndicator aria-label="Loading history" /></div>
+		<Loading label="Loading history" />
 	{/if}
 {:else if list.length === 0}
-	<p class="empty">{records.length ? 'Nothing matches' : 'No history yet.'}</p>
+	<Empty icon={iHistory} title={records.length ? 'Nothing matches this filter' : 'No history yet'} hint={records.length ? null : 'Searches, grabs and RSS syncs show up here.'} />
 {:else}
 	<ul class="list">
-		{#each list as e (e.id)}
+		{#each shown as e (e.id)}
 			<li class="row" class:failed={!e.successful}>
 				<span class="ic k-{e.kind}" title={KIND[e.kind]}><Icon icon={ICON[e.kind]} size={20} /></span>
 				<div class="body">
@@ -73,8 +87,9 @@
 			</li>
 		{/each}
 	</ul>
+	<Pager page={Math.min(page, pages)} {pages} total={list.length} noun="event" onpage={(p) => (page = p)} />
 	{#if h.state.data.total > records.length}
-		<p class="more body-small">Showing the latest {records.length} of {h.state.data.total.toLocaleString()} events.</p>
+		<p class="more body-small">The latest {records.length} of {h.state.data.total.toLocaleString()} events. Older ones are in Prowlarr.</p>
 	{/if}
 {/if}
 
@@ -83,7 +98,6 @@
 		display: flex;
 		gap: 0.5rem;
 		overflow-x: auto;
-		padding: 0 0 0.75rem;
 		scrollbar-width: none;
 	}
 	.chips > :global(*) {
@@ -166,16 +180,8 @@
 		color: var(--m3c-error);
 		font-weight: 600;
 	}
-	.center {
-		display: grid;
-		place-items: center;
-		padding: 2rem 0;
-	}
-	.empty,
 	.more {
+		margin: 0;
 		color: var(--m3c-on-surface-variant);
-	}
-	.error {
-		color: var(--m3c-error);
 	}
 </style>
