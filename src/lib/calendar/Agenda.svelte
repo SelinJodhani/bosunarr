@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { Icon } from 'm3-svelte';
 	import { iNoEvents } from '$lib/icons';
 	import AgendaItem from './AgendaItem.svelte';
@@ -10,7 +11,8 @@
 		groups,
 		selected = null,
 		emptyText,
-		showEmptyDays = false
+		showEmptyDays = false,
+		empty
 	}: {
 		days: string[];
 		groups: Map<string, CalendarEntry[]>;
@@ -18,6 +20,8 @@
 		emptyText: string;
 		/** Show a header (and "nothing") for days without entries — used for a single-day agenda. */
 		showEmptyDays?: boolean;
+		/** Extra content (hint, action) under the empty-state line. */
+		empty?: Snippet;
 	} = $props();
 
 	const today = dayKey(new Date());
@@ -36,8 +40,9 @@
 
 {#if shown.length === 0}
 	<div class="empty">
-		<Icon icon={iNoEvents} size={32} />
-		<p>{emptyText}</p>
+		<Icon icon={iNoEvents} size={40} />
+		<p class="title-medium">{emptyText}</p>
+		{@render empty?.()}
 	</div>
 {:else}
 	{#each shown as k (k)}
@@ -47,7 +52,7 @@
 			<h2>
 				{#if h.rel}<span class="rel">{h.rel}</span>{/if}
 				<span class="date">{h.date}</span>
-				{#if list.length}<span class="count">{list.length}</span>{/if}
+				{#if list.length}<span class="count">{list.length} release{list.length === 1 ? '' : 's'}</span>{/if}
 			</h2>
 			{#if list.length}
 				<ul>
@@ -64,7 +69,7 @@
 
 <style>
 	.day {
-		scroll-margin-top: 6.75rem;
+		scroll-margin-top: calc(var(--cal-sticky, 0px) + 0.5rem);
 		margin-bottom: 1.25rem;
 	}
 	h2 {
@@ -110,7 +115,13 @@
 		color: var(--m3c-on-surface-variant);
 		text-align: center;
 	}
-	.empty p {
+	.empty :global(p) {
 		margin: 0;
+	}
+	.empty .title-medium {
+		color: var(--m3c-on-surface);
+	}
+	.empty :global(button) {
+		margin-top: 0.5rem;
 	}
 </style>

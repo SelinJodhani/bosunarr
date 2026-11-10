@@ -55,6 +55,26 @@ type RadarrCalendarMovie = {
 
 const DAY = 864e5;
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** A short, human explanation of why an instance failed; the raw reason (minus the repeated name) is the detail. */
+function describeFailure(s: ServiceRecord, e: unknown): CalendarResult['errors'][number] {
+	const raw = errMsg(e);
+	const detail = raw.startsWith(s.name + ' ') ? raw.slice(s.name.length + 1) : raw;
+	const status = e instanceof ServiceError ? e.status : 0;
+	const message =
+		status === 401
+			? 'rejected the API key'
+			: status === 504
+				? /timed out/.test(raw)
+					? 'took too long to answer'
+					: "couldn't be reached"
+				: status === 404
+					? "isn't answering at its address — check the URL"
+					: status >= 500
+						? 'had a problem on its side'
+						: "couldn't be loaded";
+	return { service: s.name, error: raw, message, detail };
+}
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** Parse and validate `start`/`end`; the range is capped so one request can't ask an arr for years of data. */
@@ -209,7 +229,7 @@ export async function calendar(start: Date, end: Date): Promise<CalendarResult> 
 	const merged = new Map<string, CalendarEntry>();
 	results.forEach((r, i) => {
 		if (r.status === 'rejected') {
-			errors.push({ service: services[i].name, error: errMsg(r.reason) });
+			errors.push(describeFailure(services[i], r.reason));
 			return;
 		}
 		for (const { copy, ...d } of r.value) {
