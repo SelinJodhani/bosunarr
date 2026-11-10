@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Button, Dialog, Select, Switch, snackbar } from 'm3-svelte';
+	import { Button, Dialog, Select, Switch, TextFieldMultiline, snackbar } from 'm3-svelte';
+	import { categoryLabel } from './format';
 	import { act } from './live.svelte';
 	import type { ClientSummary } from './types';
 
@@ -15,6 +16,12 @@
 
 	$effect(() => {
 		if (open && !serviceId && clients[0]) serviceId = String(clients[0].id);
+	});
+	// A stale error from an earlier attempt goes away once the user edits or reopens.
+	$effect(() => {
+		void urls;
+		void open;
+		error = null;
 	});
 	$effect(() => {
 		const id = serviceId;
@@ -44,22 +51,22 @@
 		{#if clients.length > 1}
 			<Select label="Download client" options={clients.map((c) => ({ value: String(c.id), text: c.name }))} bind:value={serviceId} />
 		{/if}
-		<label class="ta">
-			<span>Magnet links or .torrent URLs — one per line</span>
-			<textarea bind:value={urls} rows="4" spellcheck="false" autocomplete="off" placeholder="magnet:?xt=urn:btih:…"></textarea>
-		</label>
+		<div class="ta">
+			<TextFieldMultiline label="Magnet links or .torrent URLs" bind:value={urls} rows={4} spellcheck="false" autocomplete="off" disabled={busy} error={!!error} />
+			<p class="support">One per line. Up to 50 at a time.</p>
+		</div>
 		{#if cats.length}
-			<Select label="Category" options={[{ value: '', text: 'None' }, ...cats.map((c) => ({ value: c, text: c }))]} bind:value={category} />
+			<Select label="Category" options={[{ value: '', text: 'None' }, ...cats.map((c) => ({ value: c, text: categoryLabel(c) }))]} bind:value={category} />
 		{/if}
 		<label class="sw">
 			<span>Add paused</span>
-			<Switch bind:checked={paused} />
+			<Switch bind:checked={paused} disabled={busy} />
 		</label>
 		{#if error}<p class="err" role="alert">{error}</p>{/if}
 	</div>
 	{#snippet buttons()}
-		<Button variant="text" onclick={() => (open = false)}>Cancel</Button>
-		<Button variant="filled" disabled={busy || !urls.trim() || !serviceId} onclick={submit}>Add</Button>
+		<Button variant="text" disabled={busy} onclick={() => (open = false)}>Cancel</Button>
+		<Button variant="filled" disabled={busy || !urls.trim() || !serviceId} onclick={submit}>{busy ? 'Adding…' : 'Add'}</Button>
 	{/snippet}
 </Dialog>
 
@@ -67,38 +74,35 @@
 	.form {
 		display: grid;
 		gap: 1rem;
-		min-width: min(28rem, 80vw);
+		width: min(28rem, calc(100vw - 6rem));
 	}
-	.ta {
-		display: grid;
-		gap: 0.375rem;
-		font-size: 0.75rem;
-		color: var(--m3c-on-surface-variant);
+	.ta :global(.m3-container) {
+		width: 100%;
+		min-width: 0;
 	}
-	textarea {
-		font: inherit;
+	.ta :global(textarea) {
 		font-family: ui-monospace, monospace;
-		font-size: 0.8125rem;
-		color: var(--m3c-on-surface);
-		background: var(--m3c-surface-container-highest);
-		border: none;
-		border-bottom: 1px solid var(--m3c-on-surface-variant);
-		border-radius: 0.25rem 0.25rem 0 0;
-		padding: 0.75rem;
-		resize: vertical;
+		font-size: 0.875rem;
+		line-height: 1.25rem;
+		overflow-wrap: anywhere;
 	}
-	textarea:focus {
-		outline: none;
-		border-bottom: 2px solid var(--m3c-primary);
+	.support {
+		margin: 0.25rem 1rem 0;
+		font-size: 0.75rem;
+		line-height: 1rem;
+		color: var(--m3c-on-surface-variant);
 	}
 	.sw {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		min-height: 2.5rem;
+		cursor: pointer;
 	}
 	.err {
 		margin: 0;
 		color: var(--m3c-error);
 		font-size: 0.875rem;
+		overflow-wrap: anywhere;
 	}
 </style>

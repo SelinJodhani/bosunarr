@@ -6,14 +6,31 @@
 </script>
 
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import SortMenu from '$lib/components/SortMenu.svelte';
 	import { BottomSheet, Button, Checkbox, Chip, Dialog, Icon, LinearProgress, TextField, snackbar } from 'm3-svelte';
 	import { bytes, eta, speed } from '$lib/format';
-	import { iAnnounce, iClose, iDelete, iDown, iPause, iRecheck, iResume, iSearch, iUp } from '$lib/icons';
+	import { iAdd, iAnnounce, iClose, iDelete, iDown, iEmpty, iPause, iRecheck, iResume, iSearch, iUp } from '$lib/icons';
 	import { act } from './live.svelte';
+	import { categoryLabel, isCheckingState, isStopped, torrentState } from './format';
+	import Empty from './Empty.svelte';
 	import type { Torrent, TorrentAction, TorrentGroup } from './types';
 
-	let { torrents, isAdmin, showClient }: { torrents: Torrent[]; isAdmin: boolean; showClient: (id: number) => string } = $props();
+	let {
+		torrents,
+		isAdmin,
+		showClient,
+		toolbar,
+		onAdd
+	}: {
+		torrents: Torrent[];
+		isAdmin: boolean;
+		showClient: (id: number) => string;
+		/** Extra controls for the end of the search row (e.g. an overflow menu). */
+		toolbar?: Snippet;
+		/** Shows an "Add torrent" action in the empty state. */
+		onAdd?: () => void;
+	} = $props();
 
 	const GROUP_LABEL: Record<TorrentGroup, string> = {
 		downloading: 'Downloading',
@@ -25,7 +42,7 @@
 		stalled: 'Stalled',
 		errored: 'Error'
 	};
-	const isPaused = (t: Torrent) => t.group === 'paused' || t.group === 'completed' || /^(paused|stopped)/.test(t.state);
+	const isPaused = (t: Torrent) => t.group === 'paused' || t.group === 'completed' || isStopped(t.state);
 
 	const FILTERS: Array<{ value: Filter; label: string; test: (t: Torrent) => boolean }> = [
 		{ value: 'all', label: 'All', test: () => true },
@@ -47,13 +64,19 @@
 		{ value: 'ratio', text: 'Ratio' }
 	];
 
-	const counts = $derived(Object.fromEntries(FILTERS.map((f) => [f.value, torrents.filter(f.test).length])) as Record<Filter, number>);
+	// Search first, then count per filter: the chip numbers always match what tapping them would show.
+	const searched = $derived.by(() => {
+		const needle = view.q.trim().toLowerCase();
+		if (!needle) return torrents;
+		return torrents.filter((t) => t.name.toLowerCase().includes(needle) || t.category.toLowerCase() === needle);
+	});
+	const counts = $derived(Object.fromEntries(FILTERS.map((f) => [f.value, searched.filter(f.test).length])) as Record<Filter, number>);
 
 	const list = $derived.by(() => {
 		const f = FILTERS.find((x) => x.value === view.filter) ?? FILTERS[0];
-		const needle = view.q.trim().toLowerCase();
-		const out = torrents.filter((t) => f.test(t) && (!needle || t.name.toLowerCase().includes(needle) || t.category.toLowerCase() === needle));
+		const out = searched.filter(f.test);
 		const etaKey = (t: Torrent) => (t.progress >= 1 || t.eta <= 0 || t.eta >= 8640000 ? Infinity : t.eta);
+		// Ties fall back to the hash so equal keys (0 B/s, same size…) never swap places between live updates.
 		const by: Record<Sort, (a: Torrent, b: Torrent) => number> = {
 			added: (a, b) => b.addedOn - a.addedOn,
 			name: (a, b) => a.name.localeCompare(b.name),
@@ -64,27 +87,61 @@
 			eta: (a, b) => etaKey(a) - etaKey(b),
 			ratio: (a, b) => b.ratio - a.ratio
 		};
-		return out.sort(by[view.sort]);
+		const cmp = by[view.sort];
+		return out.sort((a, b) => cmp(a, b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 	});
 
 	/* Details sheet — looks the torrent up in the live list so its numbers keep updating. */
 	let openId = $state<string | null>(null);
 	const open = $derived(openId ? torrents.find((t) => t.id === openId) : undefined);
-	let busy = $state(false);
+	/** Action in flight from the sheet. Pause/resume stay "busy" until the live state flips, so the button never flickers back. */
+	let pending = $state<{ action: TorrentAction; id: string; from: string } | null>(null);
 	let confirmOpen = $state(false);
+	let deleting = $state(false);
 	let deleteFiles = $state(false);
 
+	$effect(() => {
+		if (!pending || (pending.action !== 'pause' && pending.action !== 'resume')) return;
+		const t = torrents.find((x) => x.id === pending!.id);
+		if (!t || t.state !== pending.from) pending = null;
+	});
+	$effect(() => {
+		if (!pending) return;
+		const timer = setTimeout(() => (pending = null), 6_000); // never stay stuck if the client ignores us
+		return () => clearTimeout(timer);
+	});
+
 	async function run(action: TorrentAction, t: Torrent, label: string) {
-		busy = true;
-		const err = await act({ action, ids: [t.id], deleteFiles });
-		busy = false;
+		pending = { action, id: t.id, from: t.state };
+		const err = await act({ action, ids: [t.id] });
+		if (err || (action !== 'pause' && action !== 'resume')) pending = null;
 		snackbar(err ?? label, {}, true);
-		if (!err && action === 'delete') {
+	}
+
+	async function remove(t: Torrent) {
+		deleting = true;
+		const files = deleteFiles;
+		const err = await act({ action: 'delete', ids: [t.id], deleteFiles: files });
+		deleting = false;
+		snackbar(err ?? (files ? 'Deleted torrent and files' : 'Deleted torrent'), {}, true);
+		if (!err) {
 			confirmOpen = false;
 			openId = null;
 		}
 	}
+
+	/** What the primary button does for this state. Completed torrents seed; the rest download. */
+	function toggleFor(t: Torrent) {
+		const done = t.progress >= 1;
+		if (isPaused(t) || t.group === 'errored')
+			return { action: 'resume' as const, icon: iResume, label: done ? 'Seed' : 'Resume', busy: done ? 'Starting…' : 'Resuming…', done: done ? 'Seeding started' : 'Resumed' };
+		return { action: 'pause' as const, icon: iPause, label: done ? 'Stop' : 'Pause', busy: done ? 'Stopping…' : 'Pausing…', done: done ? 'Stopped seeding' : 'Paused' };
+	}
+
 	const fmtDate = (s: number) => (s ? new Date(s * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—');
+	const pct = (p: number) => `${(Math.floor(p * 1000) / 10).toFixed(1)}%`;
+	// Stops the m3 sheet from treating a scroll inside the content as a drag/resize of the sheet itself.
+	const stop = (e: Event) => e.stopPropagation();
 </script>
 
 <div class="toolbar">
@@ -99,32 +156,64 @@
 		/>
 	</div>
 	<SortMenu options={SORTS} bind:value={view.sort} />
+	{@render toolbar?.()}
 </div>
 
-<div class="chips" role="toolbar" aria-label="Filter torrents">
+<div class="chips no-scrollbar" role="toolbar" aria-label="Filter torrents">
 	{#each FILTERS as f (f.value)}
-		{#if f.value === 'all' || counts[f.value] > 0 || view.filter === f.value}
-			<Chip variant="general" selected={view.filter === f.value} onclick={() => (view.filter = f.value)}>{f.label} {counts[f.value]}</Chip>
-		{/if}
+		<Chip
+			variant="general"
+			selected={view.filter === f.value}
+			disabled={f.value !== 'all' && counts[f.value] === 0 && view.filter !== f.value}
+			onclick={() => (view.filter = f.value)}>{f.label}<span class="n">{counts[f.value]}</span></Chip
+		>
 	{/each}
 </div>
 
 {#if list.length === 0}
-	<p class="empty">{torrents.length ? 'No torrents match' : 'No torrents'}</p>
+	{#if torrents.length === 0}
+		<Empty
+			icon={iEmpty}
+			title="No torrents"
+			hint="Torrents added here or by Sonarr and Radarr show up in this list."
+			action={isAdmin && onAdd ? { label: 'Add torrent', icon: iAdd, onclick: onAdd } : undefined}
+		/>
+	{:else}
+		<Empty
+			icon={iSearch}
+			title="No torrents match"
+			hint={view.q.trim() ? `Nothing ${view.filter === 'all' ? '' : `${FILTERS.find((f) => f.value === view.filter)?.label.toLowerCase()} `}matches “${view.q.trim()}”.` : 'Try another filter.'}
+			action={{
+				label: 'Show all',
+				onclick: () => {
+					view.q = '';
+					view.filter = 'all';
+				}
+			}}
+		/>
+	{/if}
 {:else}
 	<ul class="list">
 		{#each list as t (t.id)}
+			{@const moving = t.dlspeed > 0 || t.upspeed > 0}
 			<li>
 				<button class="row g-{t.group}" onclick={() => (openId = t.id)} aria-haspopup="dialog">
 					<span class="name">{t.name}</span>
 					<span class="bar"><LinearProgress percent={t.progress * 100} aria-label={`${t.name} progress`} /></span>
 					<span class="meta">
-						<span class="state">{GROUP_LABEL[t.group]}</span>
-						<span>{t.progress >= 1 ? bytes(t.size) : `${(t.progress * 100).toFixed(1)}% of ${bytes(t.size)}`}</span>
-						{#if t.dlspeed > 0}<span class="spd"><Icon icon={iDown} size={14} />{speed(t.dlspeed)}</span>{/if}
-						{#if t.upspeed > 0}<span class="spd"><Icon icon={iUp} size={14} />{speed(t.upspeed)}</span>{/if}
-						{#if t.progress < 1 && t.dlspeed > 0}<span>{eta(t.eta)}</span>{/if}
-						{#if t.category}<span class="cat">{t.category}</span>{/if}
+						<span class="left">
+							<span class="state">{GROUP_LABEL[t.group]}</span>
+							<span class="dot" aria-hidden="true">·</span>
+							<span class="sz">{t.progress >= 1 ? bytes(t.size) : `${Math.floor(t.progress * 100)}% of ${bytes(t.size)}`}</span>
+							{#if t.category}<span class="cat">{categoryLabel(t.category)}</span>{/if}
+						</span>
+						{#if moving}
+							<span class="rates">
+								{#if t.dlspeed > 0}<span class="spd"><Icon icon={iDown} size={14} />{speed(t.dlspeed)}</span>{/if}
+								{#if t.upspeed > 0}<span class="spd"><Icon icon={iUp} size={14} />{speed(t.upspeed)}</span>{/if}
+								{#if t.progress < 1 && t.dlspeed > 0 && t.eta > 0 && t.eta < 8640000}<span class="spd">{eta(t.eta)}</span>{/if}
+							</span>
+						{/if}
 					</span>
 				</button>
 			</li>
@@ -133,42 +222,49 @@
 {/if}
 
 {#if open}
+	{@const t = open}
+	{@const toggle = toggleFor(t)}
+	{@const checking = isCheckingState(t.state)}
+	{@const busy = pending?.id === t.id ? pending.action : null}
 	<BottomSheet close={() => (openId = null)}>
-		<div class="sheet">
-			<h2 class="sheet-title">{open.name}</h2>
-			<p class="sheet-sub">{GROUP_LABEL[open.group]} · {showClient(open.serviceId)}</p>
-			<div class="bar"><LinearProgress percent={open.progress * 100} aria-label="Progress" /></div>
-			<dl>
-				<dt>Progress</dt><dd>{(open.progress * 100).toFixed(1)}% of {bytes(open.size)}</dd>
-				<dt>Speed</dt><dd>↓ {speed(open.dlspeed)} · ↑ {speed(open.upspeed)}</dd>
-				{#if open.progress < 1 && !isPaused(open)}<dt>Time left</dt><dd>{open.dlspeed > 0 ? eta(open.eta) : '∞'}</dd>{/if}
-				<dt>Downloaded</dt><dd>{bytes(open.downloaded)}</dd>
-				<dt>Uploaded</dt><dd>{bytes(open.uploaded)} · ratio {open.ratio.toFixed(2)}</dd>
-				<dt>Seeds / peers</dt><dd>{open.seeds} / {open.peers}</dd>
-				<dt>Added</dt><dd>{fmtDate(open.addedOn)}</dd>
-				{#if open.completedOn}<dt>Completed</dt><dd>{fmtDate(open.completedOn)}</dd>{/if}
-				{#if open.category}<dt>Category</dt><dd>{open.category}</dd>{/if}
-				{#if open.tags.length}<dt>Tags</dt><dd>{open.tags.join(', ')}</dd>{/if}
-				<dt>Saved to</dt><dd class="path">{open.savePath}</dd>
-				<dt>State</dt><dd class="path">{open.state}</dd>
-			</dl>
+		<div class="sheet tsheet" ontouchstart={stop} onwheel={stop} role="presentation">
+			<div class="sheet-body">
+				<h2 class="sheet-title">{t.name}</h2>
+				<p class="sheet-sub"><span class="state-{t.group}">{torrentState(t.state)}</span> · {showClient(t.serviceId)}</p>
+				<div class="bar g-{t.group}"><LinearProgress percent={t.progress * 100} aria-label="Progress" /></div>
+				<dl>
+					<dt>Progress</dt><dd>{pct(t.progress)} of {bytes(t.size)}</dd>
+					<dt>Speed</dt><dd>↓ {speed(t.dlspeed)} · ↑ {speed(t.upspeed)}</dd>
+					{#if t.progress < 1 && !isPaused(t)}<dt>Time left</dt><dd>{t.dlspeed > 0 ? eta(t.eta) : '∞'}</dd>{/if}
+					<dt>Downloaded</dt><dd>{bytes(t.downloaded)}</dd>
+					<dt>Uploaded</dt><dd>{bytes(t.uploaded)} · ratio {t.ratio.toFixed(2)}</dd>
+					<dt>Seeds / peers</dt><dd>{t.seeds} / {t.peers}</dd>
+					<dt>Added</dt><dd>{fmtDate(t.addedOn)}</dd>
+					{#if t.completedOn}<dt>Completed</dt><dd>{fmtDate(t.completedOn)}</dd>{/if}
+					{#if t.category}<dt>Category</dt><dd>{categoryLabel(t.category)}</dd>{/if}
+					{#if t.tags.length}<dt>Tags</dt><dd>{t.tags.join(', ')}</dd>{/if}
+					<dt>Saved to</dt><dd class="path">{t.savePath}</dd>
+				</dl>
+			</div>
 			{#if isAdmin}
-				{@const t = open}
 				<div class="actions">
-					{#if isPaused(t)}
-						<Button variant="filled" disabled={busy} onclick={() => run('resume', t, 'Resumed')}><Icon icon={iResume} /> Resume</Button>
-					{:else}
-						<Button variant="tonal" disabled={busy} onclick={() => run('pause', t, 'Paused')}><Icon icon={iPause} /> Pause</Button>
-					{/if}
-					<Button variant="tonal" disabled={busy} onclick={() => run('recheck', t, 'Recheck started')}><Icon icon={iRecheck} /> Recheck</Button>
-					<Button variant="tonal" disabled={busy} onclick={() => run('reannounce', t, 'Reannounced to trackers')}><Icon icon={iAnnounce} /> Reannounce</Button>
+					<Button variant="filled" disabled={!!busy} onclick={() => run(toggle.action, t, toggle.done)}
+						><Icon icon={toggle.icon} />{busy === toggle.action ? toggle.busy : toggle.label}</Button
+					>
+					<Button variant="tonal" disabled={!!busy || checking} onclick={() => run('recheck', t, 'Recheck started')}
+						><Icon icon={iRecheck} />{busy === 'recheck' ? 'Rechecking…' : 'Recheck'}</Button
+					>
+					<Button variant="tonal" disabled={!!busy || isPaused(t) || checking} onclick={() => run('reannounce', t, 'Reannounced to trackers')}
+						><Icon icon={iAnnounce} />{busy === 'reannounce' ? 'Announcing…' : 'Reannounce'}</Button
+					>
 					<Button
-						variant="text"
-						disabled={busy}
+						variant="tonal"
+						data-danger
+						disabled={!!busy}
 						onclick={() => {
 							deleteFiles = false;
 							confirmOpen = true;
-						}}><Icon icon={iDelete} /> Delete</Button
+						}}><Icon icon={iDelete} />Delete</Button
 					>
 				</div>
 			{/if}
@@ -179,13 +275,13 @@
 <Dialog headline="Delete torrent?" bind:open={confirmOpen}>
 	<p class="dlg-title">{open?.name}</p>
 	<label class="check">
-		<Checkbox><input type="checkbox" bind:checked={deleteFiles} /></Checkbox>
+		<Checkbox><input type="checkbox" bind:checked={deleteFiles} disabled={deleting} /></Checkbox>
 		<span>Also delete the downloaded files</span>
 	</label>
-	{#if deleteFiles}<p class="warn">Files are removed from disk. This can't be undone.</p>{/if}
+	<p class="hint" class:warn={deleteFiles}>{deleteFiles ? "Files are removed from disk. This can't be undone." : 'The downloaded files stay on disk.'}</p>
 	{#snippet buttons()}
-		<Button variant="text" onclick={() => (confirmOpen = false)}>Cancel</Button>
-		<Button variant="filled" disabled={busy || !open} onclick={() => open && run('delete', open, deleteFiles ? 'Deleted torrent and files' : 'Deleted torrent')}>Delete</Button>
+		<Button variant="text" disabled={deleting} onclick={() => (confirmOpen = false)}>Cancel</Button>
+		<Button variant="filled" data-danger disabled={deleting || !open} onclick={() => open && remove(open)}>{deleting ? 'Deleting…' : 'Delete'}</Button>
 	{/snippet}
 </Dialog>
 
@@ -201,30 +297,34 @@
 	}
 	.search :global(.m3-container) {
 		width: 100%;
+		min-width: 0;
 	}
 	.chips {
 		display: flex;
 		gap: 0.5rem;
 		overflow-x: auto;
 		padding: 0.75rem 0;
-		scrollbar-width: none;
 	}
 	.chips > :global(*) {
 		flex: none;
 	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
+	.n {
+		margin-left: 0.375rem;
+		font-variant-numeric: tabular-nums;
+		opacity: 0.8;
 	}
 	.list {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 		display: grid;
-		gap: 0.375rem;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.5rem;
 	}
 	.list li {
+		min-width: 0;
 		content-visibility: auto;
-		contain-intrinsic-size: auto 5rem;
+		contain-intrinsic-size: auto 5.5rem;
 	}
 	.row {
 		all: unset;
@@ -232,7 +332,8 @@
 		cursor: pointer;
 		width: 100%;
 		display: grid;
-		gap: 0.375rem;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.5rem;
 		padding: 0.75rem 1rem;
 		border-radius: var(--radius-m);
 		background: var(--m3c-surface-container-low);
@@ -243,9 +344,11 @@
 	}
 	.row:focus-visible {
 		outline: 2px solid var(--m3c-primary);
+		outline-offset: -2px;
 	}
 	.name {
 		font-size: 0.875rem;
+		line-height: 1.25rem;
 		font-weight: 500;
 		overflow-wrap: anywhere;
 		display: -webkit-box;
@@ -254,13 +357,57 @@
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
+	/* One fixed-height line: live numbers change without the row ever growing or wrapping. */
 	.meta {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.125rem 0.75rem;
+		min-width: 0;
+		gap: 0.75rem;
+		height: 1.25rem;
 		font-size: 0.75rem;
+		line-height: 1rem;
 		color: var(--m3c-on-surface-variant);
+		white-space: nowrap;
+	}
+	.left {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+	}
+	.left > :global(*) {
+		flex: none;
+	}
+	.left .sz {
+		flex: 0 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		font-variant-numeric: tabular-nums;
+	}
+	.left .cat {
+		flex: 0 100 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		margin-left: 0.25rem;
+		padding: 0 0.375rem;
+		border-radius: 0.375rem;
+		background: var(--m3c-secondary-container);
+		color: var(--m3c-on-secondary-container);
+	}
+	.rates {
+		display: flex;
+		gap: 0.5rem;
+		flex: none;
+		font-variant-numeric: tabular-nums;
+	}
+	.spd {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.125rem;
 	}
 	.state {
 		font-weight: 600;
@@ -283,22 +430,28 @@
 		filter: grayscale(1);
 		opacity: 0.7;
 	}
-	.spd {
-		display: inline-flex;
-		align-items: center;
-		font-variant-numeric: tabular-nums;
-	}
-	.cat {
-		margin-left: auto;
-		padding: 0 0.375rem;
-		border-radius: 0.375rem;
-		background: var(--m3c-secondary-container);
-		color: var(--m3c-on-secondary-container);
-	}
+
+	/* Sheet: the m3 BottomSheet caps itself at 480 px and clips. The body scrolls inside it and the
+	   actions stay pinned at the bottom, above the gesture bar. */
 	.sheet {
-		padding: 0 1.5rem 1.5rem;
 		max-width: 40rem;
 		margin: 0 auto;
+		max-height: min(calc(480px - 3rem), calc(100dvh - 6rem));
+		display: flex;
+		flex-direction: column;
+		touch-action: pan-y;
+	}
+	/* app.css caps every m3 dialog at 100vw - 3rem (for centred dialogs); a bottom sheet spans the phone's width. */
+	:global(dialog.m3-container.m3-container:has(.tsheet)) {
+		max-width: 40rem;
+	}
+	.sheet-body {
+		scrollbar-width: thin;
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		padding: 0 0.5rem 0.5rem;
 	}
 	.sheet-title {
 		font-size: 1.125rem;
@@ -310,11 +463,18 @@
 		color: var(--m3c-on-surface-variant);
 		font-size: 0.875rem;
 	}
+	.sheet-sub .state-errored {
+		color: var(--m3c-error);
+	}
+	.sheet-sub .state-stalled,
+	.sheet-sub .state-checking {
+		color: var(--m3c-tertiary);
+	}
 	dl {
 		display: grid;
 		grid-template-columns: max-content minmax(0, 1fr);
 		gap: 0.375rem 1rem;
-		margin: 1rem 0;
+		margin: 1rem 0 0;
 		font-size: 0.875rem;
 	}
 	dt {
@@ -330,9 +490,22 @@
 		font-size: 0.75rem;
 	}
 	.actions {
-		display: flex;
-		flex-wrap: wrap;
+		flex: none;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 0.5rem;
+		padding: 0.75rem 0.5rem max(1rem, env(safe-area-inset-bottom));
+		border-top: 1px solid var(--m3c-outline-variant);
+	}
+	.actions :global(button) {
+		width: 100%;
+		min-width: 0;
+		white-space: nowrap;
+	}
+	@media (width >= 40rem) {
+		.actions {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
 	}
 	.dlg-title {
 		margin: 0 0 0.75rem;
@@ -343,11 +516,15 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		min-height: 2.5rem;
 		cursor: pointer;
 	}
-	.warn {
-		color: var(--m3c-error);
+	.hint {
+		color: var(--m3c-on-surface-variant);
 		font-size: 0.875rem;
-		margin: 0.5rem 0 0;
+		margin: 0.25rem 0 0;
+	}
+	.hint.warn {
+		color: var(--m3c-error);
 	}
 </style>
