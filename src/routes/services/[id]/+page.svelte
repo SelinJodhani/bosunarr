@@ -29,7 +29,7 @@
 	afterNavigate(({ from, type }) => {
 		if (type !== 'enter' && from) cameFromApp = true;
 	});
-	const back = () => (cameFromApp ? history.back() : goto('/services'));
+	const back = () => (cameFromApp ? history.back() : goto('/settings'));
 </script>
 
 <svelte:head><title>{data.service.name} · Bosunarr</title></svelte:head>

@@ -82,6 +82,10 @@ export function validateInput(input: ServiceInput): ServiceInput {
 
 export function createService(input: ServiceInput): number {
 	const v = validateInput(input);
+	// New services need their credentials (editing may leave them blank to keep the stored ones).
+	const kind = SERVICE_TYPES[v.type]?.credentials;
+	if (kind === 'apiKey' && !v.credentials.apiKey) throw new Error('Enter the API key');
+	if (kind === 'userPass' && (!v.credentials.username || !v.credentials.password)) throw new Error('Enter the username and password');
 	const r = db
 		.prepare(
 			'INSERT INTO services (type, name, url, external_url, credentials, sort, created_at) VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort),0)+1 FROM services), ?)'
