@@ -73,8 +73,8 @@
 			{#if isAdmin}
 				<div class="bulk">
 					<Button variant="filled" onclick={() => (addOpen = true)}><Icon icon={iAdd} /> Add</Button>
-					<Button variant="tonal" aria-label="Resume all" onclick={() => all('resumeAll')}><Icon icon={iResume} /><span class="lbl">Resume all</span></Button>
-					<Button variant="tonal" aria-label="Pause all" onclick={() => all('pauseAll')}><Icon icon={iPause} /><span class="lbl">Pause all</span></Button>
+					<Button variant="tonal" aria-label="Resume all" onclick={() => all('resumeAll')}><Icon icon={iResume} /><span class="lbl">Resume<span class="all"> all</span></span></Button>
+					<Button variant="tonal" aria-label="Pause all" onclick={() => all('pauseAll')}><Icon icon={iPause} /><span class="lbl">Pause<span class="all"> all</span></span></Button>
 				</div>
 			{/if}
 			<TorrentList torrents={d.torrents} {isAdmin} showClient={clientName} />
@@ -140,8 +140,15 @@
 		gap: 0.5rem;
 		margin-bottom: 0.75rem;
 	}
-	@media (width < 34rem) {
-		.lbl {
+	.bulk :global(button) {
+		flex: 1 1 auto;
+	}
+	.lbl {
+		white-space: nowrap;
+	}
+	/* Very narrow phones: keep the icons, drop the word "all". */
+	@media (width < 24rem) {
+		.all {
 			display: none;
 		}
 	}

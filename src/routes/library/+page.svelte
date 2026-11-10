@@ -7,7 +7,8 @@
 </script>
 
 <script lang="ts">
-	import { Button, Chip, Icon, Select, TextField } from 'm3-svelte';
+	import SortMenu from '$lib/components/SortMenu.svelte';
+	import { Button, Chip, Icon, TextField } from 'm3-svelte';
 	import { live } from '$lib/live.svelte';
 	import { bytes } from '$lib/format';
 	import { LIBRARY_URL, detailHref, STATUS_LABEL } from '$lib/library/client';
@@ -177,7 +178,7 @@
 			trailing={filters.q ? { icon: iClose, onclick: () => (filters.q = ''), 'aria-label': 'Clear search' } : undefined}
 		/>
 	</div>
-	<div class="sort"><Select label="Sort" options={SORTS} bind:value={filters.sort} /></div>
+	<SortMenu options={SORTS} bind:value={filters.sort} />
 </div>
 
 <div class="chips" role="toolbar" aria-label="Filters">
@@ -270,8 +271,8 @@
 	}
 	.toolbar {
 		display: flex;
-		gap: 0.75rem;
-		align-items: flex-start;
+		gap: 0.5rem;
+		align-items: center;
 	}
 	.search {
 		flex: 1;
@@ -279,18 +280,6 @@
 	}
 	.search :global(.m3-container) {
 		width: 100%;
-	}
-	.sort {
-		flex: none;
-		width: 11rem;
-	}
-	@media (width < 34rem) {
-		.toolbar {
-			flex-wrap: wrap;
-		}
-		.sort {
-			width: 100%;
-		}
 	}
 	.chips {
 		display: flex;

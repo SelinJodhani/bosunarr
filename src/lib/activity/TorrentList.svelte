@@ -6,7 +6,8 @@
 </script>
 
 <script lang="ts">
-	import { BottomSheet, Button, Checkbox, Chip, Dialog, Icon, LinearProgress, Select, TextField, snackbar } from 'm3-svelte';
+	import SortMenu from '$lib/components/SortMenu.svelte';
+	import { BottomSheet, Button, Checkbox, Chip, Dialog, Icon, LinearProgress, TextField, snackbar } from 'm3-svelte';
 	import { bytes, eta, speed } from '$lib/format';
 	import { iAnnounce, iClose, iDelete, iDown, iPause, iRecheck, iResume, iSearch, iUp } from '$lib/icons';
 	import { act } from './live.svelte';
@@ -97,7 +98,7 @@
 			trailing={view.q ? { icon: iClose, onclick: () => (view.q = ''), 'aria-label': 'Clear search' } : undefined}
 		/>
 	</div>
-	<div class="sort"><Select label="Sort" options={SORTS} bind:value={view.sort} /></div>
+	<SortMenu options={SORTS} bind:value={view.sort} />
 </div>
 
 <div class="chips" role="toolbar" aria-label="Filter torrents">
@@ -191,8 +192,8 @@
 <style>
 	.toolbar {
 		display: flex;
-		gap: 0.75rem;
-		align-items: flex-start;
+		gap: 0.5rem;
+		align-items: center;
 	}
 	.search {
 		flex: 1;
@@ -200,18 +201,6 @@
 	}
 	.search :global(.m3-container) {
 		width: 100%;
-	}
-	.sort {
-		flex: none;
-		width: 11rem;
-	}
-	@media (width < 34rem) {
-		.toolbar {
-			flex-wrap: wrap;
-		}
-		.sort {
-			width: 100%;
-		}
 	}
 	.chips {
 		display: flex;

@@ -7,7 +7,7 @@
 	let { children, data } = $props();
 
 	const nav = [
-		{ href: '/', text: 'Dashboard', icon: iDashboard },
+		{ href: '/', text: 'Home', icon: iDashboard },
 		{ href: '/library', text: 'Library', icon: iLibrary },
 		{ href: '/discover', text: 'Discover', icon: iDiscover },
 		{ href: '/calendar', text: 'Calendar', icon: iCalendar },
@@ -54,6 +54,21 @@
 		flex: 1;
 		min-width: 0;
 		padding: 1rem max(1rem, env(safe-area-inset-left)) 1.5rem;
+	}
+	/* Compact bar: six destinations must share the width, or their labels collide on phones. */
+	@media (width < 52.5rem) {
+		.nav :global(.m3-container) {
+			justify-content: stretch;
+		}
+		.nav :global(.m3-container > a) {
+			flex: 1 1 0;
+			min-width: 0;
+		}
+		.nav :global(.m3-container > a .content) {
+			font-size: 0.75rem;
+			letter-spacing: 0;
+			white-space: nowrap;
+		}
 	}
 	@media (width >= 52.5rem) {
 		.shell {

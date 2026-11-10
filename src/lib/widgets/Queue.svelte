@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { LinearProgress } from 'm3-svelte';
 	import { live } from '$lib/live.svelte';
+	import { arrTimeleft, queueState } from '$lib/activity/format';
 	import State from './State.svelte';
 	import Poster from './Poster.svelte';
 	import { WIDGETS, type QueueItem, type WidgetSize } from './types';
@@ -18,7 +19,7 @@
 				{#if size !== 's'}<Poster src={it.poster} width={36} />{/if}
 				<div class="text">
 					<div class="title">{it.title}</div>
-					<div class="sub">{it.subtitle ?? it.service} · {it.status}{it.timeleft ? ` · ${it.timeleft}` : ''}</div>
+					<div class="sub">{it.subtitle ?? it.service} · {queueState(it.status)}{arrTimeleft(it.timeleft) && it.status === 'downloading' ? ` · ${arrTimeleft(it.timeleft)} left` : ''}</div>
 					<LinearProgress percent={it.progress * 100} aria-label={`${it.title} download progress`} />
 				</div>
 			</li>
@@ -33,6 +34,7 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.75rem;
 	}
 	li {

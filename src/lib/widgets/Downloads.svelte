@@ -25,7 +25,7 @@
 					<li>
 						<div class="line">
 							<span class="name" title={t.name}>{t.name}</span>
-							<span class="label">{speed(t.dlspeed)} · {eta(t.eta)}</span>
+							<span class="label">{t.dlspeed > 0 ? `${speed(t.dlspeed)} · ${eta(t.eta)}` : `${Math.round(t.progress * 100)}%`}</span>
 						</div>
 						<LinearProgress percent={t.progress * 100} aria-label={`${t.name} progress`} />
 					</li>
@@ -60,6 +60,8 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
+		/* minmax(0, …) lets long torrent names truncate instead of widening the card. */
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.75rem;
 	}
 	.line {
@@ -70,6 +72,7 @@
 		font-size: 0.875rem;
 	}
 	.name {
+		flex: 1;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;

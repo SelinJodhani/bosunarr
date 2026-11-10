@@ -9,6 +9,16 @@
 
 	let { data } = $props();
 
+	/** Host (and port) only: full URLs wrap badly on phones. */
+	const host = (u: string) => {
+		try {
+			const x = new URL(u);
+			return x.host + (x.pathname === '/' ? '' : x.pathname);
+		} catch {
+			return u;
+		}
+	};
+
 	let dialogOpen = $state(false);
 	let editing = $state<PublicService | null>(null);
 	let confirmDelete = $state<PublicService | null>(null);
@@ -75,7 +85,7 @@
 		<ul>
 			{#each data.services as s (s.id)}
 				<!-- ListItem renders its own <li>. -->
-				<ListItem headline={s.name} supporting={`${SERVICE_TYPES[s.type]?.label ?? s.type} · ${s.url}`}>
+				<ListItem headline={s.name} supporting={`${SERVICE_TYPES[s.type]?.label ?? s.type} · ${host(s.url)}`}>
 						{#snippet leading()}
 							<span class="dot" style:background={SERVICE_TYPES[s.type]?.color}></span>
 						{/snippet}
@@ -177,8 +187,15 @@
 		margin: 0.5rem -1rem 0;
 		padding: 0;
 	}
+	/* Let long host names wrap instead of pushing the edit/delete buttons out of line. */
+	ul :global(.body) {
+		flex: 1 1 0;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
 	.dot {
 		display: block;
+		flex: none;
 		width: 0.75rem;
 		height: 0.75rem;
 		border-radius: 50%;

@@ -84,7 +84,11 @@
 	<div class="form">
 		<Select label="Type" bind:value={type} options={SERVICE_TYPE_LIST.map((t) => ({ value: t.id, text: t.label }))} />
 		<TextField label="Name" bind:value={name} />
-		<TextField label="URL" bind:value={url} placeholder={`http://192.168.1.10:${info.defaultPort}`} inputmode="url" autocomplete="off" />
+		<!-- No placeholder: m3-svelte's floating label sits on top of it. The example goes underneath instead. -->
+		<div class="field">
+			<TextField label="URL" bind:value={url} inputmode="url" autocomplete="off" />
+			<p class="hint">e.g. http://{type}:{info.defaultPort} or http://192.168.1.10:{info.defaultPort}</p>
+		</div>
 		<TextField label="Public URL (optional, for 'open' links)" bind:value={externalUrl} inputmode="url" autocomplete="off" />
 		{#if info.credentials === 'apiKey'}
 			<TextField label={`API key${keep}`} bind:value={apiKey} type="password" autocomplete="off" />
@@ -115,6 +119,14 @@
 		display: grid;
 		gap: 0.75rem;
 		min-width: min(28rem, 80vw);
+	}
+	.field {
+		display: grid;
+		gap: 0.25rem;
+	}
+	.field .hint {
+		padding-inline: 1rem;
+		font-size: 0.75rem;
 	}
 	.hint {
 		margin: 0;

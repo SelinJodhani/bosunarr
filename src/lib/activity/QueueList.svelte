@@ -5,33 +5,9 @@
 	import { iDelete, iWarning, iError } from '$lib/icons';
 	import { act } from './live.svelte';
 	import type { QueueEntry } from './types';
+	import { arrTimeleft as timeleft, queueState } from './format';
 
 	let { items, isAdmin }: { items: QueueEntry[]; isAdmin: boolean } = $props();
-
-	const STATE: Record<string, string> = {
-		downloading: 'Downloading',
-		importPending: 'Waiting to import',
-		importBlocked: 'Import blocked',
-		importing: 'Importing',
-		imported: 'Imported',
-		failedPending: 'Failed',
-		failed: 'Failed',
-		ignored: 'Ignored',
-		delay: 'Delayed',
-		queued: 'Queued',
-		paused: 'Paused',
-		completed: 'Completed'
-	};
-
-	/** Arr time spans look like "1.02:03:04" or "00:12:34". */
-	function timeleft(t: string | null): string | null {
-		const m = t?.match(/^(?:(\d+)\.)?(\d+):(\d+):(\d+)/);
-		if (!m) return null;
-		const [d, h, min] = [Number(m[1] ?? 0), Number(m[2]), Number(m[3])];
-		if (d) return `${d}d ${h}h`;
-		if (h) return `${h}h ${min}m`;
-		return min ? `${min}m` : '<1m';
-	}
 
 	let target = $state<QueueEntry | null>(null);
 	let dialogOpen = $state(false);
@@ -75,10 +51,12 @@
 				<div class="meta">
 					<span class="state state-{q.health}">
 						{#if q.health === 'error'}<Icon icon={iError} size={16} />{:else if q.health === 'warning'}<Icon icon={iWarning} size={16} />{/if}
-						{STATE[q.state] ?? q.state}
+						{queueState(q.state)}
 					</span>
 					<span>{Math.round(q.progress * 100)}% of {bytes(q.size)}</span>
 					{#if q.state === 'downloading' && timeleft(q.timeleft)}<span>{timeleft(q.timeleft)} left</span>{/if}
+				</div>
+				<div class="meta sub2">
 					{#if q.quality}<span>{q.quality}</span>{/if}
 					<span class="svc">{q.service}</span>
 				</div>
@@ -168,6 +146,7 @@
 	.meta {
 		display: flex;
 		flex-wrap: wrap;
+		align-items: center;
 		gap: 0.125rem 0.75rem;
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
@@ -185,8 +164,15 @@
 	.state-error {
 		color: var(--m3c-error);
 	}
+	.sub2 {
+		margin-top: 0.125rem;
+	}
 	.svc {
 		margin-left: auto;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		min-width: 0;
 	}
 	.msgs-toggle {
 		all: unset;

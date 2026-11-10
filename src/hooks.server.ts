@@ -5,7 +5,10 @@ const PUBLIC_PATHS = ['/login', '/setup', '/manifest.webmanifest', '/icon.svg', 
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
-	event.locals.user = validateSession(event.cookies.get(SESSION_COOKIE));
+	const token = event.cookies.get(SESSION_COOKIE);
+	event.locals.user = validateSession(token);
+	// Drop expired or unknown session cookies so the browser stops sending them.
+	if (token && !event.locals.user) event.cookies.delete(SESSION_COOKIE, { path: '/' });
 
 	const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/')) || path.startsWith('/_app/');
 

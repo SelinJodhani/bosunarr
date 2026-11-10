@@ -325,14 +325,19 @@
 	.actions {
 		margin-top: 1rem;
 	}
+	/* Phones: small poster beside the title, so the overview is visible without scrolling. */
 	@media (width < 34rem) {
 		.hero {
-			flex-direction: column;
 			align-items: flex-start;
+			gap: 1rem;
+			margin-top: 0.25rem;
 		}
 		.poster :global(.poster) {
-			width: 140px !important;
-			height: 210px !important;
+			width: 112px !important;
+			height: 168px !important;
+		}
+		h1 {
+			font-size: 1.375rem;
 		}
 	}
 	.card {
@@ -367,6 +372,8 @@
 	}
 	.cols {
 		display: grid;
+		/* minmax(0, …): without it the cast carousel's full width becomes the column width on phones. */
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0 1rem;
 	}
 	@media (width >= 60rem) {
