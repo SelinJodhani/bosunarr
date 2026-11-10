@@ -67,6 +67,7 @@
 	});
 </script>
 
+<div class="pg">
 {#if items.length}
 	{#if !capped}<p class="count body-small">{totalResults.toLocaleString()} result{totalResults === 1 ? '' : 's'}</p>{/if}
 	<ul class="grid">
@@ -93,6 +94,7 @@
 		<p class="end body-small">That's the top {items.length}. Search to find anything else.</p>
 	{/if}
 </div>
+</div>
 
 <style>
 	.end {
@@ -104,23 +106,28 @@
 		margin: 0 0 0.5rem;
 		color: var(--m3c-on-surface-variant);
 	}
+	/* Same card sizing as the Library grid (measured on the grid's own width): three columns on
+	   360–412 px phones, more as space allows. */
+	.pg {
+		container-type: inline-size;
+	}
 	.grid {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 		display: grid;
-		/* Two columns on phones, like the Library grid. */
-		grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-		gap: 1rem 0.75rem;
+		grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+		gap: 0.75rem;
 	}
-	@media (width >= 35rem) {
+	@container (width >= 35rem) {
 		.grid {
-			grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(7.75rem, 1fr));
 		}
 	}
-	@media (width >= 75rem) {
+	@container (width >= 56.25rem) {
 		.grid {
-			grid-template-columns: repeat(auto-fill, minmax(9.75rem, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
+			gap: 1rem;
 		}
 	}
 	li {

@@ -5,7 +5,7 @@
 	import { ago } from '$lib/format';
 	import Poster from '$lib/widgets/Poster.svelte';
 	import { iBack, iCheck, iDecline, iDelete, iLibrary, iOpen, iPerson, iRequest, iStar } from '$lib/icons';
-	import { AVAILABILITY_LABEL, AVAILABILITY_TONE, REQUEST_LABEL, REQUEST_TONE, cachedSeed, peek, post, resolveSeed } from './client';
+	import { AVAILABILITY_LABEL, AVAILABILITY_TONE, REQUEST_LABEL, REQUEST_TONE, cachedSeed, copyLabel, headline, peek, post, resolveSeed } from './client';
 	import RequestDialog from './RequestDialog.svelte';
 	import RequestConfirm from './RequestConfirm.svelte';
 	import StatusBadge from './StatusBadge.svelte';
@@ -86,6 +86,28 @@
 		return m;
 	});
 
+	/** One chip per copy that has a status, the further-along copy first ("Available in 4K", "HD · Requested"). */
+	// From the list item too, so the chips are there on the first frame (no shift when details arrive).
+	const copies = $derived.by(() => {
+		if (!item) return [];
+		const both = item.status !== 'none' && item.status4k !== 'none';
+		const out = [
+			{ uhd: false, status: item.status },
+			{ uhd: true, status: item.status4k }
+		].filter((c) => c.status !== 'none' && AVAILABILITY_TONE[c.status]);
+		if (headline(item.status, item.status4k).uhd) out.reverse();
+		return out.map((c) => ({ uhd: c.uhd, tone: AVAILABILITY_TONE[c.status]!, label: copyLabel(c.status, c.uhd, both) }));
+	});
+
+	const skeletonButtons = $derived.by(() => {
+		if (!item) return ['8rem', '6rem'];
+		const w: string[] = [];
+		if (isAdmin && (item.status === 'none' || item.mediaType === 'tv')) w.push('7.25rem'); // Request
+		if (item.status === 'available' || item.status === 'partial' || item.status4k === 'available' || item.status4k === 'partial') w.push('7.75rem'); // In Library
+		w.push('9.5rem'); // Open in Seerr
+		return w;
+	});
+
 	/** The request buttons: explicit about what each one asks for. */
 	const requestButtons = $derived.by(() => {
 		if (!d || !isAdmin) return [] as Array<{ label: string; uhd?: boolean }>;
@@ -156,15 +178,19 @@
 
 {#snippet actions()}
 	{#if !d}
-		<div class="actions" aria-hidden="true"><span class="sk sk-btn"></span><span class="sk sk-btn short"></span></div>
+		<div class="actions">
+			{#each copies as c (c.uhd)}
+				<StatusBadge size="m" tone={c.tone} label={c.label} />
+			{/each}
+			<!-- Placeholders the width of the buttons that will most likely appear, so the row wraps
+			     where the real one will. -->
+			{#each skeletonButtons as w, i (i)}<span class="sk sk-btn" style:width={w} aria-hidden="true"></span>{/each}
+		</div>
 	{:else}
 		<div class="actions">
-			{#if d.status !== 'none' && AVAILABILITY_TONE[d.status]}
-				<StatusBadge size="m" tone={AVAILABILITY_TONE[d.status]!} label={AVAILABILITY_LABEL[d.status]} />
-			{/if}
-			{#if d.status4k !== 'none' && AVAILABILITY_TONE[d.status4k]}
-				<StatusBadge size="m" tone={AVAILABILITY_TONE[d.status4k]!} label={`4K · ${AVAILABILITY_LABEL[d.status4k]}`} />
-			{/if}
+			{#each copies as c (c.uhd)}
+				<StatusBadge size="m" tone={c.tone} label={c.label} />
+			{/each}
 			{#each requestButtons as b (b.label)}
 				<Button variant="filled" onclick={() => openRequest(b.uhd)}><Icon icon={iRequest} /> {b.label}</Button>
 			{/each}
@@ -207,12 +233,15 @@
 				{:else}
 					<span class="sk sk-h1"></span>
 				{/if}
-				{#if d}
-					{#if d.tagline}<p class="tagline">{d.tagline}</p>{/if}
-				{:else}
-					<span class="sk sk-line"></span>
-				{/if}
-				{#if meta.length}<p class="meta">{meta.join(' · ')}</p>{/if}
+				<!-- Meta: until details arrive, placeholders the size of what's still coming (runtime,
+				     rating, seasons) keep the line breaks — and the chips below — where they'll end up. -->
+				{#if meta.length}<p class="meta">
+						{#each meta as m, i (i)}{#if i}{' · '}{/if}<span>{m}</span>{/each}{#if !d}{#each item?.mediaType === 'tv' ? ['2rem', '2.5rem', '4.5rem'] : ['3.25rem', '2.25rem'] as w, i (i)}{' · '}<span
+									class="sk sk-inline"
+									style:width={w}
+									aria-hidden="true"
+								></span>{/each}{/if}
+					</p>{/if}
 				<div class="chips">
 					{#if d}
 						{#each d.ratings as r (r.source)}
@@ -243,11 +272,14 @@
 				</div>
 			{/if}
 		{:else}
-			{#if d.overview}
+			{#if d.overview || d.tagline}
 				<section class="card">
-					<p class="overview" class:clamp={!showAllOverview} bind:this={overviewEl}>{d.overview}</p>
-					{#if overviewClamped}
-						<button class="more" onclick={() => (showAllOverview = !showAllOverview)}>{showAllOverview ? 'Show less' : 'Show more'}</button>
+					{#if d.tagline}<p class="tagline">{d.tagline}</p>{/if}
+					{#if d.overview}
+						<p class="overview" class:clamp={!showAllOverview} bind:this={overviewEl}>{d.overview}</p>
+						{#if overviewClamped}
+							<Button variant="text" onclick={() => (showAllOverview = !showAllOverview)} aria-expanded={showAllOverview}>{showAllOverview ? 'Show less' : 'Show more'}</Button>
+						{/if}
 					{/if}
 					{#if d.genres.length}<p class="genres">{d.genres.join(' · ')}</p>{/if}
 				</section>
@@ -271,7 +303,7 @@
 										<li>
 											<span class="sname">{s.name}</span>
 											{#if tone}<StatusBadge {tone} label={AVAILABILITY_LABEL[s.status]} />{/if}
-											{#if tone4k}<StatusBadge tone={tone4k} label={`4K · ${AVAILABILITY_LABEL[s.status4k]}`} />{/if}
+											{#if tone4k}<StatusBadge tone={tone4k} label={copyLabel(s.status4k, true)} />{/if}
 										</li>
 									{/each}
 								</ul>
@@ -279,11 +311,11 @@
 						{/if}
 					</dl>
 					{#if d.imdbId || d.tmdbId || d.tvdbId}
-						<p class="links">
-							{#if d.imdbId}<a href={`https://www.imdb.com/title/${d.imdbId}/`} target="_blank" rel="noopener noreferrer">IMDb</a>{/if}
-							<a href={`https://www.themoviedb.org/${d.mediaType}/${d.tmdbId}`} target="_blank" rel="noopener noreferrer">TMDb</a>
-							{#if d.tvdbId}<a href={`https://thetvdb.com/?tab=series&id=${d.tvdbId}`} target="_blank" rel="noopener noreferrer">TVDB</a>{/if}
-						</p>
+						<div class="links">
+							{#if d.imdbId}<Button variant="outlined" href={`https://www.imdb.com/title/${d.imdbId}/`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />IMDb</Button>{/if}
+							<Button variant="outlined" href={`https://www.themoviedb.org/${d.mediaType}/${d.tmdbId}`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />TMDb</Button>
+							{#if d.tvdbId}<Button variant="outlined" href={`https://thetvdb.com/?tab=series&id=${d.tvdbId}`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />TVDB</Button>{/if}
+						</div>
 					{/if}
 				</section>
 
@@ -425,13 +457,17 @@
 		overflow-wrap: anywhere;
 	}
 	.tagline {
-		margin: 0.25rem 0 0;
+		margin: 0 0 0.5rem;
 		font-style: italic;
 		color: var(--m3c-on-surface-variant);
 	}
 	.meta {
 		margin: 0.375rem 0 0;
 		color: var(--m3c-on-surface-variant);
+	}
+	/* Wrap between items, never inside one ("PG-13", "1h 33m"). */
+	.meta span {
+		white-space: nowrap;
 	}
 	.chips {
 		display: flex;
@@ -482,6 +518,12 @@
 	.sk-line.wide {
 		width: 100%;
 	}
+	.sk-inline {
+		display: inline-block;
+		height: 0.875rem;
+		vertical-align: -0.0625rem;
+		border-radius: 0.375rem;
+	}
 	.sk-chip {
 		display: inline-block;
 		height: 1.75rem;
@@ -492,9 +534,6 @@
 		height: 2.5rem;
 		width: 8rem;
 		border-radius: 1.25rem;
-	}
-	.sk-btn.short {
-		width: 6rem;
 	}
 	.phone-only {
 		display: none;
@@ -557,20 +596,9 @@
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
-	.more {
-		all: unset;
-		cursor: pointer;
-		color: var(--m3c-primary);
-		font-weight: 500;
-		display: inline-flex;
-		align-items: center;
-		min-height: 2.5rem;
-		padding: 0 0.75rem;
-		margin: 0 -0.75rem;
-		border-radius: 1.25rem;
-	}
-	.more:focus-visible {
-		outline: 2px solid var(--m3c-primary);
+	/* "Show more": a text button whose label lines up with the overview's first letter. */
+	.overview + :global(button) {
+		margin: 0.25rem 0 0 -1rem;
 	}
 	.genres {
 		margin: 0.75rem 0 0;
@@ -621,16 +649,9 @@
 	}
 	.links {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.5rem;
-		margin: 0.75rem -0.5rem 0;
-		font-weight: 500;
-	}
-	.links a {
-		display: inline-flex;
-		align-items: center;
-		min-height: 2.5rem;
-		min-width: 2.5rem;
-		padding: 0 0.5rem;
+		margin: 1rem 0 0;
 	}
 	.reqs {
 		list-style: none;

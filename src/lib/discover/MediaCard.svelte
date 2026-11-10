@@ -1,13 +1,15 @@
 <script lang="ts">
-	import { AVAILABILITY_TONE, BADGE, detailHref, warmSeed } from './client';
+	import { AVAILABILITY_TONE, BADGE, detailHref, headline, warmSeed } from './client';
 	import StatusBadge from './StatusBadge.svelte';
 	import type { DiscoverItem } from './types';
 
 	/** `showType`: false where the list already says what it is ("Action movies", "Popular series"). */
 	let { item, showType = true }: { item: DiscoverItem; showType?: boolean } = $props();
 	let failed = $state(false);
-	const st = $derived(item.status !== 'none' ? item.status : item.status4k);
-	const badge = $derived(BADGE[st] ? `${item.status === 'none' ? '4K ' : ''}${BADGE[st]}` : null);
+	// The further-along copy wins: a title on disk only in 4K reads "In 4K", not "Requested" for its HD copy.
+	const h = $derived(headline(item.status, item.status4k));
+	const st = $derived(h.status);
+	const badge = $derived(BADGE[st] ? (h.uhd ? (st === 'available' ? 'In 4K' : `4K ${BADGE[st]}`) : BADGE[st]) : null);
 	const tone = $derived(AVAILABILITY_TONE[st]);
 	const warm = () => warmSeed(item.poster);
 </script>

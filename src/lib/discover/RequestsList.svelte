@@ -14,10 +14,11 @@
 	import Poster from '$lib/widgets/Poster.svelte';
 	import { iCheck, iDecline, iDelete, iEmpty } from '$lib/icons';
 	import { iDoneAll, iMore } from './icons';
-	import { AVAILABILITY_LABEL, AVAILABILITY_TONE, REQUEST_LABEL, REQUEST_TONE, detailHref, post, uniq, type Tone } from './client';
+	import { AVAILABILITY_LABEL, AVAILABILITY_TONE, REQUEST_LABEL, REQUEST_TONE, copyLabel, detailHref, post, uniq, type Tone } from './client';
 	import Empty from './Empty.svelte';
 	import RequestConfirm from './RequestConfirm.svelte';
 	import StatusBadge from './StatusBadge.svelte';
+	import { backClose } from './backClose.svelte';
 	import type { ConfirmTarget, RequestAction, RequestItem } from './types';
 
 	/** Re-mounted by the parent ({#key}) when the filter changes. */
@@ -109,6 +110,12 @@
 		menuPos = { top: Math.min(r.bottom + 4, window.innerHeight - 64), right: Math.max(8, window.innerWidth - r.right) };
 		menuEl?.showPopover();
 	}
+	// System back closes the menu rather than leaving the page.
+	const menuBack = backClose('requestMenu', () => closeMenu());
+	function onMenuToggle(e: ToggleEvent) {
+		if (e.newState === 'open') menuBack.opened();
+		else menuBack.closed();
+	}
 	function closeMenu() {
 		try {
 			menuEl?.hidePopover();
@@ -121,6 +128,9 @@
 	function statusOf(r: RequestItem): { tone: Tone; label: string } | null {
 		const media = r.media === 'available' || r.media === 'partial' ? r.media : null;
 		if (media) return filter === 'available' ? null : { tone: AVAILABILITY_TONE[media]!, label: AVAILABILITY_LABEL[media] };
+		// An HD request for a title that's on disk in the 4K library: say so rather than "Approved".
+		const other = !r.is4k && (r.otherMedia === 'available' || r.otherMedia === 'partial') ? r.otherMedia : null;
+		if (other && r.status !== 'declined') return { tone: AVAILABILITY_TONE[other]!, label: copyLabel(other, true) };
 		if (r.status === filter) return null;
 		return { tone: REQUEST_TONE[r.status], label: REQUEST_LABEL[r.status] };
 	}
@@ -204,7 +214,7 @@
 {/if}
 
 {#if isAdmin}
-	<div bind:this={menuEl} popover="auto" class="menu" role="menu" style:top="{menuPos.top}px" style:right="{menuPos.right}px">
+	<div bind:this={menuEl} popover="auto" class="menu" role="menu" ontoggle={onMenuToggle} style:top="{menuPos.top}px" style:right="{menuPos.right}px">
 		<button role="menuitem" class="item danger" disabled={!menuFor} onclick={() => menuFor && ask(menuFor, 'delete')}>
 			<Icon icon={iDelete} /> Delete request
 		</button>

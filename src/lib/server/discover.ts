@@ -107,6 +107,13 @@ function tmdbImg(s: ServiceRecord, path: string | null | undefined, size: string
 	return `/api/img/${s.id}?p=${encodeURIComponent(`/imageproxy/tmdb/t/p/${size}${path}`)}`;
 }
 
+/**
+ * Seerr's MediaStatus: 1 unknown, 2 pending, 3 processing, 4 partially available, 5 available,
+ * 6 blocklisted, 7 deleted (6/7 only in newer Seerr). A media row carries two of these: `status`
+ * for the regular copy (the non-4K Radarr/Sonarr) and `status4k` for the 4K server's copy. They are
+ * independent: a title on disk only in the 4K Radarr is status 3 (if an HD request was approved)
+ * or 1, with status4k 5. Blocklisted / deleted read as "none" (requestable again).
+ */
 function availability(n: number | undefined): Availability {
 	switch (n) {
 		case 5:
@@ -439,6 +446,7 @@ export async function requestList(filter: unknown, page: unknown): Promise<Reque
 							poster: tmdbImg(s, info.posterPath, 'w300_and_h450_face'),
 							status: REQUEST_STATUS[q.status] ?? 'pending',
 							media: availability(q.is4k ? q.media.status4k : q.media.status),
+							otherMedia: availability(q.is4k ? q.media.status : q.media.status4k),
 							is4k: Boolean(q.is4k),
 							seasons: (q.seasons ?? []).map((x) => x.seasonNumber).sort((a, b) => a - b),
 							requestedBy: userName(q.requestedBy),
