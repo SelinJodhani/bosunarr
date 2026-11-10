@@ -5,6 +5,7 @@
 </script>
 
 <script lang="ts">
+	import { getJSON } from '$lib/http';
 	import { LoadingIndicator } from 'm3-svelte';
 	import { untrack } from 'svelte';
 	import MediaCard from './MediaCard.svelte';
@@ -35,9 +36,7 @@
 		error = null;
 		const next = page + 1;
 		try {
-			const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}page=${next}`);
-			const body = (await r.json().catch(() => ({}))) as DiscoverPage & { error?: string };
-			if (!r.ok) throw new Error(body.error ?? `HTTP ${r.status}`);
+			const body = await getJSON<DiscoverPage>(`${url}${url.includes('?') ? '&' : '?'}page=${next}`);
 			remember(body.items);
 			items = uniq([...items, ...body.items]);
 			page = next;

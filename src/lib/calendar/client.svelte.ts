@@ -1,5 +1,6 @@
 // Calendar client helpers: local-time date maths and a stale-while-revalidate feed whose range can change.
 import { untrack } from 'svelte';
+import { CACHE_PREFIX, getJSON } from '$lib/http';
 import type { CalendarEntry, CalendarResult } from './types';
 
 /* ---------------------------------------------------------------- */
@@ -73,14 +74,14 @@ export function byDay(entries: CalendarEntry[]): Map<string, CalendarEntry[]> {
 /* ---------------------------------------------------------------- */
 /* Feed: memory + localStorage seed, background refresh, prefetch    */
 /* ---------------------------------------------------------------- */
-const STORE_PREFIX = 'swr:/api/calendar?';
+const STORE_PREFIX = CACHE_PREFIX + '/api/calendar?';
 const KEEP = 6; // calendar windows kept in localStorage
 const memory = new Map<string, CalendarResult>();
 const inflight = new Map<string, Promise<CalendarResult>>();
 
 function readPersisted(url: string): CalendarResult | undefined {
 	try {
-		const raw = localStorage.getItem('swr:' + url);
+		const raw = localStorage.getItem(CACHE_PREFIX + url);
 		const data = raw ? (JSON.parse(raw) as CalendarResult) : undefined;
 		return Array.isArray(data?.entries) ? data : undefined;
 	} catch {
@@ -90,8 +91,8 @@ function readPersisted(url: string): CalendarResult | undefined {
 
 function persist(url: string, data: CalendarResult) {
 	try {
-		localStorage.setItem('swr:' + url, JSON.stringify(data));
-		localStorage.setItem('swr:' + url + '#at', String(Date.now()));
+		localStorage.setItem(CACHE_PREFIX + url, JSON.stringify(data));
+		localStorage.setItem(CACHE_PREFIX + url + '#at', String(Date.now()));
 		// Drop the oldest windows so browsing months doesn't grow storage forever.
 		const keys: Array<[string, number]> = [];
 		for (let i = 0; i < localStorage.length; i++) {
@@ -111,9 +112,7 @@ function persist(url: string, data: CalendarResult) {
 function fetchWindow(url: string): Promise<CalendarResult> {
 	let p = inflight.get(url);
 	if (!p) {
-		p = fetch(url).then(async (r) => {
-			const body = await r.json().catch(() => ({}));
-			if (!r.ok) throw new Error(body?.error ?? `HTTP ${r.status}`);
+		p = getJSON<CalendarResult>(url).then((body) => {
 			memory.set(url, body);
 			persist(url, body);
 			return body as CalendarResult;

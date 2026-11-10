@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { getJSON } from '$lib/http';
 	import { Button, Dialog, Icon, LoadingIndicator, snackbar } from 'm3-svelte';
 	import { live } from '$lib/live.svelte';
 	import { ago } from '$lib/format';
@@ -23,10 +24,7 @@
 	async function loadMore(p = page + 1) {
 		loadingMore = true;
 		try {
-			const r = await fetch(`${base}&page=${p}`);
-			const body = await r.json().catch(() => ({}));
-			if (!r.ok) throw new Error(body?.error ?? `HTTP ${r.status}`);
-			more = body as RequestsResult;
+			more = await getJSON<RequestsResult>(`${base}&page=${p}`);
 			page = p;
 		} catch (e) {
 			snackbar(e instanceof Error ? e.message : String(e), {}, true);

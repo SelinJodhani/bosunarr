@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import { NavCMLX, NavCMLXItem, Snackbar } from 'm3-svelte';
-	import { iActivity, iCalendar, iDashboard, iDiscover, iLibrary, iSettings } from '$lib/icons';
+	import { iActivity, iCalendar, iDashboard, iDiscover, iLibrary, iServices } from '$lib/icons';
 
 	let { children, data } = $props();
 
@@ -12,11 +12,12 @@
 		{ href: '/discover', text: 'Discover', icon: iDiscover },
 		{ href: '/calendar', text: 'Calendar', icon: iCalendar },
 		{ href: '/activity', text: 'Activity', icon: iActivity },
-		{ href: '/settings', text: 'Settings', icon: iSettings }
+		{ href: '/services', text: 'Services', icon: iServices }
 	];
 
 	const bare = $derived(['/login', '/setup'].includes(page.url.pathname));
-	const isActive = (href: string) => (href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href));
+	const isActive = (href: string) =>
+		href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href) || (href === '/services' && page.url.pathname.startsWith('/settings'));
 </script>
 
 {#if bare || !data.user}
@@ -64,14 +65,25 @@
 			flex: 1 1 0;
 			min-width: 0;
 		}
-		/* Icons only on phones; the label stays in the DOM (font-size 0) so screen readers still announce it. */
+		/* Icons only on phones; the label stays in the DOM (font-size 0) so screen readers still announce it.
+		   Fixed 64 px bar with the icons centred: the hidden label must not leave an empty band below them. */
+		.nav :global(.m3-container) {
+			height: 4rem;
+			align-items: center;
+			padding-block: 0;
+		}
+		.nav :global(.m3-container > a) {
+			height: 100%;
+			padding-block: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
 		.nav :global(.m3-container > a .content) {
 			font-size: 0;
 			line-height: 0;
 			gap: 0;
-		}
-		.nav :global(.m3-container > a) {
-			padding-block: 0.25rem;
+			padding-block: 0;
 		}
 	}
 	@media (width >= 52.5rem) {

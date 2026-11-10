@@ -1,12 +1,13 @@
 // Client helpers for the Library: instant detail paint and poster-derived theme colours.
 import type { LibraryItem, LibraryStatus } from './types';
+import { CACHE_PREFIX } from '$lib/http';
 
 export const LIBRARY_URL = '/api/library';
 
 /** Find a list item we already have (memory/localStorage) so the detail page can paint before its fetch. */
 export function peekItem(key: string): LibraryItem | undefined {
 	try {
-		const raw = localStorage.getItem('swr:' + LIBRARY_URL);
+		const raw = localStorage.getItem(CACHE_PREFIX + LIBRARY_URL);
 		const data = raw ? (JSON.parse(raw) as { items?: LibraryItem[] }) : null;
 		return data?.items?.find((i) => i.key === key);
 	} catch {

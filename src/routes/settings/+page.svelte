@@ -6,7 +6,7 @@
 	import { Icon } from 'm3-svelte';
 	import ServiceDialog from '$lib/components/ServiceDialog.svelte';
 	import { SERVICE_TYPES, type PublicService } from '$lib/services/catalog';
-	import { iAdd, iDelete, iEdit, iLogout } from '$lib/icons';
+	import { iAdd, iBack, iDelete, iEdit, iLogout } from '$lib/icons';
 
 	let { data } = $props();
 
@@ -69,7 +69,10 @@
 
 <svelte:head><title>Settings · Bosunarr</title></svelte:head>
 
-<header><h1 class="title-large">Settings</h1></header>
+<header class="settings-head">
+	<Button variant="text" iconType="full" href="/services" aria-label="Back to services"><Icon icon={iBack} /></Button>
+	<h1 class="title-large">Settings</h1>
+</header>
 
 {#if welcome}
 	<section class="welcome">
@@ -163,6 +166,12 @@
 </Dialog>
 
 <style>
+	.settings-head {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		margin-left: -0.5rem;
+	}
 	header {
 		margin-bottom: 1rem;
 	}

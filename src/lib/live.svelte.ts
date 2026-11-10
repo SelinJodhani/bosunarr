@@ -4,15 +4,20 @@
  * - Polls only while the tab is visible; refetches immediately when it becomes visible again.
  * - Dedupes: several widgets asking for the same URL share one request.
  */
+import { CACHE_PREFIX, getJSON, purgeOldCache } from './http';
+
 type Entry<T> = { data: T | undefined; error: string | null; loading: boolean; updated: number };
 
 const memory = new Map<string, Entry<unknown>>();
+if (typeof localStorage !== 'undefined') purgeOldCache();
 const inflight = new Map<string, Promise<unknown>>();
 
 function readPersisted<T>(url: string): T | undefined {
 	try {
-		const raw = localStorage.getItem('swr:' + url);
-		return raw ? (JSON.parse(raw) as T) : undefined;
+		const raw = localStorage.getItem(CACHE_PREFIX + url);
+		const v = raw ? JSON.parse(raw) : undefined;
+		// Never seed from an empty or non-object value: pages assume the full shape.
+		return v && typeof v === 'object' && Object.keys(v).length ? (v as T) : undefined;
 	} catch {
 		return undefined;
 	}
@@ -20,7 +25,7 @@ function readPersisted<T>(url: string): T | undefined {
 
 function persist(url: string, data: unknown) {
 	try {
-		localStorage.setItem('swr:' + url, JSON.stringify(data));
+		localStorage.setItem(CACHE_PREFIX + url, JSON.stringify(data));
 	} catch {
 		/* storage full or disabled — fine */
 	}
@@ -40,11 +45,7 @@ export function live<T>(url: string, intervalMs: number) {
 		try {
 			let p = inflight.get(url) as Promise<T> | undefined;
 			if (!p) {
-				p = fetch(url).then(async (r) => {
-					const body = await r.json().catch(() => ({}));
-					if (!r.ok) throw new Error(body?.error ?? `HTTP ${r.status}`);
-					return body as T;
-				});
+				p = getJSON<T>(url);
 				inflight.set(url, p);
 				p.finally(() => inflight.delete(url)).catch(() => {}); // the awaiting caller handles the error
 			}
