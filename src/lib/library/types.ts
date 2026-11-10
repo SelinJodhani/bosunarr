@@ -24,6 +24,8 @@ export type LibraryItem = {
 	added: string | null;
 	/** 0–10 */
 	rating: number | null;
+	/** 'IMDb' | 'TMDb' when known. */
+	ratingSource: string | null;
 	genres: string[];
 	qualityProfile: string | null;
 	is4k: boolean;
@@ -35,7 +37,7 @@ export type LibraryItem = {
 	tvdbId: number | null;
 };
 
-export type LibraryResult = { items: LibraryItem[]; errors: Array<{ service: string; error: string }> };
+export type LibraryResult = { items: LibraryItem[]; errors: Array<{ service: string; kind: LibraryKind; error: string }> };
 
 export type CastMember = { name: string; character: string | null; photo: string | null };
 
