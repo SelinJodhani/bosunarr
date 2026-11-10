@@ -31,9 +31,14 @@ function persist(url: string, data: unknown) {
 	}
 }
 
-export function live<T>(url: string, intervalMs: number) {
+/**
+ * @param opts.persist  false for admin-only or personal data (user lists, IPs): it then stays in
+ *                      memory for this page load only and is never written to localStorage.
+ */
+export function live<T>(url: string, intervalMs: number, opts: { persist?: boolean } = {}) {
+	const keep = opts.persist !== false;
 	const seed = (memory.get(url) as Entry<T> | undefined) ?? {
-		data: typeof localStorage !== 'undefined' ? readPersisted<T>(url) : undefined,
+		data: keep && typeof localStorage !== 'undefined' ? readPersisted<T>(url) : undefined,
 		error: null,
 		loading: true,
 		updated: 0
@@ -53,7 +58,7 @@ export function live<T>(url: string, intervalMs: number) {
 			state.data = data;
 			state.error = null;
 			state.updated = Date.now();
-			persist(url, data);
+			if (keep) persist(url, data);
 		} catch (e) {
 			state.error = e instanceof Error ? e.message : String(e);
 		} finally {
