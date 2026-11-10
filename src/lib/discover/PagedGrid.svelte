@@ -9,11 +9,13 @@
 	import { LoadingIndicator } from 'm3-svelte';
 	import { untrack } from 'svelte';
 	import MediaCard from './MediaCard.svelte';
+	import Empty from './Empty.svelte';
+	import { iSearchOff } from './icons';
 	import { remember, uniq } from './client';
 	import type { DiscoverPage } from './types';
 
 	/** `url` is the list endpoint without `page`; the parent re-mounts this component ({#key}) when it changes. */
-	let { url, emptyText = 'Nothing found' }: { url: string; emptyText?: string } = $props();
+	let { url, emptyText = 'Nothing found', showType = true }: { url: string; emptyText?: string; showType?: boolean } = $props();
 
 	// svelte-ignore state_referenced_locally
 	const start = memo.get(url);
@@ -66,18 +68,24 @@
 </script>
 
 {#if items.length}
-	<p class="count body-small">{totalResults.toLocaleString()} result{totalResults === 1 ? '' : 's'}</p>
+	{#if !capped}<p class="count body-small">{totalResults.toLocaleString()} result{totalResults === 1 ? '' : 's'}</p>{/if}
 	<ul class="grid">
 		{#each items as it (it.key)}
-			<li><MediaCard item={it} /></li>
+			<li><MediaCard item={it} {showType} /></li>
 		{/each}
 	</ul>
-{:else if !loading && !error && page > 0}
-	<p class="empty">{emptyText}</p>
+{:else if page === 0 && !error}
+	<ul class="grid" aria-hidden="true">
+		{#each { length: 9 } as _, i (i)}
+			<li class="sk"><span class="sk-art"></span><span class="sk-line"></span><span class="sk-line short"></span></li>
+		{/each}
+	</ul>
+{:else if !loading && !error}
+	<Empty icon={iSearchOff} title={emptyText} />
 {/if}
 
 <div bind:this={sentinel} class="sentinel">
-	{#if loading}
+	{#if loading && items.length}
 		<LoadingIndicator aria-label="Loading more" />
 	{:else if error}
 		<p class="error" role="alert">{error} <button class="retry" onclick={load}>Retry</button></p>
@@ -101,7 +109,8 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+		/* Two columns on phones, like the Library grid. */
+		grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
 		gap: 1rem 0.75rem;
 	}
 	@media (width >= 35rem) {
@@ -125,8 +134,32 @@
 		min-height: 4rem;
 		padding: 1rem 0;
 	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
+	.sk {
+		display: grid;
+		gap: 0.375rem;
+		content-visibility: visible;
+	}
+	.sk-art,
+	.sk-line {
+		display: block;
+		border-radius: 0.75rem;
+		background: var(--m3c-surface-container-highest);
+		animation: pulse 1.2s ease-in-out infinite alternate;
+	}
+	.sk-art {
+		aspect-ratio: 2 / 3;
+	}
+	.sk-line {
+		height: 0.75rem;
+		border-radius: 0.375rem;
+	}
+	.sk-line.short {
+		width: 45%;
+	}
+	@keyframes pulse {
+		to {
+			opacity: 0.5;
+		}
 	}
 	.error {
 		color: var(--m3c-error);
@@ -137,6 +170,10 @@
 		cursor: pointer;
 		font-weight: 500;
 		color: var(--m3c-primary);
-		margin-left: 0.5rem;
+		margin-left: 0.25rem;
+		padding: 0 0.5rem;
+		min-height: 2.5rem;
+		display: inline-flex;
+		align-items: center;
 	}
 </style>

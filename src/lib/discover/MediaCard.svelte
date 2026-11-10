@@ -1,21 +1,26 @@
 <script lang="ts">
-	import { BADGE, detailHref } from './client';
+	import { AVAILABILITY_TONE, BADGE, detailHref, warmSeed } from './client';
+	import StatusBadge from './StatusBadge.svelte';
 	import type { DiscoverItem } from './types';
 
-	let { item, width }: { item: DiscoverItem; width?: number } = $props();
+	/** `showType`: false where the list already says what it is ("Action movies", "Popular series"). */
+	let { item, showType = true }: { item: DiscoverItem; showType?: boolean } = $props();
 	let failed = $state(false);
-	const badge = $derived(BADGE[item.status] ?? (item.status4k !== 'none' ? `4K ${BADGE[item.status4k]}` : null));
+	const st = $derived(item.status !== 'none' ? item.status : item.status4k);
+	const badge = $derived(BADGE[st] ? `${item.status === 'none' ? '4K ' : ''}${BADGE[st]}` : null);
+	const tone = $derived(AVAILABILITY_TONE[st]);
+	const warm = () => warmSeed(item.poster);
 </script>
 
-<a class="card" href={detailHref(item)} data-sveltekit-preload-code="hover" style:width={width ? `${width}px` : undefined}>
+<a class="card" href={detailHref(item)} data-sveltekit-preload-code="hover" onpointerenter={warm} onpointerdown={warm} onfocus={warm}>
 	<div class="art">
 		{#if item.poster && !failed}
 			<img src={item.poster} alt="" loading="lazy" decoding="async" onerror={() => (failed = true)} />
 		{:else}
 			<span class="fallback">{item.title}</span>
 		{/if}
-		<span class="type">{item.mediaType === 'movie' ? 'Movie' : 'Series'}</span>
-		{#if badge}<span class="badge s-{item.status === 'none' ? item.status4k : item.status}">{badge}</span>{/if}
+		{#if showType}<span class="type">{item.mediaType === 'movie' ? 'Movie' : 'Series'}</span>{/if}
+		{#if badge && tone}<span class="badge"><StatusBadge {tone} label={badge} /></span>{/if}
 	</div>
 	<span class="t">{item.title}</span>
 	<span class="s">{item.year ?? '—'}{item.rating ? ` · ★ ${item.rating}` : ''}</span>
@@ -62,41 +67,25 @@
 		font-size: 0.8125rem;
 		color: var(--m3c-on-surface-variant);
 	}
-	.type,
-	.badge {
+	.type {
 		position: absolute;
-		padding: 0.125rem 0.4rem;
+		bottom: 0.375rem;
+		left: 0.375rem;
+		padding: 0 0.4rem;
 		border-radius: 0.5rem;
 		font-size: 0.6875rem;
 		font-weight: 600;
-		line-height: 1rem;
-	}
-	.type {
-		bottom: 0.375rem;
-		left: 0.375rem;
+		line-height: 1.25rem;
 		background: color-mix(in oklab, var(--m3c-inverse-surface) 80%, transparent);
 		color: var(--m3c-inverse-on-surface);
 	}
 	.badge {
+		position: absolute;
 		top: 0.375rem;
 		right: 0.375rem;
-	}
-	.s-available {
-		background: var(--m3c-primary);
-		color: var(--m3c-on-primary);
-	}
-	.s-partial {
-		background: var(--m3c-secondary-container);
-		color: var(--m3c-on-secondary-container);
-	}
-	.s-processing {
-		background: var(--m3c-tertiary-container);
-		color: var(--m3c-on-tertiary-container);
-	}
-	.s-pending {
-		background: var(--m3c-surface-container-highest);
-		color: var(--m3c-on-surface);
-		box-shadow: inset 0 0 0 1px var(--m3c-outline);
+		display: flex;
+		box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+		border-radius: 0.5rem;
 	}
 	.t,
 	.s {
