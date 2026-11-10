@@ -12,12 +12,14 @@ export type SummaryStat = {
 	href?: string;
 };
 
-/** A health / update / sync notice under the stats. */
+/** A health / update / sync notice, shown at the top of a tab (see ServiceTabs). */
 export type SummaryNotice = {
 	tone: 'bad' | 'warn' | 'info' | 'update';
 	text: string;
 	/** Short bold prefix, e.g. "Indexer status". */
 	source?: string;
 	href?: string;
+	/** Text of the link button; defaults to "How to fix". */
+	linkLabel?: string;
 	icon?: IconifyIcon;
 };

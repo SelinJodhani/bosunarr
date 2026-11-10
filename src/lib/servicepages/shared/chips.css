@@ -1,0 +1,36 @@
+/*
+ * Filter chip rows on the service screens and Activity: M3 chips are 32 px tall, but every chip
+ * gets a ≥ 40 px touch target. m3-svelte's chip uses its ::before as the hit box, so we grow that
+ * 4 px above and below; the row adds matching padding so a scrolling row doesn't clip it.
+ */
+.chip-row {
+	display: flex;
+	gap: 0.5rem;
+	padding-block: 0.25rem;
+	min-width: 0;
+}
+.chip-row.scroll {
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+.chip-row.scroll::-webkit-scrollbar {
+	display: none;
+}
+.chip-row.wrap {
+	flex-wrap: wrap;
+	row-gap: 0.5rem;
+}
+.chip-row > * {
+	flex: none;
+}
+.chip-row > .m3-container.m3-container::before {
+	inset: -5px -1px !important;
+	width: auto !important;
+	height: auto !important;
+}
+/* Count inside a chip label: "Pending 3". */
+.chip-row .chip-n {
+	margin-left: 0.375rem;
+	font-variant-numeric: tabular-nums;
+	opacity: 0.8;
+}

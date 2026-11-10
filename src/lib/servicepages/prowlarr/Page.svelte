@@ -40,7 +40,20 @@
 		{ name: 'History', value: 'history' }
 	]);
 	const TONE = { error: 'bad', warning: 'warn', notice: 'info' } as const;
-	const notices = $derived<SummaryNotice[]>((d?.health ?? []).map((h) => ({ tone: /update/i.test(h.source) ? 'update' : TONE[h.type], text: h.message, href: h.wikiUrl ?? undefined })));
+	/** Prowlarr's own update check says "New update is available: v2.7.0.5723"; show "Update available: 2.7.0". */
+	function notice(h: { source: string; type: keyof typeof TONE; message: string; wikiUrl: string | null }): SummaryNotice {
+		if (/update/i.test(h.source)) {
+			const v = h.message.match(/v?(\d+(?:\.\d+)+)/);
+			return {
+				tone: 'update',
+				text: v ? `Update available: ${v[1].split('.').slice(0, 3).join('.')}` : 'Update available.',
+				href: `https://github.com/Prowlarr/Prowlarr/releases${v ? `/tag/v${v[1]}` : ''}`,
+				linkLabel: 'Release notes'
+			};
+		}
+		return { tone: TONE[h.type], text: h.message, href: h.wikiUrl ?? undefined };
+	}
+	const notices = $derived<SummaryNotice[]>((d?.health ?? []).map(notice));
 
 	function showIndexers(filter: 'all' | 'enabled' | 'failing') {
 		indexerView.filter = filter;
@@ -62,11 +75,10 @@
 			{ value: enabled.length, label: 'Enabled', onclick: () => showIndexers('enabled') },
 			{ value: failing, label: 'Failing', tone: failing ? 'bad' : undefined, onclick: () => showIndexers('failing') }
 		]}
-		{notices}
-		stale={ov.state.error}
 	/>
 
-	<ServiceTabs {items} bind:tab>
+	<!-- Notices sit on Indexers (most are indexer health), so Search's field never moves when one appears. -->
+	<ServiceTabs {items} bind:tab {notices} noticesOn="indexers" stale={ov.state.error}>
 		{#if tab === 'search' && isAdmin}
 			<SearchTab {api} {isAdmin} indexers={d.indexers} />
 		{:else if tab === 'indexers'}

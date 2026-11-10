@@ -1,33 +1,22 @@
 <script lang="ts">
-	// The card at the top of every service screen: a one-line identity (version, uptime…), up to four
-	// number tiles, and any health / update notices. Tabs follow underneath (ServiceTabs).
+	// The compact card at the top of every service screen: a one-line identity (version, uptime…) and
+	// up to four number tiles. Its height depends only on the layout, never on the data, so cached and
+	// fresh data paint the same. Health / update notices live under the tabs (ServiceTabs).
 	import type { Snippet } from 'svelte';
-	import { Icon } from 'm3-svelte';
-	import iError from '@ktibow/iconset-material-symbols/error-rounded';
-	import iWarning from '@ktibow/iconset-material-symbols/warning-rounded';
-	import iInfo from '@ktibow/iconset-material-symbols/info-rounded';
-	import iUpdate from '@ktibow/iconset-material-symbols/system-update-rounded';
-	import iOpen from '@ktibow/iconset-material-symbols/open-in-new-rounded';
-	import type { SummaryNotice, SummaryStat } from './types';
+	import type { SummaryStat } from './types';
 
 	let {
 		meta = [],
 		stats = [],
-		notices = [],
-		stale = null,
 		children
 	}: {
 		/** Short facts joined into one line, e.g. ["Sonarr 4.0.14", "Up 3 days"]. Falsy entries are skipped. */
 		meta?: Array<string | null | undefined | false>;
 		stats?: SummaryStat[];
-		notices?: SummaryNotice[];
-		/** Refresh error while older data is still shown. */
-		stale?: string | null;
 		children?: Snippet;
 	} = $props();
 
 	const facts = $derived(meta.filter(Boolean) as string[]);
-	const ICON = { bad: iError, warn: iWarning, info: iInfo, update: iUpdate } as const;
 </script>
 
 <section class="summary" aria-label="Summary">
@@ -58,51 +47,38 @@
 	{/if}
 
 	{@render children?.()}
-
-	{#if notices.length || stale}
-		<ul class="notices">
-			{#if stale}
-				<li class="n-warn" role="status">
-					<span class="ic"><Icon icon={iWarning} size={20} /></span>
-					<span class="text"><b>Couldn't refresh</b> Showing the last data we had.</span>
-				</li>
-			{/if}
-			{#each notices as n, i (i)}
-				<li class="n-{n.tone}">
-					<span class="ic"><Icon icon={n.icon ?? ICON[n.tone]} size={20} /></span>
-					<span class="text">{#if n.source}<b>{n.source}</b>{' '}{/if}{n.text}</span>
-					{#if n.href}
-						<a class="more" href={n.href} target="_blank" rel="noopener noreferrer" aria-label="How to fix"><Icon icon={iOpen} size={20} /></a>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	{/if}
 </section>
 
 <style>
 	.summary {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 0.75rem;
-		padding: 1rem;
+		gap: 0.625rem;
+		padding: 0.75rem;
 		margin-bottom: 0.75rem;
 		border-radius: var(--radius-l);
 		background: var(--m3c-surface-container-low);
 		min-width: 0;
 	}
+	/* One line: the identity never wraps, so the card height is fixed. */
 	.meta {
-		margin: 0;
+		margin: 0 0.125rem;
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.125rem 0;
+		overflow: hidden;
+		white-space: nowrap;
 		font-size: 0.875rem;
 		line-height: 1.25rem;
 		color: var(--m3c-on-surface-variant);
 		min-width: 0;
 	}
 	.meta span {
-		overflow-wrap: anywhere;
+		flex: none;
+	}
+	.meta span:last-child {
+		flex: 0 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.meta span + span::before {
 		content: '\00a0·\00a0';
@@ -116,10 +92,13 @@
 		grid-template-columns: repeat(var(--n), minmax(0, 1fr));
 		gap: 0.5rem;
 	}
-	/* Four tiles become 2 × 2 on narrow phones; three still fit in one row. */
+	/* Four tiles stay in one row; on narrow phones they just get tighter. */
 	@media (width < 24rem) {
 		.stats.four {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.375rem;
+		}
+		.stats.four .stat {
+			padding: 0.375rem 0.5rem;
 		}
 	}
 	.stat {
@@ -130,8 +109,8 @@
 		align-content: center;
 		gap: 0.125rem;
 		min-width: 0;
-		min-height: 4rem;
-		padding: 0.5rem 0.625rem;
+		min-height: 3.5rem;
+		padding: 0.375rem 0.625rem;
 		border-radius: var(--radius-m);
 		background: var(--m3c-surface-container-high);
 		color: var(--m3c-on-surface);
@@ -172,53 +151,5 @@
 	}
 	.t-bad .num {
 		color: var(--m3c-error);
-	}
-	.notices {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 0.375rem;
-	}
-	.notices li {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr) auto;
-		align-items: center;
-		gap: 0.625rem;
-		min-height: 2.5rem;
-		padding: 0.375rem 0.25rem 0.375rem 0.75rem;
-		border-radius: var(--radius-m);
-		background: var(--m3c-surface-container-high);
-		font-size: 0.875rem;
-		line-height: 1.25rem;
-	}
-	.ic {
-		display: grid;
-	}
-	.text {
-		overflow-wrap: anywhere;
-		padding-right: 0.5rem;
-	}
-	.n-bad .ic {
-		color: var(--m3c-error);
-	}
-	.n-warn .ic {
-		color: var(--m3c-tertiary);
-	}
-	.n-info .ic,
-	.n-update .ic {
-		color: var(--m3c-primary);
-	}
-	.more {
-		display: grid;
-		place-items: center;
-		width: 2.5rem;
-		height: 2.5rem;
-		border-radius: 50%;
-		color: var(--m3c-on-surface-variant);
-	}
-	.more:hover {
-		background: var(--m3c-surface-container-highest);
 	}
 </style>

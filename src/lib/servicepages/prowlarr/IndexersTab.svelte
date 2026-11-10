@@ -13,6 +13,7 @@
 	import { protocolLabel } from '../shared/format';
 	import type { Indexer } from './types';
 	import { implementationLabel, post } from './api';
+	import '../shared/chips.css';
 
 	let { api, isAdmin, indexers, refresh }: { api: string; isAdmin: boolean; indexers: Indexer[]; refresh: () => Promise<void> } = $props();
 
@@ -50,7 +51,7 @@
 	const until = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 </script>
 
-<div class="chips no-scrollbar" role="toolbar" aria-label="Filter indexers">
+<div class="chip-row scroll" role="toolbar" aria-label="Filter indexers">
 	{#each FILTERS as f (f.value)}
 		{#if f.value === 'all' || counts[f.value] > 0 || indexerView.filter === f.value}
 			<Chip variant="general" selected={indexerView.filter === f.value} onclick={() => (indexerView.filter = f.value)}>{f.label} {counts[f.value]}</Chip>
@@ -124,14 +125,6 @@
 </ConfirmDialog>
 
 <style>
-	.chips {
-		display: flex;
-		gap: 0.5rem;
-		overflow-x: auto;
-	}
-	.chips > :global(*) {
-		flex: none;
-	}
 		.list {
 		list-style: none;
 		margin: 0;

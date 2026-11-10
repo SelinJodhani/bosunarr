@@ -36,7 +36,7 @@
 
 <header>
 	<Button variant="text" iconType="full" aria-label="Back" onclick={back}><Icon icon={iBack} /></Button>
-	<span class="dot" style:background={info?.color} aria-hidden="true"></span>
+	<span class="badge" style:--c={info?.color} aria-hidden="true">{(info?.label ?? data.service.type)[0]}</span>
 	<h1 class="title-large" class:grow={!typeLabel}>{data.service.name}</h1>
 	{#if typeLabel}<span class="type">{typeLabel}</span>{/if}
 	<Button variant="text" iconType="full" href={webUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${data.service.name} in a new tab`}>
@@ -89,10 +89,19 @@
 	h1.grow {
 		flex: 1;
 	}
-	.dot {
+	/* Type badge, same as the Settings service rows: brand tint + initial, a rounded square so it
+	   never reads as a status dot. */
+	.badge {
+		display: grid;
+		place-items: center;
 		flex: none;
-		width: 0.75rem;
-		height: 0.75rem;
-		border-radius: 50%;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 0.5rem;
+		background: color-mix(in oklab, var(--c, var(--m3c-primary)) 18%, var(--m3c-surface-container-highest));
+		color: color-mix(in oklab, var(--c, var(--m3c-primary)) 70%, var(--m3c-on-surface));
+		font-weight: 600;
+		font-size: 0.875rem;
+		text-transform: uppercase;
 	}
 </style>

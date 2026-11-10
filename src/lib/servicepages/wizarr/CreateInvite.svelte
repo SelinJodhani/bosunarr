@@ -3,6 +3,7 @@
 	import { Button, Chip, Dialog, Select, Switch, TextField } from 'm3-svelte';
 	import type { CreatedInvite, CreateInviteRequest, WizarrLibrary, WizarrServer } from './types';
 	import { send } from './client';
+	import '../shared/chips.css';
 
 	let {
 		open = $bindable(false),
@@ -82,7 +83,7 @@
 		{:else}
 			<fieldset>
 				<legend>Server</legend>
-				<div class="chips">
+				<div class="chip-row wrap">
 					{#each usable as s (s.id)}
 						<Chip variant="general" selected={serverIds.includes(s.id)} onclick={() => toggleServer(s.id)}>{s.name}</Chip>
 					{/each}
@@ -121,7 +122,7 @@
 				{:else if libs.length === 0}
 					<p class="hint">No libraries listed for this server. New users get the server's defaults.</p>
 				{:else}
-					<div class="chips">
+					<div class="chip-row wrap">
 						{#each libs as l (l.id)}
 							<Chip variant="general" selected={libraryIds.includes(l.id)} onclick={() => (libraryIds = toggle(libraryIds, l.id))}>{l.name}</Chip>
 						{/each}
@@ -160,11 +161,6 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--m3c-on-surface-variant);
-	}
-	.chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
 	}
 	.row2 {
 		display: grid;

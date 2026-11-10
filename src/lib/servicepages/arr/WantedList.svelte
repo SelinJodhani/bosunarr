@@ -3,6 +3,8 @@
 	import { live } from '$lib/live.svelte';
 	import Art from '../shared/Art.svelte';
 	import iDone from '@ktibow/iconset-material-symbols/task-alt-rounded';
+	import { Icon } from 'm3-svelte';
+	import { iNext } from '$lib/icons';
 	import State from '../shared/State.svelte';
 	import Pager from '../shared/Pager.svelte';
 	import { shortDate } from './format';
@@ -31,6 +33,7 @@
 							{#if w.quality}<span class="pill">Has {w.quality}</span>{/if}
 						</span>
 					</span>
+					{#if w.href}<span class="go" aria-hidden="true"><Icon icon={iNext} size={20} /></span>{/if}
 				</a>
 			</li>
 		{/each}
@@ -65,8 +68,17 @@
 		text-decoration: none;
 		background: var(--m3c-surface-container-low);
 	}
-	.row:hover {
+	.row[href]:hover {
 		background: var(--m3c-surface-container);
+	}
+	.row:focus-visible {
+		outline: 2px solid var(--m3c-primary);
+		outline-offset: -2px;
+	}
+	.go {
+		flex: none;
+		display: grid;
+		color: var(--m3c-on-surface-variant);
 	}
 	.body {
 		flex: 1;

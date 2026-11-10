@@ -7,6 +7,7 @@
 	import { Chip } from 'm3-svelte';
 	import { STAT_RANGES } from './types';
 	import StatsView from './StatsView.svelte';
+	import '../shared/chips.css';
 
 	let { api }: { api: string } = $props();
 
@@ -18,12 +19,12 @@
 	];
 </script>
 
-<div class="chips" role="toolbar" aria-label="Range">
+<div class="chip-row scroll" role="toolbar" aria-label="Range">
 	{#each STAT_RANGES as d (d)}
 		<Chip variant="general" selected={view.days === d} onclick={() => (view.days = d)}>{d} days</Chip>
 	{/each}
 </div>
-<div class="chips" role="toolbar" aria-label="Metric">
+<div class="chip-row scroll" role="toolbar" aria-label="Metric">
 	{#each METRICS as m (m.value)}
 		<Chip variant="general" selected={view.metric === m.value} onclick={() => (view.metric = m.value)}>{m.label}</Chip>
 	{/each}
@@ -34,13 +35,4 @@
 {/key}
 
 <style>
-	.chips {
-		display: flex;
-		gap: 0.5rem;
-		overflow-x: auto;
-		scrollbar-width: none;
-	}
-	.chips > :global(*) {
-		flex: none;
-	}
 </style>

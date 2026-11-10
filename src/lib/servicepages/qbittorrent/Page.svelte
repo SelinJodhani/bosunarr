@@ -5,20 +5,21 @@
 
 <script lang="ts">
 	import { BottomSheet, Button, Chip, Icon, Switch, snackbar } from 'm3-svelte';
-	import iAdd from '@ktibow/iconset-material-symbols/add-rounded';
-	import iPause from '@ktibow/iconset-material-symbols/pause-rounded';
-	import iResume from '@ktibow/iconset-material-symbols/play-arrow-rounded';
 	import iAlt from '@ktibow/iconset-material-symbols/speed-rounded';
+	import iFilter from '@ktibow/iconset-material-symbols/filter-alt';
 	import iCategory from '@ktibow/iconset-material-symbols/category-rounded';
 	import iTag from '@ktibow/iconset-material-symbols/label-rounded';
-	import iDrop from '@ktibow/iconset-material-symbols/arrow-drop-down-rounded';
 	import iCheck from '@ktibow/iconset-material-symbols/check-rounded';
 	import iFeed from '@ktibow/iconset-material-symbols/sync-problem-rounded';
+	import { iClose } from '$lib/icons';
 	import { bytes, speed } from '$lib/format';
 	import { live } from '$lib/live.svelte';
-	import { act, liveActivity } from '$lib/activity/live.svelte';
+	import { liveActivity } from '$lib/activity/live.svelte';
+	import { categoryLabel } from '$lib/activity/format';
 	import TorrentList from '$lib/activity/TorrentList.svelte';
+	import TorrentMenu from '$lib/activity/TorrentMenu.svelte';
 	import AddTorrent from '$lib/activity/AddTorrent.svelte';
+	import type { Torrent } from '$lib/activity/types';
 	import type { ServicePageProps } from '../types';
 	import Summary from '../shared/Summary.svelte';
 	import ServiceTabs from '../shared/ServiceTabs.svelte';
@@ -51,12 +52,14 @@
 	];
 
 	/* ---------------- Category / tag filters ---------------- */
+	// One filter button in the torrent toolbar opens a sheet with both; the active one shows as a
+	// removable chip at the start of the status chips.
 	const NONE = '\u0000none';
 	let category = $state<string | null>(null);
 	let tag = $state<string | null>(null);
-	let sheet = $state<'category' | 'tag' | null>(null);
+	let sheetOpen = $state(false);
 
-	function countBy(keys: (x: (typeof torrents)[number]) => string[]) {
+	function countBy(keys: (x: Torrent) => string[]) {
 		const m = new Map<string, number>();
 		for (const x of torrents) for (const k of keys(x)) m.set(k, (m.get(k) ?? 0) + 1);
 		return m;
@@ -67,30 +70,45 @@
 		[...new Set([...a, ...[...m.keys()].filter((k) => k !== NONE), ...(selected && selected !== NONE ? [selected] : [])])].sort((x, y) => x.localeCompare(y));
 	const catList = $derived(union(o?.categories, catCounts, category));
 	const tagList = $derived(union(o?.tags, tagCounts, tag));
+	const canFilter = $derived(torrents.length > 0 && (catList.length > 0 || tagList.length > 0));
 
-	const shown = $derived(
-		torrents.filter(
-			(x) =>
-				(category === null || (category === NONE ? !x.category : x.category === category)) &&
-				(tag === null || (tag === NONE ? x.tags.length === 0 : x.tags.includes(tag)))
-		)
-	);
-	const nameOf = (v: string | null, kind: 'category' | 'tag') => (v === null ? 'All' : v === NONE ? (kind === 'category' ? 'Uncategorized' : 'Untagged') : v);
-	const sheetOptions = $derived.by(() => {
-		if (!sheet) return [];
-		const list = sheet === 'category' ? catList : tagList;
-		const counts = sheet === 'category' ? catCounts : tagCounts;
-		const current = sheet === 'category' ? category : tag;
-		return [
-			{ value: null, label: sheet === 'category' ? 'All categories' : 'All tags', count: torrents.length },
-			...list.map((v) => ({ value: v as string | null, label: v, count: counts.get(v) ?? 0 })),
-			...(counts.get(NONE) || current === NONE ? [{ value: NONE as string | null, label: nameOf(NONE, sheet), count: counts.get(NONE) ?? 0 }] : [])
-		];
+	const matches = (x: Torrent) =>
+		(category === null || (category === NONE ? !x.category : x.category === category)) &&
+		(tag === null || (tag === NONE ? x.tags.length === 0 : x.tags.includes(tag)));
+	const catName = (v: string) => (v === NONE ? 'Uncategorized' : categoryLabel(v));
+	const tagName = (v: string) => (v === NONE ? 'Untagged' : v);
+
+	type Option = { value: string | null; label: string; count: number };
+	const sections = $derived.by(() => {
+		const out: Array<{ kind: 'category' | 'tag'; title: string; options: Option[] }> = [];
+		if (catList.length || category !== null) {
+			out.push({
+				kind: 'category',
+				title: 'Category',
+				options: [
+					{ value: null, label: 'All categories', count: torrents.length },
+					...catList.map((v) => ({ value: v, label: catName(v), count: catCounts.get(v) ?? 0 })),
+					...(catCounts.get(NONE) || category === NONE ? [{ value: NONE, label: catName(NONE), count: catCounts.get(NONE) ?? 0 }] : [])
+				]
+			});
+		}
+		if (tagList.length || tag !== null) {
+			out.push({
+				kind: 'tag',
+				title: 'Tag',
+				options: [
+					{ value: null, label: 'All tags', count: torrents.length },
+					...tagList.map((v) => ({ value: v, label: v, count: tagCounts.get(v) ?? 0 })),
+					...(tagCounts.get(NONE) || tag === NONE ? [{ value: NONE, label: tagName(NONE), count: tagCounts.get(NONE) ?? 0 }] : [])
+				]
+			});
+		}
+		return out;
 	});
-	function pick(v: string | null) {
-		if (sheet === 'category') category = v;
+	function pick(kind: 'category' | 'tag', v: string | null) {
+		if (kind === 'category') category = v;
 		else tag = v;
-		sheet = null;
+		sheetOpen = false;
 	}
 
 	/* ---------------- Alternative speed ---------------- */
@@ -111,15 +129,9 @@
 		snackbar(err ? `Couldn't switch speed limits. ${sentence(err)}` : enabled ? 'Alternative speed limits on' : 'Alternative speed limits off', {}, true);
 	}
 
-	/* ---------------- Bulk actions ---------------- */
 	let addOpen = $state(false);
-	let busy = $state(false);
-	async function all(action: 'pauseAll' | 'resumeAll') {
-		busy = true;
-		const err = await act({ action, ids: [`${service.id}:all`] });
-		busy = false;
-		snackbar(err ? sentence(err) : action === 'pauseAll' ? 'Paused all torrents' : 'Resumed all torrents', {}, true);
-	}
+	// Lets the list inside the sheet scroll without the m3 sheet treating it as a drag.
+	const stop = (e: Event) => e.stopPropagation();
 
 	/* ---------------- Formatting ---------------- */
 	/** Drops the decimal once there are three digits ("682.6 GB" → "683 GB") so tiles never truncate. */
@@ -135,6 +147,9 @@
 		unknown: 'Connection unknown'
 	};
 	const cap = (n: number) => (n < 0 ? 'No limit' : String(n));
+	/** 0 means "stop as soon as it's done", not a ratio anyone would type. */
+	const ratioLimit = (r: number | null) => (r === null ? 'No limit' : r === 0 ? 'Stops seeding immediately' : String(Number(r.toFixed(2))));
+	const timeLimit = (m: number | null) => (m === null ? 'No limit' : m === 0 ? 'Stops seeding immediately' : minutes(m));
 	function minutes(m: number) {
 		if (m < 60) return `${m} min`;
 		const h = Math.floor(m / 60);
@@ -156,31 +171,15 @@
 	{/if}
 {:else if t}
 	<Summary
-		meta={[o.version ? `qBittorrent ${o.version.replace(/^v/, '')}` : 'qBittorrent', CONN[t.connection]]}
+		meta={[o.version ? `qBittorrent ${o.version.replace(/^v/, '')}` : 'qBittorrent', CONN[t.connection], altOn && 'Alternative speed on']}
 		stats={[
 			{ value: tile(speed(t.down)), label: 'Download', tone: t.down > 0 ? 'info' : undefined },
 			{ value: tile(speed(t.up)), label: 'Upload' },
 			{ value: t.freeSpace === null ? null : tile(bytes(t.freeSpace)), label: 'Free space' }
 		]}
-		{notices}
-		stale={ov.state.error}
-	>
-		<div class="alt" class:on={altOn}>
-			<span class="alt-icon"><Icon icon={iAlt} size={20} /></span>
-			<span class="alt-text">
-				<span class="alt-title">Alternative speed limits</span>
-				<span class="alt-sub">
-					{#if altPending !== null}Switching…{:else if altOn}On · ↓&nbsp;{o.prefs ? limit(o.prefs.altDownLimit) : 'reduced'} · ↑&nbsp;{o.prefs ? limit(o.prefs.altUpLimit) : 'reduced'}{:else}Off · normal limits{/if}
-				</span>
-			</span>
-			<!-- The label forwards clicks on the switch's track to its input. -->
-			<label class="sw">
-				<Switch aria-label="Alternative speed limits" disabled={!isAdmin || altPending !== null} bind:checked={() => altOn, (v) => setAlt(v)} />
-			</label>
-		</div>
-	</Summary>
+	/>
 
-	<ServiceTabs items={TABS} bind:tab={ui.tab}>
+	<ServiceTabs items={TABS} bind:tab={ui.tab} {notices} stale={ov.state.error}>
 		{#if ui.tab === 'torrents'}
 			{#if !snap}
 				<Loading label="Loading torrents" />
@@ -189,28 +188,57 @@
 			{:else if client.error}
 				<Empty error title="Couldn't load torrents" hint={sentence(client.error)} />
 			{:else}
-				{#if isAdmin}
-					<div class="bulk">
-						<Button variant="filled" onclick={() => (addOpen = true)}><Icon icon={iAdd} /> Add</Button>
-						<Button variant="tonal" disabled={busy} aria-label="Resume all" onclick={() => all('resumeAll')}><Icon icon={iResume} /><span class="lbl">Resume<span class="all">&nbsp;all</span></span></Button>
-						<Button variant="tonal" disabled={busy} aria-label="Pause all" onclick={() => all('pauseAll')}><Icon icon={iPause} /><span class="lbl">Pause<span class="all">&nbsp;all</span></span></Button>
-					</div>
-				{/if}
-
-				{#if catList.length || tagList.length || catCounts.get(NONE) !== torrents.length}
-					<div class="filters" role="toolbar" aria-label="Category and tag filters">
-						<Chip variant="general" icon={iCategory} trailingIcon={iDrop} selected={category !== null} onclick={() => (sheet = 'category')}>
-							Category: {nameOf(category, 'category')}
-						</Chip>
-						{#if tagList.length || tag !== null}
-							<Chip variant="general" icon={iTag} trailingIcon={iDrop} selected={tag !== null} onclick={() => (sheet = 'tag')}>Tag: {nameOf(tag, 'tag')}</Chip>
-						{/if}
-					</div>
-				{/if}
-
-				<TorrentList torrents={shown} {isAdmin} showClient={() => service.name} />
+				{@const c = client}
+				<div class="torrents">
+					<TorrentList
+						{torrents}
+						filter={category === null && tag === null ? undefined : matches}
+						onreset={() => ((category = null), (tag = null))}
+						{isAdmin}
+						showClient={() => service.name}
+						onAdd={isAdmin ? () => (addOpen = true) : undefined}
+					>
+						{#snippet toolbar()}
+							{#if canFilter}
+								<span class="filter-btn">
+									<Button
+										variant={category !== null || tag !== null ? 'filled' : 'tonal'}
+										iconType="full"
+										aria-label="Filter by category or tag"
+										aria-haspopup="dialog"
+										onclick={() => (sheetOpen = true)}><Icon icon={iFilter} /></Button
+									>
+								</span>
+							{/if}
+							{#if isAdmin}<TorrentMenu {torrents} clients={[c]} {isAdmin} onadd={() => (addOpen = true)} />{/if}
+						{/snippet}
+						{#snippet chips()}
+							{#if category !== null}
+								<Chip variant="input" icon={iCategory} trailingIcon={iClose} selected onclick={() => (category = null)} aria-label={`Clear category ${catName(category)}`}
+									>{catName(category)}</Chip
+								>
+							{/if}
+							{#if tag !== null}
+								<Chip variant="input" icon={iTag} trailingIcon={iClose} selected onclick={() => (tag = null)} aria-label={`Clear tag ${tagName(tag)}`}>{tagName(tag)}</Chip>
+							{/if}
+						{/snippet}
+					</TorrentList>
+				</div>
 			{/if}
 		{:else if ui.tab === 'limits'}
+			<div class="alt" class:on={altOn}>
+				<span class="alt-icon"><Icon icon={iAlt} size={20} /></span>
+				<span class="alt-text">
+					<span class="alt-title">Alternative speed limits</span>
+					<span class="alt-sub">
+						{#if altPending !== null}Switching…{:else if altOn}On · ↓&nbsp;{o.prefs ? limit(o.prefs.altDownLimit) : 'reduced'} · ↑&nbsp;{o.prefs ? limit(o.prefs.altUpLimit) : 'reduced'}{:else}Off · normal limits{/if}
+					</span>
+				</span>
+				<!-- The label forwards clicks on the switch's track to its input. -->
+				<label class="sw">
+					<Switch aria-label="Alternative speed limits" disabled={!isAdmin || altPending !== null} bind:checked={() => altOn, (v) => setAlt(v)} />
+				</label>
+			</div>
 			<div class="cards">
 				<Card title="Speed limits">
 					{#if o.prefs}
@@ -237,8 +265,8 @@
 								<dt>Active uploads</dt><dd>{cap(p.maxActiveUploads)}</dd>
 								<dt>Active torrents</dt><dd>{cap(p.maxActiveTorrents)}</dd>
 							{/if}
-							<dt>Max ratio</dt><dd>{p.maxRatio === null ? 'No limit' : p.maxRatio.toFixed(2)}</dd>
-							<dt>Max seeding time</dt><dd>{p.maxSeedingTime === null ? 'No limit' : minutes(p.maxSeedingTime)}</dd>
+							<dt>Max ratio</dt><dd>{ratioLimit(p.maxRatio)}</dd>
+							<dt>Max seeding time</dt><dd>{timeLimit(p.maxSeedingTime)}</dd>
 							{#if p.maxRatio !== null || p.maxSeedingTime !== null}<dt>Then</dt><dd>{p.maxRatioAction}</dd>{/if}
 						</dl>
 						<p class="note">Read-only. Change these in qBittorrent's own settings.</p>
@@ -258,7 +286,7 @@
 				</Card>
 				<Card title="About">
 					<dl class="kv">
-						<dt>Version</dt><dd>{o.version ?? '—'}</dd>
+						<dt>Version</dt><dd>{o.version ? o.version.replace(/^v/, '') : '—'}</dd>
 						<dt>Web API</dt><dd>{o.webApiVersion ?? '—'}</dd>
 						{#if o.prefs}
 							{@const p = o.prefs}
@@ -277,22 +305,28 @@
 
 	{#if client && !client.error}<AddTorrent bind:open={addOpen} clients={[client]} />{/if}
 
-	{#if sheet}
-		<BottomSheet close={() => (sheet = null)}>
-			<div class="sheet">
-				<h2 class="sheet-title">Filter by {sheet}</h2>
-				<ul class="options">
-					{#each sheetOptions as opt (opt.value ?? '')}
-						{@const current = (sheet === 'category' ? category : tag) === opt.value}
-						<li>
-							<button class="opt" class:current aria-pressed={current} onclick={() => pick(opt.value)}>
-								<span class="check">{#if current}<Icon icon={iCheck} size={20} />{/if}</span>
-								<span class="opt-label">{opt.label}</span>
-								<span class="opt-count">{opt.count}</span>
-							</button>
-						</li>
-					{/each}
-				</ul>
+	{#if sheetOpen}
+		<BottomSheet close={() => (sheetOpen = false)}>
+			<div class="sheet" ontouchstart={stop} onwheel={stop} role="presentation">
+				<div class="sheet-head">
+					<h2 class="sheet-title">Filter torrents</h2>
+					<Button variant="text" iconType="full" aria-label="Close" onclick={() => (sheetOpen = false)}><Icon icon={iClose} /></Button>
+				</div>
+				{#each sections as sec (sec.kind)}
+					<h3 class="sec-title">{sec.title}</h3>
+					<ul class="options">
+						{#each sec.options as opt (opt.value ?? '')}
+							{@const current = (sec.kind === 'category' ? category : tag) === opt.value}
+							<li>
+								<button class="opt" class:current aria-pressed={current} onclick={() => pick(sec.kind, opt.value)}>
+									<span class="check">{#if current}<Icon icon={iCheck} size={20} />{/if}</span>
+									<span class="opt-label">{opt.label}</span>
+									<span class="opt-count">{opt.count}</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/each}
 			</div>
 		</BottomSheet>
 	{/if}
@@ -319,7 +353,7 @@
 		color: var(--m3c-on-surface-variant);
 	}
 
-	/* Alternative speed: a quiet row in the summary; "on" only tints the icon and adds a thin outline. */
+	/* Alternative speed: a quiet row at the top of Limits; "on" only tints the icon and adds a thin outline. */
 	.alt {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr) auto;
@@ -327,7 +361,7 @@
 		gap: 0.75rem;
 		padding: 0.5rem 0.75rem;
 		border-radius: var(--radius-m);
-		background: var(--m3c-surface-container-high);
+		background: var(--m3c-surface-container-low);
 		border: 1px solid transparent;
 	}
 	.alt.on {
@@ -402,26 +436,13 @@
 		color: var(--m3c-primary);
 	}
 
-	/* Torrents */
-	.bulk {
+	/* Torrents: TorrentList brings its own spacing. */
+	.torrents {
+		min-width: 0;
+	}
+	.filter-btn {
+		flex: none;
 		display: flex;
-		gap: 0.5rem;
-	}
-	.bulk :global(button) {
-		flex: 1 1 auto;
-	}
-	.lbl {
-		white-space: nowrap;
-	}
-	@media (width < 24rem) {
-		.all {
-			display: none;
-		}
-	}
-	.filters {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
 	}
 
 	/* One aligned key/value grid per card. */
@@ -451,15 +472,34 @@
 		font-size: 0.75rem;
 	}
 
-	/* Filter sheet */
+	/* Filter sheet: the m3 sheet caps itself at 480 px and clips, so the content scrolls inside it. */
 	.sheet {
+		max-height: min(calc(480px - 3rem), calc(100dvh - 6rem));
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		touch-action: pan-y;
+		scrollbar-width: thin;
 		padding: 0 1rem 1.5rem;
 		max-width: 40rem;
 		margin: 0 auto;
 	}
+	.sheet-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding-left: 0.5rem;
+	}
 	.sheet-title {
-		padding: 0 0.5rem 0.5rem;
+		margin: 0;
 		font-size: 1.125rem;
+	}
+	.sec-title {
+		margin: 0.75rem 0 0.25rem;
+		padding: 0 0.5rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--m3c-on-surface-variant);
 	}
 	.options {
 		list-style: none;

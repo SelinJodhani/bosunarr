@@ -18,6 +18,7 @@
 	import { live } from '$lib/live.svelte';
 	import { ago } from '$lib/format';
 	import type { HistoryEntry, HistoryResponse } from './types';
+	import '../shared/chips.css';
 
 	let { api }: { api: string } = $props();
 
@@ -49,10 +50,13 @@
 	const fallback = (e: HistoryEntry) => (e.kind === 'rss' ? 'RSS sync' : e.kind === 'query' ? '(no query text)' : KIND[e.kind]);
 </script>
 
-<div class="chips" role="toolbar" aria-label="Filter history">
+<div class="chip-row scroll" role="toolbar" aria-label="Filter history">
 	{#each FILTERS as f (f.value)}
 		{#if f.value === 'all' || counts[f.value] > 0 || view.filter === f.value}
-			<Chip variant="general" selected={view.filter === f.value} onclick={() => setFilter(f.value)}>{f.label} {counts[f.value]}</Chip>
+			<!-- Prowlarr only sends the latest events, so "All" says how many that is rather than implying a total. -->
+			<Chip variant="general" selected={view.filter === f.value} onclick={() => setFilter(f.value)}
+				>{f.value === 'all' ? `Latest ${counts.all}` : f.label}{#if f.value !== 'all'}<span class="chip-n">{counts[f.value]}</span>{/if}</Chip
+			>
 		{/if}
 	{/each}
 </div>
@@ -71,17 +75,19 @@
 			<li class="row" class:failed={!e.successful}>
 				<span class="ic k-{e.kind}" title={KIND[e.kind]}><Icon icon={ICON[e.kind]} size={20} /></span>
 				<div class="body">
-					<span class="title">{e.title || fallback(e)}</span>
+					<span class="top">
+						<span class="title">{e.title || fallback(e)}</span>
+						<span class="when">{ago(e.date)}</span>
+					</span>
 					<span class="meta">
 						<span class="idx">{e.indexer ?? `Indexer ${e.indexerId}`}</span>
-						{#if e.source}<span>{e.source}</span>{/if}
 						{#if !e.successful}
 							<span class="bad">Failed</span>
 						{:else if e.kind !== 'grab' && e.results !== null}
 							<span>{e.results} results</span>
 						{/if}
+						{#if e.source}<span class="src">{e.source}</span>{/if}
 						{#if e.elapsedMs !== null}<span>{e.elapsedMs.toLocaleString()} ms</span>{/if}
-						<span class="when">{ago(e.date)}</span>
 					</span>
 				</div>
 			</li>
@@ -94,15 +100,6 @@
 {/if}
 
 <style>
-	.chips {
-		display: flex;
-		gap: 0.5rem;
-		overflow-x: auto;
-		scrollbar-width: none;
-	}
-	.chips > :global(*) {
-		flex: none;
-	}
 	.list {
 		list-style: none;
 		margin: 0;
@@ -146,6 +143,13 @@
 		grid-template-columns: minmax(0, 1fr);
 		gap: 0.25rem;
 	}
+	/* Title and time share the first line (time pinned right); the facts get one line under it. */
+	.top {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: baseline;
+		gap: 0.75rem;
+	}
 	.title {
 		font-size: 0.875rem;
 		font-weight: 500;
@@ -158,23 +162,37 @@
 	}
 	.meta {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.125rem 0.75rem;
+		overflow: hidden;
+		white-space: nowrap;
 		font-size: 0.75rem;
 		color: var(--m3c-on-surface-variant);
 		font-variant-numeric: tabular-nums;
 	}
+	.meta > * {
+		flex: none;
+	}
+	.meta > * + *::before {
+		content: '\00a0·\00a0';
+	}
 	.idx {
 		font-weight: 600;
-		min-width: 0;
-		max-width: 100%;
+		flex: 0 1 auto;
+		min-width: 2rem;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		white-space: nowrap;
+	}
+	.src {
+		flex: 0 100 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.when {
-		margin-left: auto;
+		font-size: 0.75rem;
+		color: var(--m3c-on-surface-variant);
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
 	}
 	.bad {
 		color: var(--m3c-error);
