@@ -17,6 +17,7 @@
 		onpick: (key: string) => void;
 	} = $props();
 
+	// Every row is the same height: up to three releases, or two and "+N more".
 	const MAX = 3;
 	const today = dayKey(new Date());
 	const weekdays = $derived(days.slice(0, 7).map((d) => d.toLocaleDateString(undefined, { weekday: 'short' })));
@@ -29,8 +30,8 @@
 				date: d.getDate(),
 				outside: d.getMonth() !== month,
 				full: d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }),
-				list: list.slice(0, MAX),
-				more: Math.max(0, list.length - MAX),
+				list: list.slice(0, list.length > MAX ? MAX - 1 : MAX),
+				more: list.length > MAX ? list.length - (MAX - 1) : 0,
 				count: list.length
 			};
 		})
@@ -73,7 +74,7 @@
 <style>
 	.grid {
 		display: grid;
-		grid-template-rows: auto repeat(6, minmax(6.75rem, 1fr));
+		grid-template-rows: auto repeat(6, 7rem);
 		border-radius: var(--m3-shape-large, 1rem);
 		overflow: hidden;
 		background: var(--m3c-outline-variant);
@@ -102,6 +103,7 @@
 		gap: 0.1875rem;
 		min-width: 0;
 		padding: 0.375rem;
+		overflow: hidden;
 		background: var(--m3c-surface);
 		transition: background-color 120ms;
 	}
@@ -133,11 +135,18 @@
 		font-weight: 500;
 		font-variant-numeric: tabular-nums;
 	}
+	/* Today: outline ring; selected: filled (the M3 date picker convention). */
 	.today .num {
+		color: var(--m3c-primary);
+		box-shadow: inset 0 0 0 1.5px var(--m3c-primary);
+	}
+	.selected .num {
 		background: var(--m3c-primary);
 		color: var(--m3c-on-primary);
+		box-shadow: none;
 	}
 	.ev {
+		flex: none;
 		display: flex;
 		gap: 0.25rem;
 		min-width: 0;
@@ -168,6 +177,8 @@
 		white-space: nowrap;
 	}
 	.more {
+		flex: none;
+		line-height: 1.25rem;
 		font-size: 0.6875rem;
 		font-weight: 500;
 		color: var(--m3c-on-surface-variant);

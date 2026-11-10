@@ -49,7 +49,11 @@ export type CalendarResult = {
 	start: string;
 	end: string;
 	entries: CalendarEntry[];
-	errors: Array<{ service: string; error: string }>;
+	/**
+	 * Instances that failed. `message` completes "<service> …" in plain words, `detail` is the technical reason;
+	 * `error` is the raw message (kept for the dashboard's Upcoming widget).
+	 */
+	errors: Array<{ service: string; error: string; message: string; detail: string }>;
 };
 
 export const RELEASE_LABEL: Record<CalendarRelease, string> = {

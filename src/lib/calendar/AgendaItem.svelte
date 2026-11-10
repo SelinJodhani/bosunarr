@@ -2,7 +2,7 @@
 	import { Icon } from 'm3-svelte';
 	import Poster from '$lib/widgets/Poster.svelte';
 	import { timeLabel } from '$lib/format';
-	import { i4k, iCinema, iDownload, iOk, iSchedule, iTv, iUnmonitored } from '$lib/icons';
+	import { iCinema, iDownload, iOk, iSchedule, iTv, iUnmonitored } from '$lib/icons';
 	import { RELEASE_LABEL, STATUS_TEXT, type CalendarEntry } from './types';
 
 	let { entry }: { entry: CalendarEntry } = $props();
@@ -20,28 +20,26 @@
 </script>
 
 <a class="item" href={entry.href} class:movie={entry.kind === 'movie'} class:dim={!entry.monitored}>
-	<Poster src={entry.poster} width={44} alt="" />
+	<div class="pv">
+		<Icon icon={entry.kind === 'movie' ? iCinema : iTv} size={20} />
+		<Poster src={entry.poster} width={44} alt="" />
+	</div>
 	<div class="text">
 		<div class="title">
 			{entry.title}{#if entry.kind === 'movie' && entry.year}<span class="year">({entry.year})</span>{/if}
 		</div>
-		<div class="sub">
-			<Icon icon={entry.kind === 'movie' ? iCinema : iTv} size={16} />
-			<span>{entry.episodeLabel ?? RELEASE_LABEL[entry.release]}</span>
-		</div>
+		<div class="sub">{entry.episodeLabel ?? RELEASE_LABEL[entry.release]}</div>
 		{#if meta}<div class="meta">{meta}</div>{/if}
-		{#if entry.marker || entry.is4k || !entry.monitored}
-			<div class="tags">
-				{#if entry.marker}<span class="tag marker">{entry.marker}</span>{/if}
-				{#if entry.is4k}<span class="tag" title={copiesText}><Icon icon={i4k} size={16} /> 4K</span>{/if}
-				{#if !entry.monitored}<span class="tag"><Icon icon={iUnmonitored} size={16} /> Unmonitored</span>{/if}
-			</div>
-		{/if}
+		<div class="tags">
+			<span class="tag status {entry.status}" title={copiesText}>
+				<Icon icon={statusIcon} size={14} />
+				{STATUS_TEXT[entry.status]}
+			</span>
+			{#if entry.marker}<span class="tag marker">{entry.marker}</span>{/if}
+			{#if entry.is4k}<span class="tag" title={copiesText}>4K</span>{/if}
+			{#if !entry.monitored}<span class="tag"><Icon icon={iUnmonitored} size={14} /> Unmonitored</span>{/if}
+		</div>
 	</div>
-	<span class="status {entry.status}" title={copiesText}>
-		<Icon icon={statusIcon} size={18} />
-		<span class="lbl">{STATUS_TEXT[entry.status]}</span>
-	</span>
 </a>
 
 <style>
@@ -49,22 +47,23 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 0.75rem;
-		padding: 0.625rem 0.75rem;
+		min-height: 5.375rem;
+		padding: 0.625rem 0.75rem 0.625rem 0.875rem;
 		border-radius: var(--m3-shape-large, 1rem);
+		overflow: hidden;
 		color: inherit;
 		text-decoration: none;
 		background: var(--m3c-surface-container-low);
 		position: relative;
+		-webkit-tap-highlight-color: transparent;
 		transition: background-color 120ms;
 	}
+	/* Kind accent: a full-height edge, clipped by the card's rounded corners. */
 	.item::before {
 		content: '';
 		position: absolute;
-		left: 0;
-		top: 0.75rem;
-		bottom: 0.75rem;
-		width: 0.1875rem;
-		border-radius: 0 0.25rem 0.25rem 0;
+		inset: 0 auto 0 0;
+		width: 0.25rem;
 		background: var(--m3c-primary);
 	}
 	.item.movie::before {
@@ -73,13 +72,36 @@
 	.item:hover {
 		background: var(--m3c-surface-container);
 	}
+	.item:active {
+		background: var(--m3c-surface-container-high);
+	}
 	.item:focus-visible {
 		outline: 2px solid var(--m3c-primary);
 		outline-offset: 2px;
 	}
-	.dim :global(.poster),
+	.dim .pv,
 	.dim .text {
 		opacity: 0.6;
+	}
+	/* Kind icon behind the poster: it shows when there is no artwork (or it fails to load). */
+	.pv {
+		flex: none;
+		position: relative;
+		display: grid;
+		border-radius: 0.5rem;
+		background: var(--m3c-surface-container-highest);
+		color: var(--m3c-on-surface-variant);
+	}
+	.pv > :global(*) {
+		grid-area: 1 / 1;
+	}
+	.pv > :global(svg) {
+		place-self: center;
+		opacity: 0.7;
+	}
+	.pv :global(.poster) {
+		background: transparent;
+		position: relative;
 	}
 	.text {
 		flex: 1;
@@ -89,49 +111,51 @@
 	}
 	.title {
 		font-weight: 500;
+		line-height: 1.25rem;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 	}
 	.year {
 		margin-left: 0.3em;
 		color: var(--m3c-on-surface-variant);
 		font-weight: 400;
+		white-space: nowrap;
 	}
 	.sub,
 	.meta {
 		font-size: 0.8125rem;
+		line-height: 1.125rem;
 		color: var(--m3c-on-surface-variant);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 	.sub {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
 		color: var(--m3c-on-surface);
-	}
-	.sub span {
-		overflow: hidden;
-		text-overflow: ellipsis;
 	}
 	.tags {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.25rem;
-		margin-top: 0.25rem;
+		margin-top: 0.375rem;
 	}
 	.tag {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.125rem;
+		gap: 0.25rem;
+		height: 1.375rem;
 		font-size: 0.6875rem;
 		font-weight: 500;
-		padding: 0.0625rem 0.375rem;
+		line-height: 1;
+		padding: 0 0.5rem;
 		border-radius: 0.375rem;
 		background: var(--m3c-surface-container-highest);
 		color: var(--m3c-on-surface-variant);
+		white-space: nowrap;
 	}
 	.tag.marker {
 		text-transform: capitalize;
@@ -139,15 +163,7 @@
 		color: var(--m3c-on-secondary-container);
 	}
 	.status {
-		flex: none;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		padding: 0.25rem 0.5rem;
-		border-radius: 1rem;
-		align-self: center;
+		padding-left: 0.375rem;
 	}
 	.status.downloaded {
 		color: var(--m3c-on-primary-container);
@@ -158,15 +174,7 @@
 		background: var(--m3c-error-container);
 	}
 	.status.unaired {
-		color: var(--m3c-on-surface-variant);
-		outline: 1px solid var(--m3c-outline-variant);
-	}
-	@media (width < 26rem) {
-		.lbl {
-			display: none;
-		}
-		.status {
-			padding: 0.25rem;
-		}
+		background: transparent;
+		box-shadow: inset 0 0 0 1px var(--m3c-outline-variant);
 	}
 </style>

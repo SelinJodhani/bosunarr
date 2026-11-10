@@ -6,15 +6,17 @@
 		days,
 		groups,
 		selected,
+		today,
 		onpick
 	}: {
 		days: Date[];
 		groups: Map<string, CalendarEntry[]>;
 		selected: string;
+		/** Today's key ('' before the device clock is known). */
+		today: string;
 		onpick: (key: string) => void;
 	} = $props();
 
-	const today = dayKey(new Date());
 	const cells = $derived(
 		days.map((d) => {
 			const k = dayKey(d);
@@ -39,6 +41,7 @@
 			class:today={c.k === today}
 			class:selected={c.k === selected}
 			aria-pressed={c.k === selected}
+			aria-current={c.k === today ? 'date' : undefined}
 			aria-label="{c.full}{c.count ? `, ${c.count} release${c.count === 1 ? '' : 's'}` : ''}"
 			onclick={() => onpick(c.k)}
 		>
@@ -93,13 +96,12 @@
 	}
 	.today .num {
 		color: var(--m3c-primary);
-		outline: 1.5px solid var(--m3c-primary);
-		outline-offset: -1.5px;
+		box-shadow: inset 0 0 0 1.5px var(--m3c-primary);
 	}
 	.selected .num {
 		background: var(--m3c-primary);
 		color: var(--m3c-on-primary);
-		outline: none;
+		box-shadow: none;
 	}
 	.dots {
 		display: flex;
