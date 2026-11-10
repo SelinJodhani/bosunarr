@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Component } from 'svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { Button, Icon, LoadingIndicator } from 'm3-svelte';
 	import { SERVICE_TYPES } from '$lib/services/catalog';
 	import type { ServicePageProps } from '$lib/servicepages/types';
@@ -19,7 +20,7 @@
 <svelte:head><title>{data.service.name} · Bosunarr</title></svelte:head>
 
 <header>
-	<Button variant="text" iconType="full" href="/services" aria-label="All services"><Icon icon={iBack} /></Button>
+	<Button variant="text" iconType="full" aria-label="Back" onclick={() => (history.length > 1 ? history.back() : goto('/settings'))}><Icon icon={iBack} /></Button>
 	<span class="dot" style:background={info?.color}></span>
 	<div class="titles">
 		<h1 class="title-large">{data.service.name}</h1>

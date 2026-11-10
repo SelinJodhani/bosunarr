@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import { NavCMLX, NavCMLXItem, Snackbar } from 'm3-svelte';
-	import { iActivity, iCalendar, iDashboard, iDiscover, iLibrary, iServices } from '$lib/icons';
+	import { iActivity, iCalendar, iDashboard, iDiscover, iLibrary, iSettings } from '$lib/icons';
 
 	let { children, data } = $props();
 
@@ -12,12 +12,13 @@
 		{ href: '/discover', text: 'Discover', icon: iDiscover },
 		{ href: '/calendar', text: 'Calendar', icon: iCalendar },
 		{ href: '/activity', text: 'Activity', icon: iActivity },
-		{ href: '/services', text: 'Services', icon: iServices }
+		{ href: '/settings', text: 'Settings', icon: iSettings }
 	];
 
 	const bare = $derived(['/login', '/setup'].includes(page.url.pathname));
+	// Service screens (/services/…) are opened from Settings and the dashboard, so they light up Settings.
 	const isActive = (href: string) =>
-		href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href) || (href === '/services' && page.url.pathname.startsWith('/settings'));
+		href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href) || (href === '/settings' && page.url.pathname.startsWith('/services'));
 </script>
 
 {#if bare || !data.user}

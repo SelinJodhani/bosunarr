@@ -4,7 +4,8 @@
 
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Button, Icon, LoadingIndicator, Tabs, snackbar } from 'm3-svelte';
+	import { Button, Chip, Icon, LoadingIndicator, Tabs, snackbar } from 'm3-svelte';
+	import iClient from '@ktibow/iconset-material-symbols/hard-disk-rounded';
 	import { speed } from '$lib/format';
 	import { act, liveActivity } from '$lib/activity/live.svelte';
 	import QueueList from '$lib/activity/QueueList.svelte';
@@ -70,6 +71,11 @@
 		{:else if !hasClients}
 			<p class="empty">Add a qBittorrent service in Settings to manage torrents here.</p>
 		{:else}
+			<div class="clients" aria-label="Download clients">
+				{#each d.clients as c (c.id)}
+					<Chip variant="assist" href={`/services/${c.id}`} icon={iClient}>{c.name}{c.error ? ' · offline' : ''}</Chip>
+				{/each}
+			</div>
 			{#if isAdmin}
 				<div class="bulk">
 					<Button variant="filled" onclick={() => (addOpen = true)}><Icon icon={iAdd} /> Add</Button>
@@ -134,6 +140,12 @@
 	}
 	.empty {
 		color: var(--m3c-on-surface-variant);
+	}
+	.clients {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 0.75rem;
 	}
 	.bulk {
 		display: flex;

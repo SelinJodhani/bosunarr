@@ -2,11 +2,11 @@
 	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Button, Dialog, ListItem, ConnectedButtons, snackbar } from 'm3-svelte';
+	import { Button, Dialog, ConnectedButtons, snackbar } from 'm3-svelte';
 	import { Icon } from 'm3-svelte';
 	import ServiceDialog from '$lib/components/ServiceDialog.svelte';
 	import { SERVICE_TYPES, type PublicService } from '$lib/services/catalog';
-	import { iAdd, iBack, iDelete, iEdit, iLogout } from '$lib/icons';
+	import { iAdd, iDelete, iEdit, iLogout } from '$lib/icons';
 
 	let { data } = $props();
 
@@ -69,10 +69,7 @@
 
 <svelte:head><title>Settings · Bosunarr</title></svelte:head>
 
-<header class="settings-head">
-	<Button variant="text" iconType="full" href="/services" aria-label="Back to services"><Icon icon={iBack} /></Button>
-	<h1 class="title-large">Settings</h1>
-</header>
+<header><h1 class="title-large">Settings</h1></header>
 
 {#if welcome}
 	<section class="welcome">
@@ -92,28 +89,29 @@
 	{:else}
 		<ul>
 			{#each data.services as s (s.id)}
-				<!-- ListItem renders its own <li>. -->
-				<ListItem headline={s.name} supporting={`${SERVICE_TYPES[s.type]?.label ?? s.type} · ${host(s.url)}`}>
-						{#snippet leading()}
-							<span class="dot" style:background={SERVICE_TYPES[s.type]?.color}></span>
-						{/snippet}
-						{#snippet trailing()}
-							{#if data.user?.isAdmin}
-								<span class="actions">
-									<Button variant="text" iconType="full" aria-label={`Edit ${s.name}`} onclick={() => edit(s)}><Icon icon={iEdit} /></Button>
-									<Button
-										variant="text"
-										iconType="full"
-										aria-label={`Remove ${s.name}`}
-										onclick={() => {
-											confirmDelete = s;
-											confirmOpen = true;
-										}}><Icon icon={iDelete} /></Button
-									>
-								</span>
-							{/if}
-						{/snippet}
-				</ListItem>
+				<li class="svc">
+					<a class="svc-main" href={`/services/${s.id}`}>
+						<span class="dot" style:background={SERVICE_TYPES[s.type]?.color}></span>
+						<span class="svc-text">
+							<span class="svc-name">{s.name}</span>
+							<span class="svc-sub">{SERVICE_TYPES[s.type]?.label ?? s.type} · {host(s.url)}</span>
+						</span>
+					</a>
+					{#if data.user?.isAdmin}
+						<span class="actions">
+							<Button variant="text" iconType="full" aria-label={`Edit ${s.name}`} onclick={() => edit(s)}><Icon icon={iEdit} /></Button>
+							<Button
+								variant="text"
+								iconType="full"
+								aria-label={`Remove ${s.name}`}
+								onclick={() => {
+									confirmDelete = s;
+									confirmOpen = true;
+								}}><Icon icon={iDelete} /></Button
+							>
+						</span>
+					{/if}
+				</li>
 			{/each}
 		</ul>
 	{/if}
@@ -166,12 +164,6 @@
 </Dialog>
 
 <style>
-	.settings-head {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		margin-left: -0.5rem;
-	}
 	header {
 		margin-bottom: 1rem;
 	}
@@ -201,11 +193,43 @@
 		margin: 0.5rem -1rem 0;
 		padding: 0;
 	}
-	/* Let long host names wrap instead of pushing the edit/delete buttons out of line. */
-	ul :global(.body) {
+	.svc {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		border-radius: var(--radius-m);
+		transition: background-color 150ms;
+	}
+	.svc:hover {
+		background: var(--m3c-surface-container);
+	}
+	.svc-main {
 		flex: 1 1 0;
 		min-width: 0;
-		overflow-wrap: anywhere;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.75rem 0 0.75rem 1rem;
+		color: inherit;
+		text-decoration: none;
+		border-radius: var(--radius-m);
+	}
+	.svc-main:focus-visible {
+		outline: 2px solid var(--m3c-primary);
+	}
+	.svc-text {
+		min-width: 0;
+		display: grid;
+	}
+	.svc-name {
+		font-weight: 500;
+	}
+	.svc-sub {
+		font-size: 0.8125rem;
+		color: var(--m3c-on-surface-variant);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.dot {
 		display: block;

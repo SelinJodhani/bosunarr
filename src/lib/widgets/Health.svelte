@@ -16,13 +16,15 @@
 	</p>
 	<ul class:compact={size === 's'}>
 		{#each items as s (s.id)}
-			<li title={s.error ?? (s.version ? `v${s.version}` : '')}>
-				<span class="dot" class:ok={s.ok}></span>
-				<span class="name">{s.name}</span>
-				{#if size !== 's'}
-					<span class="meta">{s.ok ? `${s.ms} ms` : (s.error ?? 'Down')}</span>
-				{/if}
-				<span class="type sr-only">{SERVICE_TYPES[s.type]?.label}</span>
+			<li>
+				<a href={`/services/${s.id}`} title={s.error ?? (s.version ? `v${s.version}` : '')}>
+					<span class="dot" class:ok={s.ok}></span>
+					<span class="name">{s.name}</span>
+					{#if size !== 's'}
+						<span class="meta">{s.ok ? `${s.ms} ms` : (s.error ?? 'Down')}</span>
+					{/if}
+					<span class="type sr-only">{SERVICE_TYPES[s.type]?.label}</span>
+				</a>
 			</li>
 		{/each}
 	</ul>
@@ -49,13 +51,24 @@
 		grid-template-columns: 1fr 1fr;
 	}
 	li {
+		min-width: 0;
+	}
+	a {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 0.75rem;
+		min-height: 2.5rem;
 		border-radius: var(--radius-m);
 		background: var(--m3c-surface-container);
 		min-width: 0;
+		color: inherit;
+		text-decoration: none;
+		transition: background-color 150ms;
+	}
+	a:hover,
+	a:focus-visible {
+		background: var(--m3c-surface-container-high);
 	}
 	.dot {
 		flex: none;
