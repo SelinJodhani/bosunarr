@@ -17,9 +17,9 @@
 
 	// The page is re-created per service ({#key} in the route), so reading the id once is intended.
 	const base = `/api/svc/jellyfin/${untrack(() => service.id)}`;
-	const now = live<{ sessions: JfSession[] }>(`${base}/sessions`, 5_000);
+	const now = live<{ sessions: JfSession[] }>(`${base}/sessions`, 5_000, { persist: false });
 	const sum = live<JfSummary>(`${base}/summary`, 20_000);
-	const man = live<JfAdminData>(`${base}/manage`, 10_000);
+	const man = live<JfAdminData>(`${base}/manage`, 10_000, { persist: false });
 
 	const sessions = $derived(now.state.data?.sessions ?? []);
 	const s = $derived(sum.state.data);
@@ -281,7 +281,7 @@
 	}
 	.counts {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 5.5rem), 1fr));
 		gap: 0.75rem;
 		margin: 1rem 0 0;
 	}

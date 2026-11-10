@@ -44,7 +44,7 @@
 				<div class="meta">
 					<span class="time">{clock(s.positionSec)}{s.runtimeSec ? ` / ${clock(s.runtimeSec)}` : ''}{s.paused ? ' · Paused' : ''}</span>
 					<span class="method" class:transcode={s.method === 'transcode'}>
-						{#if s.hwAccel}<Icon icon={iBolt} size={14} />{/if}{METHOD[s.method]}{s.hwAccel ? ` (${s.hwAccel})` : ''}
+						{#if s.hwAccel}<Icon icon={iBolt} size={14} />{/if}<span class="ellipsis">{METHOD[s.method]}{s.hwAccel ? ` (${s.hwAccel})` : ''}</span>
 					</span>
 				</div>
 				{#if s.detail || s.reasons.length}
@@ -141,10 +141,11 @@
 		background: var(--m3c-secondary-container);
 		color: var(--m3c-on-secondary-container);
 		font-weight: 500;
-		white-space: nowrap;
 		min-width: 0;
 		overflow: hidden;
-		text-overflow: ellipsis;
+	}
+	.method :global(svg) {
+		flex: none;
 	}
 	.method.transcode {
 		background: var(--m3c-tertiary-container);
