@@ -40,6 +40,38 @@ export const BADGE: Record<Availability, string | null> = {
   none: null,
 };
 
+const RANK: Record<Availability, number> = {
+  available: 4,
+  partial: 3,
+  processing: 2,
+  pending: 1,
+  none: 0,
+};
+
+/** Which copy says the most about a title: the further-along of the regular and 4K copies (ties go to the regular one). */
+export function headline(
+  status: Availability,
+  status4k: Availability,
+): { status: Availability; uhd: boolean } {
+  return RANK[status4k] > RANK[status]
+    ? { status: status4k, uhd: true }
+    : { status, uhd: false };
+}
+
+/** Label for one copy's status. `uhd`: it's the 4K copy; `qualify`: name the regular copy too (both copies have a status). */
+export function copyLabel(
+  status: Availability,
+  uhd: boolean,
+  qualify = false,
+): string {
+  const label = AVAILABILITY_LABEL[status];
+  if (uhd)
+    return status === "available" || status === "partial"
+      ? `${label} in 4K`
+      : `4K · ${label}`;
+  return qualify ? `HD · ${label}` : label;
+}
+
 export const REQUEST_LABEL: Record<RequestStatus, string> = {
   pending: "Pending approval",
   approved: "Approved",

@@ -83,18 +83,18 @@
 	});
 </script>
 
+{#snippet uhdSwitch()}
+	<label class="row switch">
+		<span>
+			<span class="lbl">4K</span>
+			<span class="hint">Request the 4K copy instead of the regular one</span>
+		</span>
+		<Switch bind:checked={is4k} />
+	</label>
+{/snippet}
+
 <Dialog headline={`Request ${detail.title}`} bind:open>
 	<div class="body">
-		{#if showSwitch}
-			<label class="row switch">
-				<span>
-					<span class="lbl">4K</span>
-					<span class="hint">Request the 4K copy instead of the regular one</span>
-				</span>
-				<Switch bind:checked={is4k} />
-			</label>
-		{/if}
-
 		{#if detail.mediaType === 'movie'}
 			{#if status(detail) !== 'none'}
 				<p class="note">Already {AVAILABILITY_LABEL[status(detail)].toLowerCase()}{is4k ? ' in 4K' : ''}.</p>
@@ -103,9 +103,11 @@
 					{detail.title}{detail.year ? ` (${detail.year})` : ''} will be requested{is4k ? ' in 4K' : ''} through {detail.serviceName}.
 				</p>
 			{/if}
+			{#if showSwitch}{@render uhdSwitch()}{/if}
 		{:else if detail.seasons.length === 0}
 			<p class="note">No seasons listed yet.</p>
 		{:else}
+			{#if showSwitch}{@render uhdSwitch()}{/if}
 			{#if !showSwitch && is4k}<p class="note">Requesting the 4K copy — the regular one is already taken care of.</p>{/if}
 			{#if requestable.length > 1}
 				<label class="row all">
@@ -162,7 +164,9 @@
 		min-height: 3rem;
 		cursor: pointer;
 	}
-	.row :global(.m3-container:has(> input[type='checkbox'])) {
+	/* Checkboxes get their 40 px state-layer room; the switch (also a checkbox input inside) sits
+	   flush with the content edge, in line with the dialog buttons. */
+	.row:not(.switch) :global(.m3-container:has(> input[type='checkbox'])) {
 		margin: 0 0.6875rem;
 		flex: none;
 	}

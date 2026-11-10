@@ -18,11 +18,11 @@
 	import { iBack, iClose, iDiscover, iSearch } from '$lib/icons';
 
 	const FILTERS: Array<{ value: RequestFilter; label: string }> = [
+		{ value: 'all', label: 'All' },
 		{ value: 'pending', label: 'Pending' },
 		{ value: 'approved', label: 'Approved' },
 		{ value: 'available', label: 'Available' },
-		{ value: 'failed', label: 'Failed' },
-		{ value: 'all', label: 'All' }
+		{ value: 'failed', label: 'Failed' }
 	];
 	const TABS = [
 		{ name: 'Discover', value: 'discover' },
@@ -188,7 +188,7 @@
 							</div>
 							<div class="chips no-scrollbar" role="toolbar" aria-label={genreType === 'movie' ? 'Movie genres' : 'Series genres'}>
 								{#each genres as g (g.key)}
-									<Chip variant="assist" onclick={() => openSection(`genre-${g.mediaType}-${g.id}`)}>{g.name}</Chip>
+									<Chip variant="assist" onclick={() => openSection(`genre-${g.mediaType}-${g.id}`)}><span class="hit"></span>{g.name}</Chip>
 								{/each}
 							</div>
 						</section>
@@ -221,7 +221,9 @@
 		{:else}
 			<div class="chips no-scrollbar filters" role="toolbar" aria-label="Request filter">
 				{#each FILTERS as f (f.value)}
-					<Chip variant="general" selected={filter === f.value} onclick={() => setParams({ filter: f.value === 'pending' ? null : f.value })}>{f.label}</Chip>
+					<Chip variant="general" selected={filter === f.value} onclick={() => setParams({ filter: f.value === 'pending' ? null : f.value })}
+						><span class="hit"></span>{f.label}</Chip
+					>
 				{/each}
 			</div>
 			{#key filter}
@@ -293,15 +295,21 @@
 		}
 	}
 	.filters {
-		padding-top: 0;
-		margin-bottom: 0.5rem;
+		padding-top: 0.375rem;
+		margin-bottom: 0.25rem;
 	}
 	.chips > :global(*) {
 		flex: none;
 	}
-	/* 40 px tall so every chip is a comfortable tap target. */
+	/* M3 chips: 32 px to the eye, a 40 px tall touch target (the hit area reaches 4 px above and
+	   below; the row's padding keeps that inside the scroller, which clips both axes). */
 	.chips > :global(button.m3-container) {
-		height: 2.5rem;
+		position: relative;
+	}
+	.chips :global(.hit) {
+		position: absolute;
+		/* The chip's 1 px border sits outside this box. */
+		inset: calc(-0.25rem - 1px) -1px;
 	}
 	.list-head {
 		display: flex;

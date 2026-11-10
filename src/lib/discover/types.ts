@@ -126,7 +126,10 @@ export type RequestItem = {
   year: number | null;
   poster: string | null;
   status: RequestStatus;
+  /** The requested copy's availability (`status4k` for a 4K request, `status` otherwise). */
   media: Availability;
+  /** The other copy's availability (so an HD request whose title is on disk in 4K can say so). */
+  otherMedia: Availability;
   is4k: boolean;
   seasons: number[];
   requestedBy: string;
