@@ -50,9 +50,14 @@ export function health(): Promise<HealthItem[]> {
 	);
 }
 
+/** qBittorrent states for a torrent that is still fetching data. */
+const DL_STATES = new Set(['downloading', 'forcedDL', 'metaDL', 'forcedMetaDL', 'stalledDL', 'queuedDL', 'allocating']);
+/** States for a complete torrent that is (or is ready to be) seeding. */
+const UP_STATES = new Set(['uploading', 'forcedUP', 'stalledUP', 'queuedUP']);
+
 export function downloads(): Promise<DownloadsData> {
 	return cached('w:downloads', 2_000, async () => {
-		const out: DownloadsData = { down: 0, up: 0, active: 0, torrents: [] };
+		const out: DownloadsData = { down: 0, up: 0, active: 0, downloading: 0, seeding: 0, torrents: [] };
 		await each(servicesOfType('qbittorrent'), async (s) => {
 			const [info, torrents] = await Promise.all([
 				call<{ dl_info_speed: number; up_info_speed: number }>(s, '/api/v2/transfer/info'),
@@ -64,11 +69,16 @@ export function downloads(): Promise<DownloadsData> {
 			out.down += info.dl_info_speed;
 			out.up += info.up_info_speed;
 			out.active += torrents.length;
-			for (const t of torrents.slice(0, 8))
-				out.torrents.push({ id: `${s.id}:${t.hash}`, name: t.name, progress: t.progress, dlspeed: t.dlspeed, eta: t.eta, state: t.state, size: t.size });
+			for (const t of torrents) {
+				const isDl = DL_STATES.has(t.state) || (t.progress < 1 && t.dlspeed > 0);
+				if (isDl) {
+					out.downloading! += 1;
+					out.torrents.push({ id: `${s.id}:${t.hash}`, name: t.name, progress: t.progress, dlspeed: t.dlspeed, eta: t.eta, state: t.state, size: t.size });
+				} else if (UP_STATES.has(t.state)) out.seeding! += 1;
+			}
 			return [];
 		});
-		out.torrents.sort((a, b) => b.dlspeed - a.dlspeed);
+		out.torrents = out.torrents.sort((a, b) => b.dlspeed - a.dlspeed || b.progress - a.progress).slice(0, 8);
 		return out;
 	});
 }
@@ -129,7 +139,8 @@ export function upcoming(days = 7): Promise<UpcomingItem[]> {
 					date: e.date,
 					hasFile: e.status === 'downloaded',
 					poster: e.poster,
-					service: e.copies.map((c) => c.serviceName).join(', ')
+					service: e.copies.map((c) => c.serviceName).join(', '),
+					href: e.href
 				})
 			);
 	});

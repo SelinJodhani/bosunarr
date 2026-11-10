@@ -2,7 +2,7 @@
 	import { Icon } from 'm3-svelte';
 	import { live } from '$lib/live.svelte';
 	import { dayLabel, timeLabel } from '$lib/format';
-	import { iOk } from '$lib/icons';
+	import { iNoEvents, iOk } from '$lib/icons';
 	import State from './State.svelte';
 	import Poster from './Poster.svelte';
 	import { WIDGETS, type UpcomingItem, type WidgetSize } from './types';
@@ -21,18 +21,23 @@
 	});
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={items.length === 0} emptyText="Nothing releasing this week">
+<State
+	loading={q.state.loading}
+	error={q.state.error}
+	empty={items.length === 0}
+	emptyText="Nothing releasing this week"
+	emptyIcon={iNoEvents}
+	skeleton={size === 'l' ? { rows: 6, rail: true } : { rows: size === 's' ? 3 : 5 }}
+>
 	{#if size === 'l'}
-		<div class="rail">
+		<div class="rail no-scrollbar">
 			{#each items as it (it.id)}
-				<figure>
-					<Poster src={it.poster} width={112} alt={it.title} />
-					<figcaption>
-						<span class="title">{it.title}</span>
-						<span class="sub">{dayLabel(it.date)}{it.kind === 'episode' ? ` · ${timeLabel(it.date)}` : ''}</span>
-						<span class="sub">{it.subtitle}</span>
-					</figcaption>
-				</figure>
+				<a class="card" href={it.href ?? '/calendar'}>
+					<Poster src={it.poster} width={112} fluid />
+					<span class="title">{it.title}</span>
+					<span class="sub">{dayLabel(it.date)}{it.kind === 'episode' ? ` · ${timeLabel(it.date)}` : ''}</span>
+					<span class="sub">{it.subtitle}</span>
+				</a>
 			{/each}
 		</div>
 	{:else}
@@ -41,11 +46,13 @@
 			<ul>
 				{#each list as it (it.id)}
 					<li>
-						<div class="text">
-							<div class="title">{it.title}</div>
-							<div class="sub">{it.subtitle}</div>
-						</div>
-						{#if it.hasFile}<span class="have" title="Downloaded"><Icon icon={iOk} /></span>{/if}
+						<a class="row-link" href={it.href ?? '/calendar'}>
+							<div class="text">
+								<div class="title">{it.title}</div>
+								<div class="sub">{it.subtitle}{it.kind === 'episode' ? ` · ${timeLabel(it.date)}` : ''}</div>
+							</div>
+							{#if it.hasFile}<span class="have" title="Downloaded"><Icon icon={iOk} /><span class="sr-only">Downloaded</span></span>{/if}
+						</a>
 					</li>
 				{/each}
 			</ul>
@@ -59,19 +66,38 @@
 		gap: 0.875rem;
 		overflow-x: auto;
 		scroll-snap-type: x mandatory;
-		padding-bottom: 0.5rem;
-		scrollbar-width: thin;
+		scroll-padding-inline: 0.25rem;
+		/* Room for the focus ring; negative margin keeps the visual edge aligned. */
+		padding: 0.25rem;
+		margin: -0.25rem;
 	}
-	figure {
-		margin: 0;
-		width: 112px;
-		flex: none;
+	.card {
+		/* Grow to fill wide cards, but never into giant posters. */
+		flex: 1 0 112px;
+		max-width: 160px;
+		min-width: 0;
 		scroll-snap-align: start;
-	}
-	figcaption {
 		display: grid;
 		gap: 0.125rem;
-		margin-top: 0.5rem;
+		align-content: start;
+		color: inherit;
+		text-decoration: none;
+		border-radius: 0.5rem;
+		-webkit-tap-highlight-color: transparent;
+	}
+	.card :global(.poster) {
+		margin-bottom: 0.375rem;
+		transition: filter 150ms;
+	}
+	.card:hover :global(.poster) {
+		filter: brightness(1.08);
+	}
+	.card:active :global(.poster) {
+		filter: brightness(0.92);
+	}
+	.card:focus-visible {
+		outline: 2px solid var(--m3c-primary);
+		outline-offset: 2px;
 	}
 	.day {
 		font-size: 0.75rem;
@@ -79,7 +105,7 @@
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		color: var(--m3c-primary);
-		margin: 0.75rem 0 0.375rem;
+		margin: 0.75rem 0 0.25rem;
 	}
 	.day:first-child {
 		margin-top: 0;
@@ -90,12 +116,7 @@
 		padding: 0;
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 0.5rem;
-	}
-	li {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
+		gap: 0.125rem;
 	}
 	.text {
 		flex: 1;

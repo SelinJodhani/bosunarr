@@ -14,6 +14,11 @@ export type DownloadsData = {
 	down: number;
 	up: number;
 	active: number;
+	/** Torrents still downloading (incl. stalled / fetching metadata). Optional: older cached data lacks it. */
+	downloading?: number;
+	/** Complete torrents that are seeding. */
+	seeding?: number;
+	/** Downloading torrents only, fastest first. */
 	torrents: Array<{ id: string; name: string; progress: number; dlspeed: number; eta: number; state: string; size: number }>;
 };
 
@@ -37,6 +42,8 @@ export type UpcomingItem = {
 	hasFile: boolean;
 	poster: string | null;
 	service: string;
+	/** Library detail page; optional because older cached data lacks it. */
+	href?: string;
 };
 
 export type RequestItem = {
@@ -78,3 +85,27 @@ export const WIDGETS: Record<WidgetKind, { label: string; description: string; n
 	disk: { label: 'Disk space', description: 'Free space on your media drives', needs: ['sonarr', 'radarr'], refreshMs: 300_000, defaultSize: 's' },
 	nowplaying: { label: 'Now playing', description: 'Who is watching on Jellyfin', needs: ['jellyfin'], refreshMs: 10_000, defaultSize: 'm' }
 };
+
+
+const SPAN = { 8: { s: 4, m: 8, l: 8 }, 12: { s: 3, m: 6, l: 12 } } as const;
+
+/** Column spans for the 8- and 12-column grids. Widgets are packed in order and the last widget of a
+ *  row that would leave a gap is widened to fill it, so rows always end flush (no ragged holes). */
+export function spansFor(widgets: Array<Pick<WidgetInstance, 'size'>>): Array<{ span8: number; span12: number }> {
+	const out = widgets.map(() => ({ span8: 0, span12: 0 }));
+	for (const cols of [8, 12] as const) {
+		const key = cols === 8 ? 'span8' : 'span12';
+		let used = 0;
+		widgets.forEach((w, i) => {
+			const span = SPAN[cols][w.size] ?? cols;
+			if (used > 0 && used + span > cols) {
+				out[i - 1][key] += cols - used;
+				used = 0;
+			}
+			out[i][key] = span;
+			used = (used + span) % cols;
+		});
+		if (used > 0) out[widgets.length - 1][key] += cols - used;
+	}
+	return out;
+}

@@ -11,7 +11,7 @@
 	const items = $derived([...new Map((q.state.data ?? []).map((d) => [d.path, d])).values()]);
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={items.length === 0}>
+<State loading={q.state.loading} error={q.state.error} empty={items.length === 0} emptyText="No disks reported" skeleton={{ rows: 1, bar: true }}>
 	<ul>
 		{#each items as d (d.path)}
 			{@const used = 1 - d.free / d.total}

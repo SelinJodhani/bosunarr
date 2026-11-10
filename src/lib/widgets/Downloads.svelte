@@ -9,25 +9,38 @@
 	let { size }: { size: WidgetSize } = $props();
 	const q = live<DownloadsData>('/api/widgets/downloads', WIDGETS.downloads.refreshMs);
 	const d = $derived(q.state.data);
-	const shown = $derived(d ? d.torrents.slice(0, size === 'l' ? 8 : size === 'm' ? 4 : 0) : []);
+	const max = $derived(size === 'l' ? 8 : size === 'm' ? 4 : 0);
+	// Older cached data has no split and lists seeding torrents too: keep only unfinished ones.
+	const shown = $derived(d ? d.torrents.filter((t) => t.progress < 1).slice(0, max) : []);
+	const summary = $derived.by(() => {
+		if (!d) return '';
+		if (d.downloading === undefined) return `${d.active} active`;
+		const parts = [];
+		if (d.downloading) parts.push(`${d.downloading} downloading`);
+		if (d.seeding) parts.push(`${d.seeding} seeding`);
+		return parts.join(' · ') || 'Idle';
+	});
+	const etaText = (s: number) => (s > 0 && s < 8_640_000 ? eta(s) : '');
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={!d}>
+<State loading={q.state.loading} error={q.state.error} empty={!d} skeleton={{ rows: max, lead: true, bar: true }}>
 	{#if d}
-		<div class="speeds">
-			<div><Icon icon={iDownload} /> <strong>{speed(d.down)}</strong></div>
-			<div><Icon icon={iUpload} /> <strong>{speed(d.up)}</strong></div>
-			<div class="label">{d.active} active</div>
-		</div>
+		<a class="speeds row-link" href="/activity" aria-label={`Downloads: ${speed(d.down)} down, ${speed(d.up)} up, ${summary}. Open Activity`}>
+			<span class="speed"><Icon icon={iDownload} /> <strong>{speed(d.down)}</strong></span>
+			<span class="speed"><Icon icon={iUpload} /> <strong>{speed(d.up)}</strong></span>
+			<span class="label summary">{summary}</span>
+		</a>
 		{#if shown.length}
 			<ul>
 				{#each shown as t (t.id)}
 					<li>
-						<div class="line">
-							<span class="name" title={t.name}>{t.name}</span>
-							<span class="label">{t.dlspeed > 0 ? `${speed(t.dlspeed)} · ${eta(t.eta)}` : `${Math.round(t.progress * 100)}%`}</span>
-						</div>
-						<LinearProgress percent={t.progress * 100} aria-label={`${t.name} progress`} />
+						<a class="row-link item" href="/activity">
+							<div class="line">
+								<span class="name" title={t.name}>{t.name}</span>
+								<span class="label">{t.dlspeed > 0 ? [speed(t.dlspeed), etaText(t.eta)].filter(Boolean).join(' · ') : t.state === 'metaDL' ? 'Fetching metadata' : `${Math.round(t.progress * 100)}% · stalled`}</span>
+							</div>
+							<LinearProgress percent={t.progress * 100} aria-label={`${t.name} progress`} />
+						</a>
 					</li>
 				{/each}
 			</ul>
@@ -39,17 +52,23 @@
 
 <style>
 	.speeds {
-		display: flex;
-		align-items: center;
-		gap: 1.25rem;
+		gap: 0 1.25rem;
 		flex-wrap: wrap;
 		font-size: 1.25rem;
-		margin-bottom: 0.75rem;
+		margin-bottom: 0.5rem !important;
 	}
-	.speeds div {
+	.speed {
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
+	}
+	.summary {
+		flex-basis: 100%;
+		margin-top: -0.125rem;
+	}
+	.item {
+		display: block !important;
+		padding-block: 0.375rem !important;
 	}
 	strong {
 		font-weight: 500;
@@ -62,7 +81,7 @@
 		display: grid;
 		/* minmax(0, …) lets long torrent names truncate instead of widening the card. */
 		grid-template-columns: minmax(0, 1fr);
-		gap: 0.75rem;
+		gap: 0.25rem;
 	}
 	.line {
 		display: flex;
@@ -86,5 +105,6 @@
 	}
 	.idle {
 		margin: 0;
+		padding: 0.5rem 0;
 	}
 </style>
