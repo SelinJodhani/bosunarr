@@ -92,6 +92,12 @@ h3 {
 dialog.m3-container.m3-container {
 	max-width: min(35rem, calc(100vw - 3rem));
 }
+/* …and on phones every dialog is the same width, whatever its content. */
+@media (width < 40rem) {
+	dialog.m3-container.m3-container {
+		width: calc(100vw - 3rem);
+	}
+}
 
 /* Disabled text/outlined buttons have no container in M3. */
 button.m3-container.text:disabled,
