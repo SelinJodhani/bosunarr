@@ -30,7 +30,10 @@
 	$effect(() => {
 		const src = posterSrc;
 		if (!src || cachedSeed(src) !== undefined) return;
-		posterSeed(src).then((s) => src === posterSrc && fadeIn(() => (late = { src, seed: s })));
+		let alive = true;
+		posterSeed(src).then((s) => alive && fadeIn(() => (late = { src, seed: s })));
+		// Re-runs when the poster changes and stops on unmount, so a late seed never lands on the wrong item.
+		return () => (alive = false);
 	});
 
 	/* Back button: say where it goes (Calendar, Discover …) — history.back() returns there. */
@@ -65,7 +68,6 @@
 	};
 	const UHD = /2160|4k|uhd|ultra[\s-]?hd/i;
 	const isPast = (iso: string | null) => !!iso && new Date(iso) < new Date();
-	const nb = (t: string) => t.replace(/ /g, '\u00a0');
 	const visibleSeasons = $derived((d?.seasons ?? []).filter((s) => !(s.number === 0 && s.total === 0 && s.have === 0)));
 
 	let showAllOverview = $state(false);
@@ -80,17 +82,28 @@
 			m.push(item.kind === 'series' ? `~${rt} / episode` : rt);
 		}
 		if (d?.certification) m.push(d.certification);
-		if (item.network) m.push(item.network);
+		// Series: the network. Movies show their studio in the Details card instead.
+		if (item.kind === 'series' && item.network) m.push(item.network);
 		if (item.kind === 'series' && d?.seasons.length) {
 			const n = d.seasons.filter((s) => s.number > 0).length;
 			m.push(`${n} season${n === 1 ? '' : 's'}`);
 		}
-		return m.map(nb);
+		return m;
+	});
+
+	/** Always one decimal, always a source. Sonarr reports an unlabelled rating, so it gets a neutral label. */
+	const ratingText = $derived(item?.rating != null ? item.rating.toFixed(1) : null);
+	const ratingLabel = $derived(item?.ratingSource ?? 'Rating');
+	/** Quality profile, plus "4K" when the profile name doesn't already say so — one chip. */
+	const qualityChip = $derived.by(() => {
+		if (!item) return null;
+		const qp = item.qualityProfile;
+		if (item.is4k && !UHD.test(qp ?? '')) return qp ? `${qp} · 4K` : '4K';
+		return qp;
 	});
 
 	const seasonPct = (s: Season) => (s.total ? Math.round((s.have / s.total) * 100) : s.have ? 100 : 0);
 	const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
-	const serviceLabel = $derived(item?.kind === 'movie' ? 'Radarr' : 'Sonarr');
 </script>
 
 <svelte:head><title>{item?.title ?? 'Library'} · Bosunarr</title></svelte:head>
@@ -119,24 +132,28 @@
 			<div class="poster"><Poster src={item.poster} alt={`${item.title} poster`} width={180} /></div>
 			<div class="heading">
 				<h1>{item.title}</h1>
-				{#if meta.length}<p class="meta">{meta.join(' · ')}</p>{/if}
+				<!-- Each item stays whole ("TV-MA", "2h 10m"); the line only wraps between items. -->
+				{#if meta.length}<p class="meta">{#each meta as m, i (i)}{#if i}<span class="dot" aria-hidden="true">{' · '}</span>{/if}<span class="mi">{m}</span>{/each}</p>{/if}
+			</div>
+			<!-- Phones: chips and the action span the full width under poster + title, so they fit in two rows. -->
+			<div class="extra">
 				<ul class="chips" aria-label="Status">
 					<li class="chip tone-{STATUS_ICON[item.status].tone}"><Icon icon={STATUS_ICON[item.status].icon} size={18} />{STATUS_LABEL[item.status]}</li>
-					{#if item.rating}
-						<li class="chip tone-star" title={`Rating from ${item.ratingSource ?? item.serviceName}`}>
-							<Icon icon={iStar} size={18} />{item.rating}{#if item.ratingSource}<span class="src">{item.ratingSource}</span>{/if}
+					{#if ratingText}
+						<li class="chip tone-star" title={`${ratingLabel === 'Rating' ? 'Rating' : `${ratingLabel} rating`} (from ${item.serviceName})`}>
+							<Icon icon={iStar} size={18} />{ratingText}<span class="src">{ratingLabel}</span>
 						</li>
 					{/if}
-					{#if item.qualityProfile}<li class="chip">{item.qualityProfile}</li>{/if}
-					{#if item.is4k && !UHD.test(item.qualityProfile ?? '')}<li class="chip">4K</li>{/if}
-					<li class="chip"><Icon icon={item.monitored ? iMonitored : iUnmonitored} size={18} />{item.monitored ? 'Monitored' : 'Unmonitored'}</li>
-					<li class="chip">{item.serviceName}</li>
+					{#if qualityChip}<li class="chip" title="Quality profile">{qualityChip}</li>{/if}
+					{#if item.status !== 'unmonitored'}
+						<li class="chip"><Icon icon={item.monitored ? iMonitored : iUnmonitored} size={18} />{item.monitored ? 'Monitored' : 'Unmonitored'}</li>
+					{/if}
 				</ul>
 				<!-- Space is held while details load so nothing below jumps when the button appears. -->
 				{#if !d || d.openUrl}
 					<div class="actions" class:pending={!d}>
 						<Button variant="tonal" href={d?.openUrl ?? '#'} target="_blank" rel="noopener noreferrer" tabindex={d ? undefined : -1} aria-hidden={d ? undefined : 'true'}>
-							<Icon icon={iOpen} /> Open in {serviceLabel}
+							<Icon icon={iOpen} /> Open in {item.serviceName}
 						</Button>
 					</div>
 				{/if}
@@ -150,18 +167,37 @@
 				<section class="card">
 					<p class="overview" class:clamp={!showAllOverview} bind:this={overviewEl}>{d.overview}</p>
 					{#if overviewClipped || showAllOverview}
-						<Button variant="text" onclick={() => (showAllOverview = !showAllOverview)} aria-expanded={showAllOverview}>{showAllOverview ? 'Less' : 'More'}</Button>
+						<div class="more"><Button variant="text" onclick={() => (showAllOverview = !showAllOverview)} aria-expanded={showAllOverview}>{showAllOverview ? 'Show less' : 'Show more'}</Button></div>
 					{/if}
 					{#if d.genres.length}<p class="genres">{d.genres.join(' · ')}</p>{/if}
 				</section>
 			{/if}
 
 			<div class="cols">
-				<section class="card info">
-					<h2 class="title-medium">{d.kind === 'movie' ? 'File' : 'Details'}</h2>
-					<dl>
-						{#if d.kind === 'movie'}
-							{#if d.file}
+				<div class="stack">
+					<section class="card">
+						<h2 class="title-medium">Details</h2>
+						<dl>
+							{#if d.kind === 'movie'}
+								{#if d.inCinemas}<dt>In cinemas</dt><dd>{fmtDate(d.inCinemas)}</dd>{/if}
+								{#if d.digitalRelease}<dt>Digital</dt><dd>{fmtDate(d.digitalRelease)}</dd>{/if}
+								{#if d.studio}<dt>Studio</dt><dd>{d.studio}</dd>{/if}
+								{#if !d.file}<dt>On disk</dt><dd>No file yet</dd>{/if}
+							{:else}
+								<dt>Episodes</dt><dd>{d.episodes?.have ?? 0} of {d.episodes?.total ?? 0}</dd>
+								<dt>Size</dt><dd>{bytes(d.sizeOnDisk)}</dd>
+								<dt>Status</dt><dd>{d.continuing ? 'Continuing' : 'Ended'}</dd>
+								{#if d.nextAiring}<dt>Next airing</dt><dd>{dayLabel(d.nextAiring)}</dd>{/if}
+							{/if}
+							{#if d.tags.length}<dt>Tags</dt><dd>{d.tags.join(', ')}</dd>{/if}
+							{#if d.path}<dt>Folder</dt><dd class="path">{d.path}</dd>{/if}
+						</dl>
+					</section>
+
+					{#if d.file}
+						<section class="card">
+							<h2 class="title-medium">File</h2>
+							<dl>
 								<dt>Quality</dt><dd>{d.file.quality ?? '—'}</dd>
 								{#if d.file.resolution}<dt>Resolution</dt><dd>{d.file.resolution}</dd>{/if}
 								{#if d.file.videoCodec}<dt>Video</dt><dd>{d.file.videoCodec}</dd>{/if}
@@ -171,29 +207,10 @@
 								{#if d.file.releaseGroup}<dt>Group</dt><dd>{d.file.releaseGroup}</dd>{/if}
 								<dt>Added</dt><dd>{fmtDate(d.file.dateAdded)}</dd>
 								<dt>Path</dt><dd class="path">{d.file.path}</dd>
-							{:else}
-								<dt>File</dt><dd>None on disk</dd>
-								{#if d.inCinemas}<dt>In cinemas</dt><dd>{fmtDate(d.inCinemas)}</dd>{/if}
-								{#if d.digitalRelease}<dt>Digital</dt><dd>{fmtDate(d.digitalRelease)}</dd>{/if}
-								{#if d.path}<dt>Path</dt><dd class="path">{d.path}</dd>{/if}
-							{/if}
-						{:else}
-							<dt>Episodes</dt><dd>{d.episodes?.have ?? 0} of {d.episodes?.total ?? 0}</dd>
-							<dt>Size</dt><dd>{bytes(d.sizeOnDisk)}</dd>
-							<dt>Status</dt><dd>{d.continuing ? 'Continuing' : 'Ended'}</dd>
-							{#if d.nextAiring}<dt>Next airing</dt><dd>{dayLabel(d.nextAiring)}</dd>{/if}
-							{#if d.path}<dt>Path</dt><dd class="path">{d.path}</dd>{/if}
-						{/if}
-						{#if d.tags.length}<dt>Tags</dt><dd>{d.tags.join(', ')}</dd>{/if}
-					</dl>
-					{#if d.imdbId || d.tmdbId || d.tvdbId}
-						<div class="links">
-							{#if d.imdbId}<Button variant="outlined" href={`https://www.imdb.com/title/${d.imdbId}/`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />IMDb</Button>{/if}
-							{#if d.tmdbId}<Button variant="outlined" href={`https://www.themoviedb.org/${d.kind === 'movie' ? 'movie' : 'tv'}/${d.tmdbId}`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />TMDb</Button>{/if}
-							{#if d.tvdbId}<Button variant="outlined" href={`https://thetvdb.com/?tab=series&id=${d.tvdbId}`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />TVDB</Button>{/if}
-						</div>
+							</dl>
+						</section>
 					{/if}
-				</section>
+				</div>
 
 				{#if d.cast.length}
 					<section class="card cast-card">
@@ -214,10 +231,10 @@
 			</div>
 
 			{#if visibleSeasons.length}
-				<section class="seasons">
+				<section class="card seasons">
 					<h2 class="title-medium">Seasons</h2>
 					{#each visibleSeasons as s (s.number)}
-						<div class="season card" class:open={open[s.number]}>
+						<div class="season" class:open={open[s.number]}>
 							<button class="season-head" aria-expanded={!!open[s.number]} onclick={() => (open[s.number] = !open[s.number])}>
 								<span class="sname">
 									{s.number === 0 ? 'Specials' : `Season ${s.number}`}
@@ -253,6 +270,14 @@
 						</div>
 					{/each}
 				</section>
+			{/if}
+
+			{#if d.imdbId || d.tmdbId || d.tvdbId}
+				<nav class="links" aria-label="External links">
+					{#if d.imdbId}<Button variant="outlined" href={`https://www.imdb.com/title/${d.imdbId}/`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />IMDb</Button>{/if}
+					{#if d.tmdbId}<Button variant="outlined" href={`https://www.themoviedb.org/${d.kind === 'movie' ? 'movie' : 'tv'}/${d.tmdbId}`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />TMDb</Button>{/if}
+					{#if d.tvdbId}<Button variant="outlined" href={`https://thetvdb.com/?tab=series&id=${d.tvdbId}`} target="_blank" rel="noopener noreferrer"><Icon icon={iOpen} />TVDB</Button>{/if}
+				</nav>
 			{/if}
 		{/if}
 	{/if}
@@ -312,18 +337,30 @@
 		color: var(--m3c-error);
 	}
 	.hero {
-		display: flex;
-		gap: 1.25rem;
-		align-items: flex-end;
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-rows: 1fr auto;
+		grid-template-areas:
+			'poster heading'
+			'poster extra';
+		column-gap: 1.25rem;
+		align-items: end;
 		margin: 0.5rem 0 1.25rem;
+	}
+	.poster {
+		grid-area: poster;
+	}
+	.extra {
+		grid-area: extra;
+		min-width: 0;
 	}
 	.poster :global(.poster) {
 		box-shadow: 0 6px 24px rgb(0 0 0 / 0.3);
 		border-radius: 1rem;
 	}
 	.heading {
+		grid-area: heading;
 		min-width: 0;
-		flex: 1;
 	}
 	h1 {
 		font-size: clamp(1.5rem, 4vw, 2.5rem);
@@ -334,6 +371,9 @@
 	.meta {
 		margin: 0.375rem 0 0;
 		color: var(--m3c-on-surface-variant);
+	}
+	.meta .mi {
+		white-space: nowrap;
 	}
 	.chips {
 		display: flex;
@@ -386,9 +426,16 @@
 	/* Phones: small poster beside the title, so the overview is visible without scrolling. */
 	@media (width < 34rem) {
 		.hero {
-			align-items: flex-start;
-			gap: 1rem;
+			grid-template-rows: auto auto;
+			grid-template-areas:
+				'poster heading'
+				'extra extra';
+			align-items: start;
+			column-gap: 1rem;
 			margin-top: 0.25rem;
+		}
+		.extra .chips {
+			margin-top: 1rem;
 		}
 		.poster :global(.poster) {
 			width: 112px !important;
@@ -416,8 +463,13 @@
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
-	.overview + :global(button) {
-		margin: 0.25rem 0 0 -0.75rem;
+	/* Text button pulled left by its own inline padding, so its label lines up with the overview text. */
+	.more {
+		margin: 0.25rem 0 0;
+		display: flex;
+	}
+	.more :global(.m3-container) {
+		margin-left: -1rem;
 	}
 	.genres {
 		margin: 0.75rem 0 0;
@@ -454,11 +506,18 @@
 		font-family: ui-monospace, monospace;
 		font-size: 0.75rem;
 	}
+	.stack {
+		display: grid;
+		min-width: 0;
+	}
+	.card h2 {
+		margin: 0;
+	}
 	.links {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		margin: 1rem 0 0;
+		margin: 0.25rem 0 0;
 	}
 	.cast {
 		list-style: none;
@@ -509,13 +568,18 @@
 	.role {
 		color: var(--m3c-on-surface-variant);
 	}
+	/* One "Seasons" card (title inside, like Details and Cast); seasons are rows split by dividers. */
+	.seasons {
+		padding-bottom: 0.5rem;
+	}
 	.seasons > h2 {
-		margin: 0.5rem 0 0.75rem;
+		margin-bottom: 0.25rem;
 	}
 	.season {
-		padding: 0;
-		margin-bottom: 0.5rem;
-		overflow: hidden;
+		margin: 0 -1.25rem;
+	}
+	.season + .season {
+		border-top: 1px solid var(--m3c-outline-variant);
 	}
 	.season-head {
 		all: unset;
@@ -531,7 +595,7 @@
 	.season-head:focus-visible {
 		outline: 2px solid var(--m3c-primary);
 		outline-offset: -2px;
-		border-radius: var(--radius-l);
+		border-radius: 0.75rem;
 	}
 	.sname {
 		font-weight: 500;

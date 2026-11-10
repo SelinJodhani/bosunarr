@@ -108,9 +108,13 @@ async function extractSeed(src: string): Promise<string | null> {
  * Falls back to an instant swap where the API is missing or motion is reduced.
  */
 export function fadeIn(apply: () => void) {
-	const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
-	if (!doc.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) apply();
-	else doc.startViewTransition(apply);
+	type VT = { ready: Promise<void>; finished: Promise<void>; updateCallbackDone: Promise<void> };
+	const doc = document as Document & { startViewTransition?: (cb: () => void) => VT };
+	if (!doc.startViewTransition || document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches) return apply();
+	// A transition is skipped (its promises reject) when another one starts or the page is hidden or
+	// navigates; the colours are applied either way, so that's not an error.
+	const t = doc.startViewTransition(apply);
+	for (const p of [t.ready, t.finished, t.updateCallbackDone]) p?.catch(() => {});
 }
 
 /** Label for a detail page's back button, from the page the user came from. */

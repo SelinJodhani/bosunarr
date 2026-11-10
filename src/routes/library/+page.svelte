@@ -73,6 +73,8 @@
 	});
 
 	const filtersOn = $derived(filters.kind !== 'all' || filters.status !== 'all');
+	/** Search or filters narrow the grid: the header then counts what is shown. */
+	const narrowed = $derived(filtersOn || filters.q.trim() !== '');
 	function clearAll() {
 		filters.q = '';
 		filters.kind = 'all';
@@ -83,6 +85,11 @@
 	const summary = $derived.by(() => {
 		const errs = q.state.data?.errors ?? [];
 		const parts: Array<{ text: string; down?: string }> = [];
+		if (narrowed) {
+			parts.push({ text: `${items.length} of ${all.length}` });
+			if (errs.length) parts.push({ text: `${errs.map((e) => e.service).join(', ')} unreachable`, down: errs.map((e) => e.error).join('\n') });
+			return parts;
+		}
 		for (const [kind, noun] of [
 			['movie', 'movies'],
 			['series', 'series']
@@ -201,11 +208,13 @@
 		const r = railEl!.getBoundingClientRect();
 		return Math.min(letters.length - 1, Math.max(0, Math.floor(((clientY - r.top) / r.height) * letters.length)));
 	}
-	function select(pos: number, haptic = false) {
+	function select(pos: number, e?: PointerEvent) {
 		if (pos === activePos) return;
 		activePos = pos;
 		jump(pos);
-		if (haptic) navigator.vibrate?.(4);
+		// Haptic tick for touch drags only. Chrome blocks (and warns about) vibrate() before the page has had a
+		// real user activation, and a first touch's pointerdown doesn't count as one yet.
+		if (e?.pointerType === 'touch' && navigator.userActivation?.hasBeenActive) navigator.vibrate?.(4);
 	}
 	function railDown(e: PointerEvent) {
 		if (!railShown && !wide) return;
@@ -213,10 +222,10 @@
 		railEl?.setPointerCapture(e.pointerId);
 		dragging = true;
 		clearTimeout(railTimer);
-		select(posAt(e.clientY), true);
+		select(posAt(e.clientY), e);
 	}
 	function railMove(e: PointerEvent) {
-		if (dragging) select(posAt(e.clientY), true);
+		if (dragging) select(posAt(e.clientY), e);
 	}
 	function railUp() {
 		dragging = false;
@@ -270,7 +279,7 @@
 <header class="head">
 	<h1 class="title-large">Library</h1>
 	{#if summary.length && q.state.data}
-		<p class="count body-small">
+		<p class="count body-small" aria-live="polite">
 			{#each summary as p, i (p.text)}
 				{#if i}<span class="sep" aria-hidden="true">·</span>{/if}
 				{#if p.down}
@@ -296,7 +305,11 @@
 				enterkeyhint="search"
 				autocomplete="off"
 				spellcheck="false"
-				onkeydown={(e: KeyboardEvent) => e.key === 'Escape' && (filters.q = '')}
+				onkeydown={(e: KeyboardEvent) => {
+					if (e.key === 'Escape') filters.q = '';
+					// Enter: the grid already filters as you type, so just close the keyboard to reveal the results.
+					else if (e.key === 'Enter') (e.target as HTMLElement).blur();
+				}}
 				trailing={filters.q ? { icon: iClose, onclick: () => (filters.q = ''), 'aria-label': 'Clear search' } : undefined}
 			/>
 		</div>
@@ -556,8 +569,11 @@
 	.grid-wrap {
 		position: relative;
 	}
-	/* Laptop: the rail is always visible and gets its own column. Phones overlay it while scrolling instead,
-	   so both screen edges keep the same 16 px gutter. */
+	/* The rail gets its own narrow gutter so it never covers posters or their 4K badges. It is reserved
+	   whenever the rail is available (not only while it shows), so the grid never reflows mid-scroll. */
+	.grid-wrap.with-rail {
+		padding-right: 0.875rem;
+	}
 	@media (width >= 52.5rem) {
 		.grid-wrap.with-rail {
 			padding-right: 1.75rem;
@@ -655,13 +671,17 @@
 		background: color-mix(in oklab, var(--m3c-surface) 45%, transparent);
 	}
 	/* A–Z fast scroller: 44 px wide hit area; letters share the height evenly so a touch maps to the letter under it. */
+	/* Phones: the pill hugs the screen edge, inside the page gutter plus the reserved strip; the hit area
+	   still reaches 44 px in from the edge. */
 	.rail {
 		position: fixed;
 		right: env(safe-area-inset-right);
 		width: 2.75rem;
 		z-index: 5;
 		display: flex;
-		justify-content: center;
+		justify-content: flex-end;
+		padding-right: 0.25rem;
+		box-sizing: border-box;
 		touch-action: none;
 		user-select: none;
 		-webkit-user-select: none;
@@ -679,7 +699,7 @@
 		pointer-events: auto;
 	}
 	.pill {
-		width: 1.5rem;
+		width: 1.25rem;
 		height: 100%;
 		display: flex;
 		flex-direction: column;
