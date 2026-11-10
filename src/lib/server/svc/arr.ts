@@ -297,7 +297,14 @@ export function overview(s: ServiceRecord): Promise<ArrOverview> {
 				.filter((c) => c.status === 'started' || c.status === 'queued' || (c.ended && Date.now() - +new Date(c.ended) < 10 * 60_000))
 				.sort((a, b) => commandTime(b) - commandTime(a))
 				.slice(0, 8)
-				.map((c): ArrCommandInfo => ({ id: c.id, name: commandLabel(c), status: c.status ?? 'unknown', started: c.started ?? c.queued ?? null, ended: c.ended ?? null })),
+				.map((c): ArrCommandInfo => ({
+					id: c.id,
+					name: commandLabel(c),
+					command: commandKey(c.name),
+					status: c.status ?? 'unknown',
+					started: c.started ?? c.queued ?? null,
+					ended: c.ended ?? null
+				})),
 			indexers: arr(idx, 'indexers')
 				.map((i): ArrIndexer => {
 					const stx = idxStatus.get(i.id);
@@ -446,7 +453,11 @@ function historyDetail(h: History): string | null {
 	const d = h.data ?? {};
 	// downloadClientName is the user's name for the client; downloadClient is often just its type.
 	const client = d.downloadClientName || d.downloadClient;
-	if (h.eventType === 'downloadFailed' || h.eventType === 'downloadIgnored') return d.message || null;
+	if (h.eventType === 'downloadFailed' || h.eventType === 'downloadIgnored') {
+		// The event label already says "Download failed": drop that prefix from the arr's message.
+		const m = (d.message || '').replace(/^\s*download (failed|ignored)\s*[:.-]\s*/i, '').trim();
+		return m ? m[0].toUpperCase() + m.slice(1) : null;
+	}
 	if (h.eventType.endsWith('FileDeleted')) return (d.reason && DELETE_REASONS[d.reason]) || d.reason || null;
 	if (h.eventType === 'grabbed') return [d.indexer, client].filter(Boolean).join(' → ') || null;
 	if (h.eventType.endsWith('Imported')) return client ? `From ${client}` : null;
@@ -491,6 +502,14 @@ const COMMANDS: Record<ArrCommand, { sonarr: string; radarr: string; done: strin
 	cutoff: { sonarr: 'CutoffUnmetEpisodeSearch', radarr: 'CutoffUnmetMoviesSearch', done: 'Searching for cutoff upgrades' },
 	refresh: { sonarr: 'RefreshSeries', radarr: 'RefreshMovie', done: 'Refresh & scan started' }
 };
+
+/** Which of our task buttons started this arr command (so the button can stay disabled while it runs). */
+function commandKey(name: string | undefined): ArrCommand | null {
+	for (const [key, def] of Object.entries(COMMANDS) as Array<[ArrCommand, (typeof COMMANDS)[ArrCommand]]>) {
+		if (name === def.sonarr || name === def.radarr) return key;
+	}
+	return null;
+}
 
 export function parseCommand(body: unknown): ArrCommand {
 	const c = body && typeof body === 'object' ? (body as { command?: unknown }).command : undefined;

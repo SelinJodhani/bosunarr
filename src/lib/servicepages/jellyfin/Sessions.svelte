@@ -79,6 +79,7 @@
 		flex: 1;
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.375rem;
 		align-content: start;
 	}
@@ -123,8 +124,9 @@
 	}
 	.meta {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: 0.25rem 0.5rem;
 		font-size: 0.75rem;
 		font-variant-numeric: tabular-nums;
 	}
@@ -153,6 +155,7 @@
 	}
 	.why {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.125rem;
 		font-size: 0.75rem;
 	}

@@ -5,7 +5,7 @@
 	import iMusic from '@ktibow/iconset-material-symbols/music-note-rounded';
 	import iFolder from '@ktibow/iconset-material-symbols/folder-rounded';
 	import { live } from '$lib/live.svelte';
-	import State from '$lib/widgets/State.svelte';
+	import State from '../shared/State.svelte';
 	import type { JsLibrary } from './types';
 	import { count, duration, when } from './format';
 
@@ -27,18 +27,26 @@
 	}
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={libs.length === 0} emptyText="Jellystat hasn't synced any libraries yet">
+<State
+	loading={q.state.loading}
+	error={q.state.error}
+	empty={libs.length === 0}
+	icon={iFolder}
+	title="No libraries yet"
+	hint="Jellystat hasn't synced any libraries from Jellyfin."
+	onretry={() => q.refresh()}
+>
 	<ul>
 		{#each libs as l (l.id)}
 			<li>
-				<h3 class="title-medium"><span class="ico"><Icon icon={ICONS[l.kind]} /></span><span class="name">{l.name}</span></h3>
+				<h3><span class="ico"><Icon icon={ICONS[l.kind]} /></span><span class="name">{l.name}</span></h3>
 				<dl>
 					{#each counts(l) as [k, v] (k)}
 						<div><dt>{k}</dt><dd>{v}</dd></div>
 					{/each}
-					<div><dt>Runtime</dt><dd>{duration(l.contentSec)}</dd></div>
+					{#if l.contentSec > 0}<div><dt>Runtime</dt><dd>{duration(l.contentSec)}</dd></div>{/if}
 					<div><dt>Plays</dt><dd>{count(l.plays)}</dd></div>
-					<div><dt>Watched</dt><dd>{duration(l.watchedSec)}</dd></div>
+					{#if l.watchedSec > 0}<div><dt>Watched</dt><dd>{duration(l.watchedSec)}</dd></div>{/if}
 				</dl>
 				<p class="last">
 					{#if l.lastPlayed}
@@ -62,16 +70,20 @@
 		gap: 0.75rem;
 	}
 	li {
-		padding: 1rem 1.125rem;
+		padding: 1rem;
 		border-radius: var(--radius-l);
 		background: var(--m3c-surface-container-low);
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.75rem;
 		align-content: start;
 	}
 	h3 {
 		margin: 0;
+		font-size: 1rem;
+		line-height: 1.5rem;
+		font-weight: 500;
 		display: flex;
 		align-items: center;
 		gap: 0.625rem;

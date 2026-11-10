@@ -2,20 +2,24 @@
 	import { Button, Icon, LoadingIndicator, snackbar } from 'm3-svelte';
 	import iSearch from '@ktibow/iconset-material-symbols/search-rounded';
 	import { live } from '$lib/live.svelte';
-	import Poster from '$lib/widgets/Poster.svelte';
-	import State from '$lib/widgets/State.svelte';
+	import iDone from '@ktibow/iconset-material-symbols/task-alt-rounded';
+	import iTv from '@ktibow/iconset-material-symbols/tv-rounded';
+	import iMovie from '@ktibow/iconset-material-symbols/movie-rounded';
+	import Art from '../shared/Art.svelte';
+	import State from '../shared/State.svelte';
+	import Pager from '../shared/Pager.svelte';
 	import LangTags from './LangTags.svelte';
-	import Pager from './Pager.svelte';
 	import { bazarrAct } from './api';
 	import type { BazarrKind, WantedItem, WantedPage } from './types';
 
 	let {
 		serviceId,
 		kind,
-		page = $bindable(),
+		page,
+		onpage,
 		isAdmin,
 		onchange
-	}: { serviceId: number; kind: BazarrKind; page: number; isAdmin: boolean; onchange?: () => void } = $props();
+	}: { serviceId: number; kind: BazarrKind; page: number; onpage: (p: number) => void; isAdmin: boolean; onchange?: () => void } = $props();
 
 	// The parent re-creates this component when kind/page change, so the URL is fixed per instance.
 	// svelte-ignore state_referenced_locally
@@ -41,16 +45,20 @@
 	const SETTLE_MS = 8_000;
 </script>
 
-<State loading={data.state.loading} error={data.state.error} empty={!d} emptyText="">
+<State
+	loading={data.state.loading}
+	error={data.state.error}
+	empty={!d || d.items.length === 0}
+	icon={iDone}
+	title={d?.total ? 'Nothing on this page' : kind === 'episodes' ? 'No episodes are missing subtitles' : 'No movies are missing subtitles'}
+	onretry={() => data.refresh()}
+>
 	{#if d}
-		{#if d.items.length === 0}
-			<p class="empty">{d.total ? 'Nothing on this page.' : kind === 'episodes' ? 'No episodes are missing subtitles.' : 'No movies are missing subtitles.'}</p>
-		{:else}
 			<ul class="list">
 				{#each d.items as it (it.key)}
 					<li class="row">
 						<a class="art" href={it.href ?? undefined} aria-label={it.href ? `Open ${it.title}` : undefined} tabindex={it.href ? undefined : -1}>
-							<Poster src={it.poster} width={44} alt="" />
+							<Art src={it.poster} width={44} icon={kind === 'episodes' ? iTv : iMovie} />
 						</a>
 						<div class="body">
 							<div class="title">{it.title}</div>
@@ -71,8 +79,7 @@
 					</li>
 				{/each}
 			</ul>
-		{/if}
-		<Pager bind:page total={d.total} pageSize={d.pageSize} />
+		<Pager {page} pages={Math.max(1, Math.ceil(d.total / d.pageSize))} total={d.total} noun={kind === 'episodes' ? 'episode' : 'movie'} {onpage} />
 	{/if}
 </State>
 
@@ -101,6 +108,7 @@
 	.body {
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.25rem;
 	}
 	.title {
@@ -120,8 +128,5 @@
 		display: grid;
 		place-items: center;
 		min-width: 2.5rem;
-	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
 	}
 </style>

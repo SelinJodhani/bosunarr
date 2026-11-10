@@ -91,6 +91,7 @@
 		flex: 1;
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.25rem;
 	}
 	.name,

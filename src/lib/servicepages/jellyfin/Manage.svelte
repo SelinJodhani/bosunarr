@@ -1,9 +1,7 @@
-<script lang="ts" module>
-	let tab = $state('tasks');
-</script>
-
 <script lang="ts">
-	import { Button, Icon, LinearProgress, Tabs } from 'm3-svelte';
+	import { Button, Icon, LinearProgress } from 'm3-svelte';
+	import Empty from '../shared/Empty.svelte';
+	import iNone from '@ktibow/iconset-material-symbols/notifications-off-rounded';
 	import iRun from '@ktibow/iconset-material-symbols/play-arrow-rounded';
 	import iOk from '@ktibow/iconset-material-symbols/check-circle-rounded';
 	import iFail from '@ktibow/iconset-material-symbols/error-rounded';
@@ -15,14 +13,14 @@
 	import { ago } from '$lib/format';
 	import type { JfAdminData, JfTask } from './types';
 
-	let { data, isAdmin, onrun }: { data: JfAdminData; isAdmin: boolean; onrun: (t: JfTask) => void } = $props();
+	let {
+		data,
+		view,
+		isAdmin,
+		onrun
+	}: { data: JfAdminData; view: 'users' | 'tasks' | 'activity'; isAdmin: boolean; onrun: (t: JfTask) => void } = $props();
 
-	const items = $derived([
-		...(data.users ? [{ name: `Users (${data.users.length})`, value: 'users' }] : []),
-		{ name: 'Tasks', value: 'tasks' },
-		...(data.activity ? [{ name: 'Activity', value: 'activity' }] : [])
-	]);
-	const current = $derived(items.some((i) => i.value === tab) ? tab : 'tasks');
+	const current = $derived(view);
 
 	const groups = $derived.by(() => {
 		const m = new Map<string, JfTask[]>();
@@ -34,12 +32,6 @@
 	const when = (iso: string | null) => (iso ? ago(iso) : 'Never');
 	const STATUS_ICON = { Completed: iOk, Failed: iFail, Cancelled: iCancel, Aborted: iFail } as const;
 </script>
-
-{#if items.length > 1}
-	<div class="tabs"><Tabs {items} bind:tab secondary /></div>
-{:else}
-	<h2 class="title-medium">Scheduled tasks</h2>
-{/if}
 
 <div class="pane">
 	{#if current === 'users' && data.users}
@@ -60,7 +52,7 @@
 		</ul>
 	{:else if current === 'activity' && data.activity}
 		{#if data.activity.length === 0}
-			<p class="empty">No recent activity.</p>
+			<Empty icon={iNone} title="No recent activity" />
 		{:else}
 			<ul class="list">
 				{#each data.activity.slice(0, shown) as e (e.id)}
@@ -78,8 +70,8 @@
 			{/if}
 		{/if}
 	{:else}
-		{#each groups as [cat, tasks] (cat)}
-			<h3 class="label-large cat">{cat}</h3>
+		{#each groups as [cat, tasks], gi (cat)}
+			<h3 class="cat" class:first={gi === 0}>{cat}</h3>
 			<ul class="list">
 				{#each tasks as t (t.id)}
 					<li>
@@ -111,21 +103,13 @@
 </div>
 
 <style>
-	/* Sit on the card's surface instead of painting a darker strip. */
-	.tabs {
-		margin-top: -0.5rem;
-	}
-	.tabs :global(.m3-container) {
-		background-color: transparent;
-	}
-	.pane {
-		padding-top: 0.5rem;
-	}
-	h2 {
-		margin: 0 0 0.25rem;
+	.cat.first {
+		margin-top: 0;
 	}
 	.cat {
 		margin: 0.75rem 0 0;
+		font-size: 0.875rem;
+		font-weight: 500;
 		color: var(--m3c-primary);
 	}
 	.list {
@@ -152,6 +136,7 @@
 		flex: 1;
 		min-width: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.25rem;
 	}
 	.row1 {
@@ -239,8 +224,5 @@
 		display: flex;
 		justify-content: center;
 		padding-top: 0.25rem;
-	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
 	}
 </style>

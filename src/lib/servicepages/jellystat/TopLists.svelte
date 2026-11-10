@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Icon } from 'm3-svelte';
 	import iMovie from '@ktibow/iconset-material-symbols/movie-rounded';
 	import iTv from '@ktibow/iconset-material-symbols/tv-rounded';
 	import iPerson from '@ktibow/iconset-material-symbols/person-rounded';
 	import iDevices from '@ktibow/iconset-material-symbols/devices-rounded';
 	import { live } from '$lib/live.svelte';
-	import State from '$lib/widgets/State.svelte';
+	import Card from '../shared/Card.svelte';
+	import State from '../shared/State.svelte';
 	import type { JsTop, JsTopItem } from './types';
 	import { count, duration } from './format';
 
@@ -28,12 +28,11 @@
 	const maxOf = (items: JsTopItem[]) => Math.max(1, ...items.map((i) => i.plays));
 </script>
 
-<State loading={q.state.loading} error={q.state.error} empty={!d}>
+<State loading={q.state.loading} error={q.state.error} empty={!d} onretry={() => q.refresh()}>
 	<div class="grid">
 		{#each lists as l (l.key)}
 			{@const max = maxOf(l.items)}
-			<section class="card" aria-labelledby={`js-top-${l.key}`}>
-				<h3 id={`js-top-${l.key}`} class="title-small"><Icon icon={l.icon} /> {l.label}</h3>
+			<Card title={l.label} icon={l.icon}>
 				{#if l.items.length}
 					<ol>
 						{#each l.items as it, i (i)}
@@ -49,7 +48,7 @@
 				{:else}
 					<p class="empty">{l.empty}</p>
 				{/if}
-			</section>
+			</Card>
 		{/each}
 	</div>
 </State>
@@ -59,19 +58,6 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
 		gap: 0.75rem;
-	}
-	.card {
-		padding: 1rem 1.125rem;
-		border-radius: var(--radius-l);
-		background: var(--m3c-surface-container-low);
-		min-width: 0;
-	}
-	h3 {
-		margin: 0 0 0.75rem;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: var(--m3c-on-surface-variant);
 	}
 	ol {
 		list-style: none;

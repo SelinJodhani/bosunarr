@@ -144,7 +144,8 @@ export function overview(s: ServiceRecord): Promise<WizarrOverview> {
 		const userList: WizarrUser[] = list<RawUser>(users.value, 'users', 'users').map((u) => ({
 			id: u.id,
 			username: str(u.username) ?? `User ${u.id}`,
-			email: str(u.email),
+			// Wizarr stores "empty" (or "None") when the user gave no email.
+			email: ((e) => (e && e.includes('@') ? e : null))(str(u.email)),
 			server: str(u.server),
 			serverType: str(u.server_type),
 			expires: iso(u.expires),

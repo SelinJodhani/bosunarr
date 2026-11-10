@@ -38,7 +38,6 @@
 		display: flex;
 		gap: 0.5rem;
 		overflow-x: auto;
-		padding: 0 0 0.75rem;
 		scrollbar-width: none;
 	}
 	.chips > :global(*) {

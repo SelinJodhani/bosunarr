@@ -1,17 +1,31 @@
+<script lang="ts" module>
+	// Remembered while moving around the app.
+	const ui = $state({ tab: 'playing' });
+</script>
+
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { Button, Dialog, Icon, LoadingIndicator, TextField, TextFieldMultiline, snackbar } from 'm3-svelte';
+	import { Button, Dialog, Icon, TextField, TextFieldMultiline, snackbar } from 'm3-svelte';
 	import iRefresh from '@ktibow/iconset-material-symbols/refresh-rounded';
 	import iRestart from '@ktibow/iconset-material-symbols/restart-alt-rounded';
-	import iUpdate from '@ktibow/iconset-material-symbols/system-update-rounded';
+	import iTv from '@ktibow/iconset-material-symbols/live-tv-rounded';
+	import iFolder from '@ktibow/iconset-material-symbols/video-library-rounded';
 	import { live } from '$lib/live.svelte';
 	import type { ServicePageProps } from '$lib/servicepages/types';
+	import Summary from '../shared/Summary.svelte';
+	import ServiceTabs from '../shared/ServiceTabs.svelte';
+	import Card from '../shared/Card.svelte';
+	import Empty from '../shared/Empty.svelte';
+	import Loading from '../shared/Loading.svelte';
+	import ConfirmDialog from '../shared/ConfirmDialog.svelte';
+	import { sentence } from '../shared/format';
+	import type { SummaryNotice } from '../shared/types';
 	import Sessions from './Sessions.svelte';
 	import Libraries from './Libraries.svelte';
 	import Latest from './Latest.svelte';
 	import Manage from './Manage.svelte';
 	import { act } from './api';
-	import type { JfAction, JfAdminData, JfLibrary, JfSession, JfSummary, JfTask } from './types';
+	import type { JfAdminData, JfLibrary, JfSession, JfSummary, JfTask } from './types';
 
 	let { service, isAdmin }: ServicePageProps = $props();
 
@@ -25,202 +39,172 @@
 	const s = $derived(sum.state.data);
 	const m = $derived(man.state.data);
 
+	const tabs = $derived([
+		{ name: 'Playing', value: 'playing' },
+		{ name: 'Libraries', value: 'libraries' },
+		{ name: 'Tasks', value: 'tasks' },
+		...(m?.users ? [{ name: 'Users', value: 'users' }] : []),
+		...(m?.activity ? [{ name: 'Activity', value: 'activity' }] : [])
+	]);
+	$effect(() => {
+		if (m && !tabs.some((t) => t.value === ui.tab)) ui.tab = 'playing';
+	});
+
 	const fmt = new Intl.NumberFormat();
-	const countChips = $derived.by(() => {
+	const stats = $derived.by(() => {
 		const c = s?.counts;
-		if (!c) return [];
-		return [
+		const out: Array<{ value: string; label: string; onclick?: () => void; tone?: 'info' }> = [
+			{ value: fmt.format(sessions.length), label: 'Playing now', onclick: () => (ui.tab = 'playing'), tone: sessions.length ? 'info' : undefined }
+		];
+		if (!c) return out;
+		for (const [n, label] of [
 			[c.movies, 'Movies'],
 			[c.series, 'Series'],
 			[c.episodes, 'Episodes'],
 			[c.albums, 'Albums'],
 			[c.songs, 'Songs'],
 			[c.books, 'Books']
-		].filter(([n]) => Number(n) > 0) as [number, string][];
+		] as Array<[number, string]>) {
+			if (Number(n) > 0 && out.length < 4) out.push({ value: fmt.format(n), label, onclick: () => (ui.tab = 'libraries') });
+		}
+		return out;
+	});
+	const notices = $derived.by((): SummaryNotice[] => {
+		if (!s) return [];
+		const out: SummaryNotice[] = [];
+		if (s.server.shuttingDown) out.push({ tone: 'warn', icon: iRestart, text: 'The server is shutting down.' });
+		if (s.server.restartPending) out.push({ tone: 'warn', icon: iRestart, text: 'Jellyfin needs a restart to finish applying changes.' });
+		if (s.server.updateAvailable) out.push({ tone: 'update', text: 'A Jellyfin update is available.' });
+		return out;
 	});
 
-	/* ---------------- confirm + message dialogs ---------------- */
-	type Pending = { headline: string; body: string; confirm: string; action: JfAction; done: string; after: () => void };
-	let pending = $state<Pending | null>(null);
-	let confirmOpen = $state(false);
-	let busy = $state(false);
-
-	function ask(p: Pending) {
-		pending = p;
-		confirmOpen = true;
-	}
-
-	async function run(action: JfAction, done: string, after: () => void) {
-		busy = true;
+	/* ---------------- actions ---------------- */
+	/** Harmless actions run straight away; the snackbar says what happened. */
+	async function quick(action: Parameters<typeof act>[1], done: string, fail: string, after: () => void) {
 		const err = await act(service.id, action);
-		busy = false;
-		snackbar(err ?? done, {}, true);
+		snackbar(err ? `${fail} ${sentence(err)}` : done, {}, true);
 		after();
-		return err;
 	}
-
-	async function confirm() {
-		if (!pending) return;
-		const p = pending;
-		const err = await run(p.action, p.done, p.after);
-		if (!err) confirmOpen = false;
+	let scanning = $state<Record<string, boolean>>({});
+	async function scan(l: JfLibrary) {
+		scanning[l.id] = true;
+		await quick({ action: 'scan', library: l.id }, `Scanning ${l.name}`, `Couldn't scan ${l.name}.`, sum.refresh);
+		scanning[l.id] = false;
 	}
+	let scanningAll = $state(false);
+	async function scanAll() {
+		scanningAll = true;
+		await quick({ action: 'scanAll' }, 'Scanning all libraries', "Couldn't start the scan.", () => (sum.refresh(), man.refresh()));
+		scanningAll = false;
+	}
+	const runTask = (t: JfTask) => quick({ action: 'runTask', task: t.id }, `Started ${t.name}`, `Couldn't start ${t.name}.`, man.refresh);
 
-	const stop = (x: JfSession) =>
-		ask({
-			headline: 'Stop playback?',
-			body: `${x.user} is watching ${x.title}${x.subtitle ? ` (${x.subtitle})` : ''} on ${x.device || x.client || 'a device'}. Playback stops for them right away.`,
-			confirm: 'Stop',
-			action: { action: 'stop', session: x.id },
-			done: `Stopped playback for ${x.user}`,
-			after: now.refresh
-		});
-	const scan = (l: JfLibrary) =>
-		ask({
-			headline: `Scan ${l.name}?`,
-			body: 'Jellyfin looks for new, changed and removed files in this library. Large libraries can take a while.',
-			confirm: 'Scan',
-			action: { action: 'scan', library: l.id },
-			done: `Scanning ${l.name}`,
-			after: sum.refresh
-		});
-	const scanAll = () =>
-		ask({
-			headline: 'Scan all libraries?',
-			body: 'Jellyfin scans every library for new, changed and removed files. This can take a while and uses disk and CPU.',
-			confirm: 'Scan all',
-			action: { action: 'scanAll' },
-			done: 'Scanning all libraries',
-			after: () => (sum.refresh(), man.refresh())
-		});
-	const runTask = (t: JfTask) =>
-		ask({
-			headline: `Run ${t.name}?`,
-			body: 'The task starts now instead of waiting for its schedule.',
-			confirm: 'Run now',
-			action: { action: 'runTask', task: t.id },
-			done: `Started ${t.name}`,
-			after: man.refresh
-		});
+	// Stopping someone's playback interrupts them, so that one asks first.
+	let stopTarget = $state<JfSession | null>(null);
+	let stopOpen = $state(false);
+	function stop(x: JfSession) {
+		stopTarget = x;
+		stopOpen = true;
+	}
+	async function confirmStop(): Promise<string | null> {
+		const x = stopTarget;
+		if (!x) return null;
+		const err = await act(service.id, { action: 'stop', session: x.id });
+		if (err) return err;
+		snackbar(`Stopped playback for ${x.user}`, {}, true);
+		now.refresh();
+		return null;
+	}
 
 	let msgOpen = $state(false);
 	let msgTarget = $state<JfSession | null>(null);
 	let msgHeader = $state('');
 	let msgText = $state('');
+	let msgBusy = $state(false);
+	let msgError = $state<string | null>(null);
 	const msgValid = $derived(msgText.trim().length > 0 && msgText.length <= 500 && msgHeader.length <= 80);
 
 	function message(x: JfSession) {
 		msgTarget = x;
 		msgHeader = '';
 		msgText = '';
+		msgError = null;
 		msgOpen = true;
 	}
 	async function sendMessage() {
-		if (!msgTarget || !msgValid) return;
-		const err = await run(
-			{ action: 'message', session: msgTarget.id, header: msgHeader.trim() || undefined, text: msgText.trim() },
-			`Message sent to ${msgTarget.user}`,
-			() => {}
-		);
-		if (!err) msgOpen = false;
+		if (!msgTarget || !msgValid || msgBusy) return;
+		msgBusy = true;
+		const err = await act(service.id, { action: 'message', session: msgTarget.id, header: msgHeader.trim() || undefined, text: msgText.trim() });
+		msgBusy = false;
+		if (err) {
+			msgError = sentence(err);
+			return;
+		}
+		msgOpen = false;
+		snackbar(`Message sent to ${msgTarget.user}`, {}, true);
 	}
 </script>
 
-<div class="page">
-	<!-- Server -->
-	<section class="card server" aria-label="Server">
-		{#if s}
-			<div class="srv">
-				<div class="srv-text">
-					<h2 class="title-medium">{s.server.name}</h2>
-					<p class="body-small">{[s.server.version ? `Jellyfin ${s.server.version}` : null, s.server.os].filter(Boolean).join(' · ')}</p>
-				</div>
-			</div>
-			{#if s.server.restartPending || s.server.updateAvailable || s.server.shuttingDown}
-				<div class="flags">
-					{#if s.server.shuttingDown}<span class="flag warn"><Icon icon={iRestart} size={16} /> Shutting down</span>{/if}
-					{#if s.server.restartPending}<span class="flag warn"><Icon icon={iRestart} size={16} /> Restart pending</span>{/if}
-					{#if s.server.updateAvailable}<span class="flag"><Icon icon={iUpdate} size={16} /> Update available</span>{/if}
-				</div>
-			{/if}
-			{#if countChips.length}
-				<dl class="counts">
-					{#each countChips as [n, label] (label)}
-						<div><dt>{label}</dt><dd>{fmt.format(n)}</dd></div>
-					{/each}
-				</dl>
-			{/if}
-		{:else if sum.state.error}
-			<p class="error" role="alert">{sum.state.error}</p>
-		{:else}
-			<div class="center"><LoadingIndicator aria-label="Loading server info" /></div>
-		{/if}
-	</section>
-
-	<!-- Now playing -->
-	<section aria-labelledby="jf-now">
-		<h2 class="title-medium" id="jf-now">Now playing{sessions.length ? ` (${sessions.length})` : ''}</h2>
-		{#if now.state.data}
-			{#if sessions.length}
-				<Sessions {sessions} {isAdmin} onstop={stop} onmessage={message} />
-			{:else}
-				<p class="empty">No one is watching right now.</p>
-			{/if}
-		{:else if now.state.error}
-			<p class="error" role="alert">{now.state.error}</p>
-		{:else}
-			<div class="center"><LoadingIndicator aria-label="Loading sessions" /></div>
-		{/if}
-	</section>
-
-	<!-- Recently added -->
-	{#if s?.latest.length}
-		<section aria-labelledby="jf-latest">
-			<h2 class="title-medium" id="jf-latest">Recently added</h2>
-			<Latest items={s.latest} />
-		</section>
+{#if !s}
+	{#if sum.state.error}
+		<Empty error title={`Couldn't reach ${service.name}`} hint={sentence(sum.state.error)} onretry={() => sum.refresh()} />
+	{:else}
+		<Loading label="Loading Jellyfin" />
 	{/if}
+{:else}
+	<Summary meta={[s.server.name, s.server.version && `Jellyfin ${s.server.version}`, s.server.os]} {stats} {notices} stale={sum.state.error} />
 
-	<div class="split">
-		<!-- Libraries -->
-		<section class="card" aria-labelledby="jf-libs">
-			<div class="sec-head">
-				<h2 class="title-medium" id="jf-libs">Libraries</h2>
-				{#if isAdmin && s?.libraries.length}
-					<Button variant="tonal" onclick={scanAll}><Icon icon={iRefresh} /> Scan all</Button>
-				{/if}
-			</div>
-			{#if s}
-				{#if s.libraries.length}
-					<Libraries libraries={s.libraries} {isAdmin} onscan={scan} />
+	<ServiceTabs items={tabs} bind:tab={ui.tab}>
+		{#if ui.tab === 'playing'}
+			{#if now.state.data}
+				{#if sessions.length}
+					<Sessions {sessions} {isAdmin} onstop={stop} onmessage={message} />
 				{:else}
-					<p class="empty">No libraries yet.</p>
+					<Empty icon={iTv} title="No one is watching right now" />
 				{/if}
-			{:else if !sum.state.error}
-				<div class="center"><LoadingIndicator aria-label="Loading libraries" /></div>
-			{/if}
-		</section>
-
-		<!-- Users / tasks / activity -->
-		<section class="card" aria-label="Users, tasks and activity">
-			{#if m}
-				<Manage data={m} {isAdmin} onrun={runTask} />
-			{:else if man.state.error}
-				<p class="error" role="alert">{man.state.error}</p>
+			{:else if now.state.error}
+				<Empty error title="Couldn't load sessions" hint={sentence(now.state.error)} onretry={() => now.refresh()} />
 			{:else}
-				<div class="center"><LoadingIndicator aria-label="Loading tasks" /></div>
+				<Loading label="Loading sessions" />
 			{/if}
-		</section>
-	</div>
-</div>
+			{#if s.latest.length}
+				<Card title="Recently added">
+					<Latest items={s.latest} />
+				</Card>
+			{/if}
+		{:else if ui.tab === 'libraries'}
+			{#if s.libraries.length}
+				<Card title="Libraries" count={s.libraries.length}>
+					{#snippet actions()}
+						{#if isAdmin}
+							<Button variant="tonal" disabled={scanningAll} onclick={scanAll}><Icon icon={iRefresh} /> Scan all</Button>
+						{/if}
+					{/snippet}
+					<Libraries libraries={s.libraries.map((l) => (scanning[l.id] ? { ...l, scanning: true } : l))} {isAdmin} onscan={scan} />
+				</Card>
+			{:else}
+				<Empty icon={iFolder} title="No libraries yet" hint="Add libraries in Jellyfin's dashboard." />
+			{/if}
+		{:else if m}
+			<Card>
+				<Manage data={m} view={ui.tab === 'users' ? 'users' : ui.tab === 'activity' ? 'activity' : 'tasks'} {isAdmin} onrun={runTask} />
+			</Card>
+		{:else if man.state.error}
+			<Empty error title="Couldn't load this" hint={sentence(man.state.error)} onretry={() => man.refresh()} />
+		{:else}
+			<Loading />
+		{/if}
+	</ServiceTabs>
+{/if}
 
-<Dialog headline={pending?.headline ?? ''} bind:open={confirmOpen}>
-	<p class="dlg">{pending?.body}</p>
-	{#snippet buttons()}
-		<Button variant="text" onclick={() => (confirmOpen = false)}>Cancel</Button>
-		<Button variant="filled" disabled={busy || !pending} onclick={confirm}>{pending?.confirm ?? 'OK'}</Button>
-	{/snippet}
-</Dialog>
+<ConfirmDialog bind:open={stopOpen} headline="Stop playback?" confirm="Stop" danger onconfirm={confirmStop}>
+	{#if stopTarget}
+		<p>
+			{stopTarget.user} is watching {stopTarget.title}{stopTarget.subtitle ? ` (${stopTarget.subtitle})` : ''} on {stopTarget.device || stopTarget.client || 'a device'}.
+			Playback stops for them right away.
+		</p>
+	{/if}
+</ConfirmDialog>
 
 <Dialog headline="Send a message" bind:open={msgOpen}>
 	<p class="dlg">Shows on {msgTarget?.user ?? 'their'}'s screen ({msgTarget?.device || msgTarget?.client || 'device'}) for 10 seconds.</p>
@@ -228,117 +212,26 @@
 		<TextField label="Title (optional)" bind:value={msgHeader} maxlength={80} autocomplete="off" />
 		<TextFieldMultiline label="Message" bind:value={msgText} maxlength={500} required />
 	</div>
+	{#if msgError}<p class="err" role="alert">{msgError}</p>{/if}
 	{#snippet buttons()}
 		<Button variant="text" onclick={() => (msgOpen = false)}>Cancel</Button>
-		<Button variant="filled" disabled={busy || !msgValid} onclick={sendMessage}>Send</Button>
+		<Button variant="filled" disabled={msgBusy || !msgValid} onclick={sendMessage}>Send</Button>
 	{/snippet}
 </Dialog>
 
 <style>
-	.page {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 1.25rem;
-	}
-	section {
-		min-width: 0;
-	}
-	h2 {
-		margin: 0 0 0.5rem;
-	}
-	.card {
-		padding: 1rem;
-		border-radius: var(--radius-l, 1rem);
-		background: var(--m3c-surface-container-low);
-	}
-	.srv h2 {
-		margin: 0;
-	}
-	.srv p {
-		margin: 0.125rem 0 0;
-		color: var(--m3c-on-surface-variant);
-	}
-	.flags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		margin-top: 0.75rem;
-	}
-	.flag {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		padding: 0.25rem 0.625rem;
-		border-radius: 0.5rem;
-		font-size: 0.8125rem;
-		font-weight: 500;
-		background: var(--m3c-secondary-container);
-		color: var(--m3c-on-secondary-container);
-	}
-	.flag.warn {
-		background: var(--m3c-tertiary-container);
-		color: var(--m3c-on-tertiary-container);
-	}
-	.counts {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(min(100%, 5.5rem), 1fr));
-		gap: 0.75rem;
-		margin: 1rem 0 0;
-	}
-	.counts div {
-		min-width: 0;
-	}
-	.counts dt {
-		font-size: 0.75rem;
-		color: var(--m3c-on-surface-variant);
-	}
-	.counts dd {
-		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 500;
-		font-variant-numeric: tabular-nums;
-	}
-	.split {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 1.25rem;
-		align-items: start;
-	}
-	@media (width >= 64rem) {
-		.split {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		}
-	}
-	.sec-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		margin-bottom: 0.25rem;
-	}
-	.sec-head h2 {
-		margin: 0;
-	}
-	.center {
-		display: grid;
-		place-items: center;
-		padding: 2rem 0;
-	}
-	.empty {
-		margin: 0;
-		color: var(--m3c-on-surface-variant);
-	}
-	.error {
-		margin: 0;
-		color: var(--m3c-error);
-		font-size: 0.875rem;
-	}
 	.dlg {
 		margin: 0 0 0.75rem;
 		overflow-wrap: anywhere;
 	}
+	.err {
+		margin: 0.75rem 0 0;
+		color: var(--m3c-error);
+		font-size: 0.875rem;
+	}
 	.fields {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.75rem;
 	}
 	.fields :global(.m3-container) {

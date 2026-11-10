@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, Chip, Dialog, Icon, LoadingIndicator, Tabs, snackbar } from 'm3-svelte';
+	import { Button, Chip, Icon, snackbar } from 'm3-svelte';
 	import iTv from '@ktibow/iconset-material-symbols/tv-rounded';
 	import iMovie from '@ktibow/iconset-material-symbols/movie-rounded';
 	import iSearchAll from '@ktibow/iconset-material-symbols/travel-explore-rounded';
@@ -7,13 +7,23 @@
 	import iWarning from '@ktibow/iconset-material-symbols/warning-rounded';
 	import iOk from '@ktibow/iconset-material-symbols/check-circle-rounded';
 	import iWait from '@ktibow/iconset-material-symbols/hourglass-rounded';
+	import iCc from '@ktibow/iconset-material-symbols/closed-caption-rounded';
+	import iLang from '@ktibow/iconset-material-symbols/translate-rounded';
 	import { live } from '$lib/live.svelte';
 	import { ago } from '$lib/format';
 	import type { ServicePageProps } from '../types';
+	import Summary from '../shared/Summary.svelte';
+	import ServiceTabs from '../shared/ServiceTabs.svelte';
+	import Empty from '../shared/Empty.svelte';
+	import Loading from '../shared/Loading.svelte';
+	import ConfirmDialog from '../shared/ConfirmDialog.svelte';
+	import { sentence } from '../shared/format';
+	import type { SummaryNotice } from '../shared/types';
 	import Wanted from './Wanted.svelte';
 	import History from './History.svelte';
 	import LangTags from './LangTags.svelte';
 	import { bazarrAct } from './api';
+	import { providerIssue, providerName } from './providers';
 	import type { BazarrKind, BazarrOverview } from './types';
 
 	let { service, isAdmin }: ServicePageProps = $props();
@@ -28,12 +38,12 @@
 	let historyPage = $state(1);
 
 	const issues = $derived(o?.providers.filter((p) => p.issue) ?? []);
-	const tabs = $derived([
+	const tabs = [
 		{ name: 'Wanted', value: 'wanted' },
 		{ name: 'History', value: 'history' },
-		{ name: issues.length ? `Providers (${issues.length})` : 'Providers', value: 'providers' },
+		{ name: 'Providers', value: 'providers' },
 		{ name: 'Profiles', value: 'profiles' }
-	]);
+	];
 
 	function setKind(k: BazarrKind) {
 		if (kind === k) return;
@@ -41,272 +51,163 @@
 		wantedPage = 1;
 		historyPage = 1;
 	}
+	function showWanted(k: BazarrKind) {
+		setKind(k);
+		tab = 'wanted';
+	}
 
 	const started = $derived(o?.startTime ? ago(new Date(o.startTime * 1000).toISOString()) : null);
-	const syncDown = $derived(
-		[o?.sonarrVersion && o.sonarrSignalr === 'DOWN' ? 'Sonarr' : null, o?.radarrVersion && o.radarrSignalr === 'DOWN' ? 'Radarr' : null].filter(Boolean)
-	);
+	const notices = $derived.by((): SummaryNotice[] => {
+		if (!o) return [];
+		const out: SummaryNotice[] = [];
+		for (const [app, version, sig] of [
+			['Sonarr', o.sonarrVersion, o.sonarrSignalr],
+			['Radarr', o.radarrVersion, o.radarrSignalr]
+		] as const) {
+			if (version && sig === 'DOWN') out.push({ tone: 'warn', text: `Live sync with ${app} is down, so new ${app === 'Sonarr' ? 'episodes' : 'movies'} reach Bazarr late.` });
+		}
+		for (const h of o.health) out.push({ tone: 'warn', source: h.object, text: h.issue });
+		if (o.errors.length) out.push({ tone: 'warn', text: `Some parts didn't load (${o.errors.map((e) => e.split(':')[0]).join(', ')}). Trying again shortly.` });
+		return out;
+	});
+	const wantedCount = $derived(o ? o.wanted[kind] : 0);
 
 	// Confirm dialogs
 	let confirm = $state<'searchAll' | 'reset' | null>(null);
 	let confirmOpen = $state(false);
-	let busy = $state(false);
 	function ask(what: 'searchAll' | 'reset') {
 		confirm = what;
 		confirmOpen = true;
 	}
-	async function run() {
-		if (!confirm) return;
-		busy = true;
+	async function run(): Promise<string | null> {
+		if (!confirm) return null;
 		const r = await bazarrAct(service.id, confirm === 'reset' ? { action: 'resetProviders' } : { action: 'searchAll', kind });
-		busy = false;
-		confirmOpen = false;
+		if (!r.ok) return r.message;
 		snackbar(r.message, {}, true);
 		ov.refresh();
+		return null;
 	}
 </script>
 
 {#if !o}
 	{#if ov.state.error}
-		<p class="error" role="alert">{ov.state.error}</p>
+		<Empty error title={`Couldn't reach ${service.name}`} hint={sentence(ov.state.error)} onretry={() => ov.refresh()} />
 	{:else}
-		<div class="center"><LoadingIndicator aria-label="Loading Bazarr" /></div>
+		<Loading label="Loading Bazarr" />
 	{/if}
 {:else}
-	<section class="status" aria-label="Status">
-		<div class="head">
-			<span class="ver">{o.version ? `Bazarr ${o.version.replace(/^v/, '')}` : 'Bazarr'}</span>
-			{#if started}<span class="muted">Started {started}</span>{/if}
-		</div>
-		<div class="stats">
-			<button class="stat" class:hot={o.wanted.episodes > 0} onclick={() => ((tab = 'wanted'), setKind('episodes'))}>
-				<span class="num">{o.wanted.episodes}</span>
-				<span class="lbl">Episode subs missing</span>
-			</button>
-			<button class="stat" class:hot={o.wanted.movies > 0} onclick={() => ((tab = 'wanted'), setKind('movies'))}>
-				<span class="num">{o.wanted.movies}</span>
-				<span class="lbl">Movie subs missing</span>
-			</button>
-			<button class="stat" class:bad={issues.length > 0} onclick={() => (tab = 'providers')}>
-				<span class="num">{issues.length}</span>
-				<span class="lbl">Provider issues</span>
-			</button>
-		</div>
-		{#if o.health.length || syncDown.length}
-			<ul class="health">
-				{#each syncDown as name (name)}
-					<li><Icon icon={iWarning} size={18} /><span>{name} live sync is down</span></li>
-				{/each}
-				{#each o.health as h, i (i)}
-					<li><Icon icon={iWarning} size={18} /><span><b>{h.object}</b> {h.issue}</span></li>
-				{/each}
-			</ul>
-		{/if}
-		{#if o.errors.length}
-			<p class="partial">Some parts didn't load — {o.errors.join('; ')}</p>
-		{/if}
-	</section>
+	<Summary
+		meta={[o.version ? `Bazarr ${o.version.replace(/^v/, '')}` : 'Bazarr', started && `Started ${started}`]}
+		stats={[
+			{ value: o.wanted.episodes.toLocaleString(), label: 'Episodes missing', tone: o.wanted.episodes ? 'info' : undefined, onclick: () => showWanted('episodes') },
+			{ value: o.wanted.movies.toLocaleString(), label: 'Movies missing', tone: o.wanted.movies ? 'info' : undefined, onclick: () => showWanted('movies') },
+			{ value: issues.length, label: 'Provider issues', tone: issues.length ? 'bad' : undefined, onclick: () => (tab = 'providers') }
+		]}
+		{notices}
+		stale={ov.state.error}
+	/>
 
-	<Tabs items={tabs} bind:tab secondary />
-
-	<div class="content" data-pager-top>
+	<ServiceTabs items={tabs} bind:tab>
 		{#if tab === 'wanted' || tab === 'history'}
 			<div class="toolbar">
 				<div class="chips" role="group" aria-label="Media type">
 					<Chip variant="general" icon={iTv} selected={kind === 'episodes'} onclick={() => setKind('episodes')}>Episodes</Chip>
 					<Chip variant="general" icon={iMovie} selected={kind === 'movies'} onclick={() => setKind('movies')}>Movies</Chip>
 				</div>
-				{#if tab === 'wanted' && isAdmin}
+				{#if tab === 'wanted' && isAdmin && wantedCount > 0}
 					<Button variant="tonal" onclick={() => ask('searchAll')}><Icon icon={iSearchAll} /> Search all</Button>
 				{/if}
 			</div>
 			{#if tab === 'wanted'}
 				{#key `${kind}:${wantedPage}`}
-					<Wanted serviceId={service.id} {kind} bind:page={wantedPage} {isAdmin} onchange={() => ov.refresh()} />
+					<Wanted serviceId={service.id} {kind} page={wantedPage} onpage={(p) => (wantedPage = p)} {isAdmin} onchange={() => ov.refresh()} />
 				{/key}
 			{:else}
 				{#key `${kind}:${historyPage}`}
-					<History serviceId={service.id} {kind} bind:page={historyPage} />
+					<History serviceId={service.id} {kind} page={historyPage} onpage={(p) => (historyPage = p)} />
 				{/key}
 			{/if}
 		{:else if tab === 'providers'}
-			{#if isAdmin && o.providers.length}
-				<div class="toolbar end">
-					<Button variant="tonal" onclick={() => ask('reset')}><Icon icon={iReset} /> Reset providers</Button>
-				</div>
-			{/if}
 			{#if o.providers.length === 0}
-				<p class="empty">No subtitle providers are enabled in Bazarr.</p>
+				<Empty icon={iCc} title="No subtitle providers enabled" hint="Turn providers on in Bazarr's settings." />
 			{:else}
+				{#if isAdmin && issues.length}
+					<div class="toolbar">
+						<p class="muted">{issues.length} provider{issues.length === 1 ? ' is' : 's are'} paused. Bazarr retries on its own, or reset them now.</p>
+						<Button variant="tonal" onclick={() => ask('reset')}><Icon icon={iReset} /> Reset providers</Button>
+					</div>
+				{/if}
 				<ul class="list">
 					{#each o.providers as p (p.name)}
 						<li class="row" class:bad={p.issue}>
 							<span class="pic">
 								{#if p.issue}<Icon icon={iWarning} size={20} />{:else}<Icon icon={iOk} size={20} />{/if}
 							</span>
-							<span class="pname">{p.name}</span>
-							<span class="pstate">
+							<span class="pbody">
+								<span class="pname">{providerName(p.name)}</span>
 								{#if p.issue}
-									<span class="reason">{p.issue}</span>
-									{#if p.until}<span class="until"><Icon icon={iWait} size={14} /> {p.until}</span>{/if}
+									<span class="reason" title={p.issue}>{providerIssue(p.issue)}</span>
+									{#if p.until}<span class="until"><Icon icon={iWait} size={14} /> Retrying {p.until}</span>{/if}
 								{:else}
-									Good
+									<span class="good">Working</span>
 								{/if}
 							</span>
 						</li>
 					{/each}
 				</ul>
 			{/if}
+		{:else if o.profiles.length === 0}
+			<Empty icon={iLang} title="No languages profiles yet" hint="Create one in Bazarr's settings." />
 		{:else}
-			{#if o.profiles.length === 0}
-				<p class="empty">No languages profiles yet. Create one in Bazarr's settings.</p>
-			{:else}
-				<ul class="profiles">
-					{#each o.profiles as p (p.id)}
-						<li class="profile">
-							<div class="pn">{p.name}</div>
-							<LangTags langs={p.languages} />
-							{#if p.cutoff}<div class="muted small">Cutoff: {p.cutoff}</div>{/if}
-						</li>
-					{/each}
-				</ul>
-			{/if}
+			<ul class="profiles">
+				{#each o.profiles as p (p.id)}
+					<li class="profile">
+						<div class="pn">{p.name}</div>
+						<LangTags langs={p.languages} />
+						{#if p.cutoff}<div class="muted small">Cutoff: {p.cutoff}</div>{/if}
+					</li>
+				{/each}
+			</ul>
 		{/if}
-	</div>
+	</ServiceTabs>
 {/if}
 
-<Dialog headline={confirm === 'reset' ? 'Reset providers?' : `Search all wanted ${kind}?`} bind:open={confirmOpen}>
+<ConfirmDialog
+	bind:open={confirmOpen}
+	headline={confirm === 'reset' ? 'Reset providers?' : `Search all wanted ${kind}?`}
+	confirm={confirm === 'reset' ? 'Reset' : 'Search'}
+	onconfirm={run}
+>
 	{#if confirm === 'reset'}
-		Clears every throttled or blocked provider in Bazarr so they're used again right away.
+		<p>Clears every throttled or blocked provider in Bazarr so they're used again right away.</p>
 	{:else}
-		Bazarr will search its providers for every {kind === 'episodes' ? 'episode' : 'movie'} missing subtitles. This runs in the background and can take a while.
+		<p>Bazarr searches its providers for every {kind === 'episodes' ? 'episode' : 'movie'} missing subtitles ({wantedCount.toLocaleString()}). This runs in the background and can take a while.</p>
 	{/if}
-	{#snippet buttons()}
-		<Button variant="text" onclick={() => (confirmOpen = false)}>Cancel</Button>
-		<Button variant="tonal" disabled={busy} onclick={run}>{confirm === 'reset' ? 'Reset' : 'Search'}</Button>
-	{/snippet}
-</Dialog>
+</ConfirmDialog>
 
 <style>
-	.center {
-		display: grid;
-		place-items: center;
-		padding: 3rem 0;
-	}
-	.error,
-	.partial {
-		color: var(--m3c-error);
-		font-size: 0.875rem;
-		margin: 0;
-	}
 	.muted {
+		margin: 0;
 		color: var(--m3c-on-surface-variant);
+		font-size: 0.875rem;
 	}
 	.small {
 		font-size: 0.8125rem;
-	}
-	.status {
-		display: grid;
-		gap: 0.75rem;
-		padding: 1rem;
-		margin-bottom: 0.75rem;
-		border-radius: var(--radius-l, 1rem);
-		background: var(--m3c-surface-container-low);
-	}
-	.head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 0.25rem 1rem;
-	}
-	.ver {
-		font-weight: 500;
-	}
-	.head .muted {
-		font-size: 0.875rem;
-	}
-	.stats {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.5rem;
-	}
-	.stat {
-		all: unset;
-		box-sizing: border-box;
-		cursor: pointer;
-		display: grid;
-		gap: 0.125rem;
-		padding: 0.625rem 0.75rem;
-		border-radius: var(--radius-m, 0.75rem);
-		background: var(--m3c-surface-container-high);
-		min-width: 0;
-	}
-	.stat:focus-visible {
-		outline: 2px solid var(--m3c-primary);
-		outline-offset: 2px;
-	}
-	.stat .num {
-		font-size: 1.5rem;
-		line-height: 2rem;
-		font-weight: 500;
-		font-variant-numeric: tabular-nums;
-	}
-	.stat .lbl {
-		font-size: 0.75rem;
-		line-height: 1rem;
-		color: var(--m3c-on-surface-variant);
-	}
-	.stat.hot .num {
-		color: var(--m3c-primary);
-	}
-	.stat.bad {
-		background: var(--m3c-error-container);
-	}
-	.stat.bad .num,
-	.stat.bad .lbl {
-		color: var(--m3c-on-error-container);
-	}
-	.health {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		gap: 0.375rem;
-		font-size: 0.875rem;
-	}
-	.health li {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.5rem;
-		align-items: start;
-		color: var(--m3c-on-surface);
-		overflow-wrap: anywhere;
-	}
-	.health li :global(svg) {
-		color: var(--m3c-error);
-		margin-top: 0.0625rem;
-	}
-	.content {
-		padding-top: 1rem;
 	}
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
-		margin-bottom: 0.75rem;
+		gap: 0.5rem 1rem;
 	}
-	.toolbar.end {
-		justify-content: flex-end;
+	.toolbar p {
+		flex: 1 1 14rem;
+		min-width: 0;
 	}
 	.chips {
 		display: flex;
 		gap: 0.5rem;
-	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
 	}
 	.list,
 	.profiles {
@@ -314,15 +215,19 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.25rem;
+	}
+	.list {
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
 	}
 	.row {
 		display: grid;
-		grid-template-columns: auto minmax(0, 1fr) auto;
-		align-items: center;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: start;
 		gap: 0.75rem;
 		padding: 0.75rem;
-		border-radius: var(--radius-m, 0.75rem);
+		border-radius: var(--radius-m);
 		background: var(--m3c-surface-container-low);
 	}
 	.pic {
@@ -332,22 +237,25 @@
 	.row.bad .pic {
 		color: var(--m3c-error);
 	}
+	.pbody {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.125rem;
+		min-width: 0;
+	}
 	.pname {
 		font-weight: 500;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.pstate {
-		display: grid;
-		justify-items: end;
-		gap: 0.125rem;
+	.good,
+	.until {
 		font-size: 0.8125rem;
 		color: var(--m3c-on-surface-variant);
-		text-align: right;
-		max-width: 12rem;
 	}
 	.reason {
+		font-size: 0.8125rem;
 		color: var(--m3c-error);
 		overflow-wrap: anywhere;
 	}
@@ -362,14 +270,16 @@
 	}
 	.profile {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.5rem;
 		align-content: start;
 		padding: 0.875rem 1rem;
-		border-radius: var(--radius-m, 0.75rem);
+		border-radius: var(--radius-m);
 		background: var(--m3c-surface-container-low);
 		min-width: 0;
 	}
 	.pn {
 		font-weight: 500;
+		overflow-wrap: anywhere;
 	}
 </style>

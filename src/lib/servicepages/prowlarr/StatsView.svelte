@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { LoadingIndicator } from 'm3-svelte';
+	import iChart from '@ktibow/iconset-material-symbols/bar-chart-rounded';
+	import Empty from '../shared/Empty.svelte';
+	import Loading from '../shared/Loading.svelte';
+	import { sentence } from '../shared/format';
 	import { live } from '$lib/live.svelte';
 	import type { IndexerStat, StatsResponse } from './types';
 	import { compact } from './api';
@@ -31,9 +34,9 @@
 
 {#if !s.state.data}
 	{#if s.state.error}
-		<p class="error" role="alert">{s.state.error}</p>
+		<Empty error title="Couldn't load stats" hint={sentence(s.state.error)} onretry={() => s.refresh()} />
 	{:else}
-		<div class="center"><LoadingIndicator aria-label="Loading stats" /></div>
+		<Loading label="Loading stats" />
 	{/if}
 {:else}
 	<div class="tiles">
@@ -44,7 +47,7 @@
 	</div>
 
 	{#if rows.length === 0}
-		<p class="empty">No indexer activity in this range.</p>
+		<Empty icon={iChart} title="No indexer activity in this range" />
 	{:else}
 		<ul class="bars">
 			{#each rows as x (x.indexerId)}
@@ -76,6 +79,7 @@
 	}
 	.tile {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.125rem;
 		padding: 0.75rem 1rem;
 		border-radius: var(--radius-m);
@@ -138,16 +142,5 @@
 	}
 	.fill.fail {
 		background: var(--m3c-error);
-	}
-	.center {
-		display: grid;
-		place-items: center;
-		padding: 2rem 0;
-	}
-	.empty {
-		color: var(--m3c-on-surface-variant);
-	}
-	.error {
-		color: var(--m3c-error);
 	}
 </style>

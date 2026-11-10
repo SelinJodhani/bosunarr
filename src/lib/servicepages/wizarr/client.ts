@@ -29,7 +29,8 @@ export async function copyText(text: string): Promise<boolean> {
 		ta.setAttribute('readonly', '');
 		ta.style.position = 'fixed';
 		ta.style.opacity = '0';
-		document.body.appendChild(ta);
+		// Inside a modal dialog everything else is inert, so the textarea must live in the dialog.
+		(document.querySelector('dialog[open]') ?? document.body).appendChild(ta);
 		ta.select();
 		const ok = document.execCommand('copy');
 		ta.remove();
