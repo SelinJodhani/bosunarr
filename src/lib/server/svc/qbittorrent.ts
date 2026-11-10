@@ -113,7 +113,14 @@ function prefs(s: ServiceRecord) {
 
 const sortStr = (a: Iterable<string>) => [...a].sort((x, y) => x.localeCompare(y));
 
-export function overview(s: ServiceRecord): Promise<QbitOverview> {
+/** Host paths are only for admins; everything else is the same for every signed-in user. */
+export async function overview(s: ServiceRecord, isAdmin: boolean): Promise<QbitOverview> {
+	const o = await overviewCached(s);
+	if (isAdmin || !o.prefs) return o;
+	return { ...o, prefs: { ...o.prefs, savePath: null, tempPath: null } };
+}
+
+function overviewCached(s: ServiceRecord): Promise<QbitOverview> {
 	return cached(`svc:qb:${s.id}:main`, 1_500, async () => {
 		const [st, ver, p] = await Promise.all([sync(s), versions(s).catch(() => ({ version: null, webApiVersion: null })), prefs(s).catch(() => null)]);
 		return {
@@ -128,14 +135,27 @@ export function overview(s: ServiceRecord): Promise<QbitOverview> {
 	});
 }
 
-/** Turn alternative speed limits on or off. Idempotent: only toggles when the current mode differs. */
+const form = (fields: Record<string, string>): RequestInit => ({
+	method: 'POST',
+	headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+	body: new URLSearchParams(fields)
+});
+
+/**
+ * Turn alternative speed limits on or off.
+ * qBittorrent 5+ has `setSpeedLimitsMode`, which sets the mode directly (two clicks can't cancel out).
+ * Older versions only have a toggle, so read the mode first and toggle only when it differs.
+ */
 export async function setAltSpeed(s: ServiceRecord, body: unknown): Promise<{ ok: true; altSpeed: boolean }> {
 	const enabled = (body as { enabled?: unknown } | null)?.enabled;
 	if (typeof enabled !== 'boolean') throw new ServiceError('enabled must be true or false', 400);
-	const mode = String(await call<unknown>(s, '/api/v2/transfer/speedLimitsMode')).trim();
-	if (mode !== '0' && mode !== '1') throw new ServiceError(`${s.name} sent an unexpected response`, 502);
-	if ((mode === '1') !== enabled) {
-		await call(s, '/api/v2/transfer/toggleSpeedLimitsMode', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: '' });
+	try {
+		await call(s, '/api/v2/transfer/setSpeedLimitsMode', form({ mode: enabled ? '1' : '0' }));
+	} catch (e) {
+		if (!(e instanceof ServiceError && e.status === 404)) throw e;
+		const mode = String(await call<unknown>(s, '/api/v2/transfer/speedLimitsMode')).trim();
+		if (mode !== '0' && mode !== '1') throw new ServiceError(`${s.name} sent an unexpected response`, 502);
+		if ((mode === '1') !== enabled) await call(s, '/api/v2/transfer/toggleSpeedLimitsMode', form({}));
 	}
 	invalidate(`svc:qb:${s.id}:`);
 	return { ok: true, altSpeed: enabled };

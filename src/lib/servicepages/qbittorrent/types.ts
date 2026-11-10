@@ -23,7 +23,9 @@ export type QbitTransfer = {
 };
 
 export type QbitPrefs = {
-	savePath: string;
+	/** null for non-admins (host paths stay private) */
+	savePath: string | null;
+	/** null when disabled, or for non-admins */
 	tempPath: string | null;
 	queueing: boolean;
 	maxActiveDownloads: number;

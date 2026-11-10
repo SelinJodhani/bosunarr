@@ -230,11 +230,13 @@
 				</dl>
 				{#if o.prefs}
 					{@const p = o.prefs}
-					<h2 class="h-small">Downloads</h2>
-					<dl class="kv">
-						<dt>Save path</dt><dd class="path">{p.savePath || '—'}</dd>
-						{#if p.tempPath}<dt>Incomplete</dt><dd class="path">{p.tempPath}</dd>{/if}
-					</dl>
+					{#if p.savePath !== null}
+						<h2 class="h-small">Downloads</h2>
+						<dl class="kv">
+							<dt>Save path</dt><dd class="path">{p.savePath || '—'}</dd>
+							{#if p.tempPath}<dt>Incomplete</dt><dd class="path">{p.tempPath}</dd>{/if}
+						</dl>
+					{/if}
 					<h2 class="h-small">Queueing</h2>
 					<dl class="kv">
 						{#if p.queueing}
@@ -265,6 +267,8 @@
 	</div>
 
 	{#if client && !client.error}<AddTorrent bind:open={addOpen} clients={[client]} />{/if}
+{:else}
+	<p class="error" role="alert">{ov.state.error ?? 'qBittorrent sent no transfer data. Try reloading.'}</p>
 {/if}
 
 <style>
