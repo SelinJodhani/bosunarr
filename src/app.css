@@ -105,17 +105,18 @@ a.m3-container.text[aria-disabled='true'] {
 	background-color: transparent;
 }
 
-/* Destructive actions: <Button data-danger …> */
-button.m3-container.filled[data-danger]:not(:disabled) {
+/* Destructive actions: <Button data-danger …>. `:root` lifts specificity to (0,5,1) so it beats m3-svelte's
+   `.m3-container.svelte-x.filled:not(:disabled, :has(> input:disabled))` (0,4,1) regardless of CSS order. */
+:root button.m3-container.filled[data-danger]:not(:disabled) {
 	background-color: var(--m3c-error);
 	color: var(--m3c-on-error);
 }
-button.m3-container.tonal[data-danger]:not(:disabled) {
+:root button.m3-container.tonal[data-danger]:not(:disabled) {
 	background-color: var(--m3c-error-container);
 	color: var(--m3c-on-error-container);
 }
-button.m3-container.text[data-danger]:not(:disabled),
-button.m3-container.outlined[data-danger]:not(:disabled) {
+:root button.m3-container.text[data-danger]:not(:disabled),
+:root button.m3-container.outlined[data-danger]:not(:disabled) {
 	color: var(--m3c-error);
 }
 
