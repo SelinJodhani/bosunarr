@@ -5,7 +5,9 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter({ out: 'build', precompress: true })
+		adapter: adapter({ out: 'build', precompress: true }),
+		// Inline small per-component stylesheets: a cold load on a phone fetched 13 render-blocking CSS files.
+		inlineStyleThreshold: 6144
 	}
 };
 
