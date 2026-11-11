@@ -247,7 +247,7 @@ private fun MediaContent(nav: NavController, s: ServiceConfig, type: String, id:
                         if (cast.isNotEmpty()) item(key = "cast") { CastRow(s, cast) }
                         item(key = "details") { DetailsCard(m, onOpen = { url -> runCatching { uri.openUri(url) } }) }
                     }
-                    loader.state.error != null -> item(key = "error") { ErrorBox(loader.state.error!!, onRetry = { loader.refresh() }) }
+                    loader.state.error != null -> item(key = "error") { ErrorBox(loader.state.error!!, Modifier.fillParentMaxSize(), onRetry = { loader.refresh() }) }
                     else -> item(key = "skeleton") { DetailSkeleton() }
                 }
                 related.value?.let { (recs, similar) ->

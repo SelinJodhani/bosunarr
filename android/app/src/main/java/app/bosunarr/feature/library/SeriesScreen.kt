@@ -200,7 +200,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                     )
                 }
                 when {
-                    d == null && state.error != null -> item("error") { ErrorBox(state.error, onRetry = { loader.refresh() }) }
+                    d == null && state.error != null -> item("error") { ErrorBox(state.error, Modifier.fillParentMaxSize(), onRetry = { loader.refresh() }) }
                     d == null || x == null -> item("loading") { LoadingBox() }
                     else -> {
                         item("actions") {

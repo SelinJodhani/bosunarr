@@ -342,7 +342,7 @@ private fun SearchTab(s: ServiceConfig, hub: RefreshHub) {
         }
         when {
             loader == null || st == null -> item("hint") {
-                MessageBox(Icons.Rounded.TravelExplore, "Search your indexers", hint = "Results come straight from Prowlarr. Grabbing sends the release to Prowlarr's download client.", scene = SeaScene.Spyglass)
+                MessageBox(Icons.Rounded.TravelExplore, "Search your indexers", hint = "Results come straight from Prowlarr. Grabbing sends the release to Prowlarr's download client.", scene = SeaScene.Spyglass, fullBleed = false)
             }
             sorted != null -> {
                 item("head") {

@@ -169,6 +169,10 @@ fun rememberReducedMotion(): Boolean {
 internal enum class Ink {
     Sea, SeaDeep, Wave, WaveSoft, Foam, Sail, SailShade, Hull, HullStripe, Sun, Glow, Star, Accent, Bolt,
     Rock, RockShade, Wood, WoodShade, Paper, PaperShade, PaperLine, Glass, Cloud, Cloud2, Fog, Bird, Weed, Shade,
+    /** Full-bleed only: the moon, lighthouse beams, sun glints on the water, a sandbar. */
+    Moon, Beam, Glint, Sand,
+    /** Full-bleed only: marker for "draw the front water surface here" (see [SeaBackdrop]). */
+    Water,
 }
 
 /** How a layer moves. Every period divides [LOOP] so the whole scene loops seamlessly. */
@@ -234,7 +238,7 @@ private fun compiled(scene: SeaScene): Compiled = cache.getOrPut(scene) {
 /* ================================================================ motion */
 
 /** Per-frame transform of one layer; reused so drawing a frame allocates nothing. */
-private class Pose {
+internal class Pose {
     var dx = 0f; var dy = 0f; var rot = 0f; var alpha = 1f; var swing = false
 
     /** [t] in seconds within the loop; negative means "no motion": the static mid-pose. */
@@ -269,7 +273,7 @@ private class Pose {
     }
 }
 
-private fun DrawScope.drawPosed(path: Path, color: Color, alpha: Float, style: DrawStyle, pose: Pose, pivot: Offset) {
+internal fun DrawScope.drawPosed(path: Path, color: Color, alpha: Float, style: DrawStyle, pose: Pose, pivot: Offset) {
     if (pose.dx == 0f && pose.dy == 0f && pose.rot == 0f) {
         drawPath(path, color, alpha, style)
     } else {
@@ -283,10 +287,16 @@ private fun DrawScope.drawPosed(path: Path, color: Color, alpha: Float, style: D
 /* ================================================================ palette */
 
 /** Resolves every [Ink] role from a colour scheme once (see the table at the top of the file). */
-internal class SeaPalette(c: ColorScheme) {
-    private val dark = c.surface.luminance() < 0.5f
+internal class SeaPalette(c: ColorScheme, fullBleed: Boolean = false) {
+    val dark = c.surface.luminance() < 0.5f
     val backdrop: Color = if (dark) lerp(c.surfaceContainerHigh, c.primaryContainer, 0.35f) else lerp(c.surface, c.primaryContainer, 0.55f)
-    private val inks = Array(Ink.entries.size) { i -> resolve(Ink.entries[i], c) }
+    private val inks = Array(Ink.entries.size) { i -> resolve(Ink.entries[i], c) }.also {
+        // On a full-bleed sea the water is darker than the disc backdrop: lift hulls so they don't sink into it.
+        if (fullBleed && dark) {
+            it[Ink.Hull.ordinal] = lerp(c.primary, c.onSurface, 0.1f)
+            it[Ink.HullStripe.ordinal] = lerp(c.primaryContainer, c.surface, 0.2f)
+        }
+    }
 
     operator fun get(ink: Ink): Color = inks[ink.ordinal]
 
@@ -317,6 +327,11 @@ internal class SeaPalette(c: ColorScheme) {
         Ink.Bird -> lerp(c.onSurfaceVariant, c.primary, 0.3f)
         Ink.Weed -> lerp(c.primary, c.tertiary, 0.3f)
         Ink.Shade -> c.scrim
+        Ink.Moon -> lerp(c.tertiary, c.onSurface, 0.4f)
+        Ink.Beam -> lerp(c.tertiaryContainer, c.tertiary, 0.3f)
+        Ink.Glint -> lerp(c.tertiary, c.onSurface, 0.3f)
+        Ink.Sand -> lerp(c.tertiaryContainer, c.outline, 0.25f)
+        Ink.Water -> c.primaryContainer
     } else when (ink) {
         Ink.Sea -> lerp(c.primaryContainer, c.primary, 0.38f)
         Ink.SeaDeep -> lerp(c.primaryContainer, c.primary, 0.55f)
@@ -341,6 +356,11 @@ internal class SeaPalette(c: ColorScheme) {
         Ink.Bird -> lerp(c.onSurfaceVariant, c.primary, 0.4f)
         Ink.Weed -> lerp(c.primary, c.tertiary, 0.25f)
         Ink.Shade -> c.onSurface
+        Ink.Moon -> lerp(c.tertiaryContainer, c.surface, 0.3f)
+        Ink.Beam -> c.tertiaryContainer
+        Ink.Glint -> c.surface
+        Ink.Sand -> lerp(c.tertiaryContainer, c.surfaceVariant, 0.5f)
+        Ink.Water -> c.primaryContainer
     }
 }
 

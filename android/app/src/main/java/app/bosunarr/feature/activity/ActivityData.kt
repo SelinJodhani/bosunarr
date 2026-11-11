@@ -24,6 +24,7 @@ import app.bosunarr.feature.activity.queue.QueueEntry
 import app.bosunarr.net.fanOut
 import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.ErrorBox
+import app.bosunarr.ui.common.FullScreenScroll
 import app.bosunarr.ui.common.Loader
 import app.bosunarr.ui.common.LoadingBox
 import kotlinx.coroutines.Dispatchers
@@ -83,7 +84,7 @@ fun <T> PolledContent(loader: Loader<T>, modifier: Modifier = Modifier, content:
         val value = s.value
         when {
             value != null -> Box(Modifier.fillMaxSize()) { content(value) }
-            s.error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { ErrorBox(s.error, onRetry = { loader.refresh() }) }
+            s.error != null -> FullScreenScroll { m -> ErrorBox(s.error, m, onRetry = { loader.refresh() }) }
             else -> LoadingBox()
         }
     }

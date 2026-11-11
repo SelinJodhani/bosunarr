@@ -177,10 +177,10 @@ private fun Home(nav: NavController, s: ServiceConfig, home: app.bosunarr.ui.com
             when {
                 rows != null -> {
                     if (st.error != null) item(key = "error") { ErrorBanner(st.error) }
-                    if (rows.isEmpty()) item(key = "empty") { MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", hint = "${s.name} didn't return any titles.", scene = SeaScene.Spyglass) }
+                    if (rows.isEmpty()) item(key = "empty") { MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", Modifier.fillParentMaxSize(), hint = "${s.name} didn't return any titles.", scene = SeaScene.Spyglass) }
                     items(rows, key = { it.id }) { row -> MediaCarousel(row.title, s, row.items, nav, Modifier.animateItem()) }
                 }
-                st.error != null -> item(key = "error") { ErrorBox(st.error, onRetry = { home.refresh() }) }
+                st.error != null -> item(key = "error") { ErrorBox(st.error, Modifier.fillParentMaxSize(), onRetry = { home.refresh() }) }
                 else -> items(5, key = { "sk$it" }) { CarouselSkeleton() }
             }
         }
@@ -204,7 +204,7 @@ private fun SearchResults(nav: NavController, s: ServiceConfig, vm: SearchVm) {
     }
     val waiting = st.query != vm.text.trim().take(100) && st.items.isEmpty()
     if (!st.loading && !waiting && st.error == null && st.page >= 1 && st.items.isEmpty()) {
-        MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", hint = "No results for “${st.query}”.", scene = SeaScene.Spyglass)
+        MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", hint = "No results for “${st.query}”.", scene = SeaScene.Spyglass, fullBleed = false)
         return
     }
     LazyVerticalGrid(

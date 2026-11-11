@@ -139,7 +139,7 @@ fun MovieScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceCo
                     )
                 }
                 when {
-                    d == null && state.error != null -> item("error") { ErrorBox(state.error, onRetry = { loader.refresh() }) }
+                    d == null && state.error != null -> item("error") { ErrorBox(state.error, Modifier.fillParentMaxSize(), onRetry = { loader.refresh() }) }
                     d == null || m == null -> item("loading") { LoadingBox() }
                     else -> {
                         item("actions") {

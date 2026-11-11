@@ -70,6 +70,7 @@ import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.nav.SettingsRoute
 import app.bosunarr.ui.art.SeaScene
+import app.bosunarr.ui.common.FullScreenScroll
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ErrorBanner
 import app.bosunarr.ui.common.ErrorBox
@@ -94,9 +95,9 @@ fun LibraryScreen(nav: NavController) {
     when {
         loaded == null -> AppScaffold("Library") { p -> LoadingBox(Modifier.padding(p)) }
         arrs.isEmpty() -> AppScaffold("Library") { p ->
-            Column(Modifier.padding(p).fillMaxSize().verticalScroll(rememberScrollState())) {
+            FullScreenScroll(Modifier.padding(p)) { m ->
                 MessageBox(
-                    Icons.Rounded.Dns, "No Sonarr or Radarr yet",
+                    Icons.Rounded.Dns, "No Sonarr or Radarr yet", m,
                     hint = "Add a Sonarr or Radarr service to browse your series and movies here.",
                     action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
                     scene = SeaScene.Harbor,
@@ -299,8 +300,8 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
                 when {
-                    data == null && state.error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                        ErrorBox(state.error, onRetry = { loader.refresh() })
+                    data == null && state.error != null -> FullScreenScroll { m ->
+                        ErrorBox(state.error, m, onRetry = { loader.refresh() })
                     }
                     data == null -> LazyVerticalGrid(
                         columns = GridCells.Adaptive(100.dp),
@@ -312,20 +313,22 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                     ) {
                         items(18) { SkeletonCard() }
                     }
+                    shown.isEmpty() && everything.isEmpty() -> FullScreenScroll { m ->
+                        MessageBox(
+                            Icons.Rounded.VideoLibrary, "Your library is empty", m,
+                            hint = "Add a series or movie to start building it.",
+                            action = "Add", onAction = { nav.navigate(LibraryAddRoute(addKind)) },
+                            scene = SeaScene.Harbor,
+                        )
+                    }
                     shown.isEmpty() -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (everything.isEmpty()) {
-                            MessageBox(
-                                Icons.Rounded.VideoLibrary, "Your library is empty",
-                                hint = "Add a series or movie to start building it.",
-                                action = "Add", onAction = { nav.navigate(LibraryAddRoute(addKind)) },
-                                scene = SeaScene.Harbor,
-                            )
-                        } else {
+                        run {
                             MessageBox(
                                 Icons.Rounded.SearchOff, "Nothing matches",
                                 hint = if (query.isNotBlank()) "No ${kind.takeIf { it != KindFilter.All }?.label?.lowercase() ?: "titles"} match “${query.trim()}” with these filters." else "No titles match these filters.",
                                 action = "Clear filters", onAction = { query = ""; kind = KindFilter.All; status = StatusFilter.Any },
                                 scene = SeaScene.Spyglass,
+                                fullBleed = false,
                             )
                             if (query.isNotBlank()) {
                                 TextButton(onClick = { nav.navigate(LibraryAddRoute(addKind, query.trim())) }) {

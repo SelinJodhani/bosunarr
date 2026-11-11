@@ -89,7 +89,11 @@ import app.bosunarr.data.ServiceType
 import app.bosunarr.data.normalizeUrl
 import app.bosunarr.demo.TryDemoButton
 import app.bosunarr.net.userMessage
-import app.bosunarr.ui.art.SeaArt
+import androidx.compose.foundation.layout.BoxWithConstraints
+import app.bosunarr.ui.art.DEFAULT_CALM
+import app.bosunarr.ui.art.SeaBackdrop
+import app.bosunarr.ui.art.rememberSeaTextColors
+import app.bosunarr.ui.art.seaCalmTop
 import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.AppMark
 import app.bosunarr.ui.settings.ServiceBadge
@@ -289,38 +293,42 @@ private fun PickStep(picked: MutableList<String>, onBack: () -> Unit, onNext: ()
 
 @Composable
 private fun DoneStep(connected: List<Connected>, onFinish: () -> Unit) {
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(Modifier.height(40.dp))
-        // A ship heading out: the art follows the wallpaper colours like the rest of the app.
-        SeaArt(SeaScene.SetSail, size = 200.dp)
-        Spacer(Modifier.height(20.dp))
-        Text(if (connected.isEmpty()) "You're ready to set sail" else "You're all set", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            if (connected.isEmpty()) "Add services any time from Settings." else "Connected ${connected.size} ${if (connected.size == 1) "service" else "services"}. You can add or change them in Settings.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(24.dp))
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            connected.forEach { c ->
-                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        ServiceBadge(c.type)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(c.name, style = MaterialTheme.typography.titleSmall)
-                            Text(c.version?.let { "Connected · ${if (it.startsWith("v")) it else "v$it"}" } ?: "Saved", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    // The whole screen is a ship heading out to sea (following the wallpaper colours); the text, the connected
+    // services and the button sit on the calm water. More room for the water when there's a list to show.
+    val calm = if (connected.isEmpty()) DEFAULT_CALM else 0.5f
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val top = seaCalmTop(maxWidth, maxHeight, calm)
+        val text = rememberSeaTextColors()
+        SeaBackdrop(SeaScene.SetSail, Modifier.matchParentSize(), calmFraction = calm)
+        Column(
+            Modifier.fillMaxSize().padding(top = top + 12.dp).navigationBarsPadding().padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(if (connected.isEmpty()) "You're ready to set sail" else "You're all set", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, color = text.title, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (connected.isEmpty()) "Add services any time from Settings." else "Connected ${connected.size} ${if (connected.size == 1) "service" else "services"}. You can add or change them in Settings.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = text.hint,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(16.dp))
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                connected.forEach { c ->
+                    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            ServiceBadge(c.type)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(c.name, style = MaterialTheme.typography.titleSmall)
+                                Text(c.version?.let { "Connected · ${if (it.startsWith("v")) it else "v$it"}" } ?: "Saved", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Icon(Icons.Rounded.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
                         }
-                        Icon(Icons.Rounded.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
+            Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).height(56.dp)) { Text("Open Bosunarr", style = MaterialTheme.typography.titleMedium) }
         }
-        Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).height(56.dp)) { Text("Open Bosunarr", style = MaterialTheme.typography.titleMedium) }
     }
 }

@@ -333,7 +333,7 @@ private fun InvitesTab(s: ServiceConfig, loader: Loader<WizarrOverview>) {
             o != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
                 if (o.warnings.isNotEmpty()) item("warn") { InlineError("Couldn't load ${o.warnings.joinToString(", ")}", compact = true) }
-                if (o.invitations.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Share, "No invitations yet", hint = "Create one to let someone join your server.", scene = SeaScene.Crew) }
+                if (o.invitations.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Share, "No invitations yet", hint = "Create one to let someone join your server.", scene = SeaScene.Crew, fullBleed = false) }
                 items(o.invitations, key = { it.id }) { inv ->
                     InviteCard(
                         inv,
@@ -433,7 +433,7 @@ private fun UsersTab(loader: Loader<WizarrOverview>) {
         when {
             o != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
-                if (o.userList.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Group, "No crew yet", hint = "No users so far. People who join through a Wizarr invitation show up here.", scene = SeaScene.Crew) }
+                if (o.userList.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Group, "No crew yet", Modifier.fillParentMaxSize(), hint = "No users so far. People who join through a Wizarr invitation show up here.", scene = SeaScene.Crew) }
                 items(o.userList, key = { it.id }) { u ->
                     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -274,13 +274,14 @@ private fun QueuePage(
                     action = "Try again",
                     onAction = { loader.refresh() },
                     scene = SeaScene.Fog,
+                    modifier = Modifier.fillParentMaxSize(),
                 )
             } else if (list.isEmpty()) item("empty") {
                 MessageBox(
                     Icons.Rounded.DownloadDone,
                     "Calm seas",
                     hint = "Nothing downloading. New grabs from ${arrNames(arrs)} sail in here.",
-                    modifier = Modifier.animateItem(),
+                    modifier = Modifier.fillParentMaxSize().animateItem(),
                     scene = SeaScene.CalmSeas,
                 )
             }
@@ -391,6 +392,7 @@ fun TorrentListBody(
                         action = "Try again",
                         onAction = onRetry,
                         scene = SeaScene.Fog,
+                        modifier = Modifier.fillParentMaxSize(),
                     )
                 }
                 // The screen's FAB is the one way to add: no second button in the empty state.
@@ -399,7 +401,7 @@ fun TorrentListBody(
                         Icons.Rounded.Download,
                         "Empty dock",
                         hint = if (onAdd != null) "No torrents yet. Tap Add torrent to paste a magnet link or pick a .torrent file." else "This client has no torrents.",
-                        modifier = Modifier.animateItem(),
+                        modifier = Modifier.fillParentMaxSize().animateItem(),
                         scene = SeaScene.EmptyDock,
                     )
                 }

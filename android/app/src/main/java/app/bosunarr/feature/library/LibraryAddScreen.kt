@@ -76,6 +76,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import app.bosunarr.ui.art.SeaScene
+import app.bosunarr.ui.common.FullScreenScroll
 import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
@@ -185,9 +186,9 @@ fun LibraryAddScreen(nav: NavController, route: LibraryAddRoute) {
 
     AppScaffold(if (adult) "Add to Whisparr" else if (kind == LibKind.Series) "Add series" else "Add movie", onBack = { nav.back() }) { p ->
         if (loaded != null && services.isEmpty()) {
-            Column(Modifier.padding(p).fillMaxSize().verticalScroll(rememberScrollState())) {
+            FullScreenScroll(Modifier.padding(p)) { m ->
                 MessageBox(
-                    Icons.Rounded.Search, "No Sonarr or Radarr yet", hint = "Add a Sonarr or Radarr service to add series and movies.",
+                    Icons.Rounded.Search, "No Sonarr or Radarr yet", m, hint = "Add a Sonarr or Radarr service to add series and movies.",
                     action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
                     scene = SeaScene.Harbor,
                 )
@@ -231,12 +232,13 @@ fun LibraryAddScreen(nav: NavController, route: LibraryAddRoute) {
                         if (kind == LibKind.Series) "Find a series" else "Find a movie",
                         hint = "Search by title, or paste an id like ${if (kind == LibKind.Series) "tvdb:81189" else "tmdb:603 or imdb:tt0133093"}.",
                         scene = SeaScene.Spyglass,
+                        fullBleed = false,
                     )
                 }
-                s.error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { ErrorBox(s.error!!, onRetry = { vm.search(kind, services, query, force = true) }) }
+                s.error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { ErrorBox(s.error!!, onRetry = { vm.search(kind, services, query, force = true) }, fullBleed = false) }
                 result == null -> Unit
                 result.results.isEmpty() && !s.loading -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                    MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", hint = "No results for “${s.term}”. Check the spelling or try the original title.", scene = SeaScene.Spyglass)
+                    MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", hint = "No results for “${s.term}”. Check the spelling or try the original title.", scene = SeaScene.Spyglass, fullBleed = false)
                 }
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 32.dp)) {
                     items(result.results, key = { it.key }) { f ->

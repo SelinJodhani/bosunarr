@@ -293,7 +293,7 @@ private fun WantedTab(s: ServiceConfig, hub: RefreshHub, overview: Loader<Bazarr
         when {
             page != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
-                if (page.rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.CheckCircle, "Smooth sailing", hint = "No ${kind.label.lowercase()} are missing subtitles.", scene = SeaScene.SmoothSailing) }
+                if (page.rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.CheckCircle, "Smooth sailing", Modifier.fillParentMaxSize(), hint = "No ${kind.label.lowercase()} are missing subtitles.", scene = SeaScene.SmoothSailing) }
                 else item("count") {
                     Text(
                         if (page.total > page.rows.size) "Showing ${page.rows.size} of ${page.total}" else plural(page.total, kind.label.lowercase().removeSuffix("s")),
@@ -376,7 +376,7 @@ private fun BzHistoryTab(s: ServiceConfig, hub: RefreshHub) {
         when {
             rows != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
-                if (rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Subtitles, "No subtitle history yet", hint = "Downloaded and upgraded subtitles show up here.", scene = SeaScene.Logbook) }
+                if (rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Subtitles, "No subtitle history yet", Modifier.fillParentMaxSize(), hint = "Downloaded and upgraded subtitles show up here.", scene = SeaScene.Logbook) }
                 items(rows, key = { it.key }) { r ->
                     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -7,7 +7,19 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import app.bosunarr.ui.art.SeaArt
+import app.bosunarr.ui.art.SeaBackdrop
+import app.bosunarr.ui.art.rememberSeaTextColors
+import app.bosunarr.ui.art.seaCalmTop
 import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.art.rememberReducedMotion
 import androidx.compose.foundation.background
@@ -140,9 +152,15 @@ fun LoadingBox(modifier: Modifier = Modifier) {
 }
 
 /**
- * Empty or info state: a small icon tile (or, when [scene] is set, a nautical [SeaArt] illustration instead), a
- * headline, a plain-language [hint] and an optional action. Fades and scales in when it appears (unless the system
- * has animations turned off). [artSize] defaults to nearly the screen width (max 360dp); pass 120.dp inside cards/tabs.
+ * Empty or info state: a headline, a plain-language [hint] and an optional action, with either a small icon tile or,
+ * when [scene] is set, a nautical illustration. Fades and scales in when it appears (unless the system has animations
+ * turned off).
+ *
+ * With a [scene], the default is **full-bleed**: the whole area becomes the sea scene ([SeaBackdrop]) and the text sits
+ * on the calm water at the bottom. That needs a known height: give it one with `Modifier.fillParentMaxSize()` inside a
+ * lazy list item, or [FullScreenScroll] inside a scroll; in a bounded parent it just fills. (With no bound at all it
+ * estimates the window's content height.) Pass `fullBleed = false`, or an [artSize], for the compact form (a disc
+ * illustration above the text) inside cards, under toolbars and search fields, or in "no matches" rows.
  */
 @Composable
 fun MessageBox(
@@ -154,7 +172,8 @@ fun MessageBox(
     onAction: (() -> Unit)? = null,
     scene: SeaScene? = null,
     artSize: Dp = Dp.Unspecified,
-) = MessageBoxImpl(icon, scene, title, modifier, hint, action, onAction, artSize)
+    fullBleed: Boolean = true,
+) = MessageBoxImpl(icon, scene, title, modifier, hint, action, onAction, artSize, fullBleed)
 
 /** [MessageBox] with an illustration and no icon. */
 @Composable
@@ -166,7 +185,8 @@ fun MessageBox(
     action: String? = null,
     onAction: (() -> Unit)? = null,
     artSize: Dp = Dp.Unspecified,
-) = MessageBoxImpl(null, scene, title, modifier, hint, action, onAction, artSize)
+    fullBleed: Boolean = true,
+) = MessageBoxImpl(null, scene, title, modifier, hint, action, onAction, artSize, fullBleed)
 
 @Composable
 private fun MessageBoxImpl(
@@ -178,10 +198,16 @@ private fun MessageBoxImpl(
     action: String?,
     onAction: (() -> Unit)?,
     artSize: Dp,
+    fullBleed: Boolean,
+    below: (@Composable () -> Unit)? = null,
 ) {
     val still = rememberReducedMotion()
     val shown = remember { Animatable(if (still) 1f else 0f) }
     LaunchedEffect(Unit) { if (!still) shown.animateTo(1f, tween(420, easing = FastOutSlowInEasing)) }
+    if (scene != null && fullBleed && artSize == Dp.Unspecified) {
+        FullBleedMessage(scene, title, modifier, hint, action, onAction, below) { shown.value }
+        return
+    }
     Column(
         modifier
             .graphicsLayer {
@@ -195,11 +221,10 @@ private fun MessageBoxImpl(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (scene != null) {
-            // Hero-sized: nearly the full width of the screen (24dp margins), capped for tablets; smaller on short
-            // screens so the text and action still fit without scrolling.
+            // Compact: a disc illustration above the text, smaller on short screens.
             val cfg = LocalConfiguration.current
-            val wide = (cfg.screenWidthDp - 48).coerceIn(200, 360)
-            val fit = if (cfg.screenHeightDp < 640) minOf(wide, 220) else wide
+            val wide = (cfg.screenWidthDp - 48).coerceIn(160, 260)
+            val fit = if (cfg.screenHeightDp < 640) minOf(wide, 160) else wide
             SeaArt(scene, size = if (artSize != Dp.Unspecified) artSize else fit.dp)
         } else if (icon != null) {
             Box(Modifier.size(72.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
@@ -213,16 +238,113 @@ private fun MessageBoxImpl(
             Spacer(Modifier.height(8.dp))
             FilledTonalButton(onClick = onAction) { Text(action) }
         }
+        below?.invoke()
+    }
+}
+
+/** The whole area as a sea scene, with the text on the calm water at the bottom (scrollable if it doesn't fit). */
+@Composable
+private fun FullBleedMessage(
+    scene: SeaScene,
+    title: String,
+    modifier: Modifier,
+    hint: String?,
+    action: String?,
+    onAction: (() -> Unit)?,
+    below: (@Composable () -> Unit)?,
+    progress: () -> Float,
+) {
+    val fallback = estimatedContentHeight()
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val height = if (constraints.hasBoundedHeight) maxHeight else fallback
+        val calmTop = seaCalmTop(maxWidth, height)
+        val text = rememberSeaTextColors()
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(height)
+                .graphicsLayer { alpha = progress() },
+        ) {
+            SeaBackdrop(scene, Modifier.matchParentSize())
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = calmTop + 12.dp, bottom = 24.dp)
+                    .padding(horizontal = 32.dp)
+                    .graphicsLayer {
+                        val p = progress()
+                        translationY = (1f - p) * 12.dp.toPx()
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(title, style = MaterialTheme.typography.headlineSmall, color = text.title, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 480.dp))
+                if (hint != null) Text(hint, style = MaterialTheme.typography.bodyMedium, color = text.hint, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 480.dp))
+                if (action != null && onAction != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Button(onClick = onAction) { Text(action) }
+                }
+                below?.invoke()
+            }
+        }
+    }
+}
+
+/** Window height minus system bars and a top app bar: a fallback when a full-bleed state gets no height bound. */
+@Composable
+private fun estimatedContentHeight(): Dp {
+    val density = LocalDensity.current
+    val window = LocalWindowInfo.current.containerSize
+    val bars = WindowInsets.systemBars
+    return with(density) { (window.height - bars.getTop(this) - bars.getBottom(this)).toDp() - 64.dp }.coerceAtLeast(360.dp)
+}
+
+/**
+ * Scrollable host for a full-screen empty or error state: the content stays in a vertical scroll (so pull-to-refresh
+ * keeps working) while [content] gets a modifier that sizes it to exactly the visible area, e.g.
+ * `FullScreenScroll { m -> ErrorBox(error, m, onRetry = …) }`.
+ */
+@Composable
+fun FullScreenScroll(modifier: Modifier = Modifier, content: @Composable (Modifier) -> Unit) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val fill = Modifier.fillMaxWidth().height(maxHeight)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { content(fill) }
     }
 }
 
 /**
- * Full-screen load failure: an illustration, a friendly explanation, "Try again", and the technical text behind
+ * Lets content draw past its parent's padding (a lazy list's contentPadding) so a full-bleed state reaches the edges.
+ * Layout size is unchanged; the content is measured larger by the given amounts and offset back.
+ */
+fun Modifier.bleed(horizontal: Dp = 0.dp, top: Dp = 0.dp, bottom: Dp = 0.dp): Modifier = layout { measurable, c ->
+    val h = horizontal.roundToPx()
+    val t = top.roundToPx()
+    val b = bottom.roundToPx()
+    val wide = c.copy(
+        minWidth = c.minWidth + 2 * h,
+        maxWidth = if (c.hasBoundedWidth) c.maxWidth + 2 * h else c.maxWidth,
+        minHeight = c.minHeight + t + b,
+        maxHeight = if (c.hasBoundedHeight) c.maxHeight + t + b else c.maxHeight,
+    )
+    val p = measurable.measure(wide)
+    layout((p.width - 2 * h).coerceAtLeast(0), (p.height - t - b).coerceAtLeast(0)) { p.place(-h, -t) }
+}
+
+/**
+ * Full-screen load failure: a sea scene, a friendly explanation, "Try again", and the technical text behind
  * "Details". [scene] defaults to [SeaScene.Fog] when the service couldn't be reached (offline, timeout, DNS, refused)
- * and [SeaScene.Storm] for everything else.
+ * and [SeaScene.Storm] for everything else. Full-bleed by default (see [MessageBox] for sizing); `fullBleed = false`
+ * for the compact form.
  */
 @Composable
-fun ErrorBox(message: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null, scene: SeaScene? = null) {
+fun ErrorBox(
+    message: String,
+    modifier: Modifier = Modifier,
+    onRetry: (() -> Unit)? = null,
+    scene: SeaScene? = null,
+    fullBleed: Boolean = true,
+) {
     val e = remember(message) { friendlyError(message) }
     val art = scene ?: remember(message) { if (isUnreachable(message)) SeaScene.Fog else SeaScene.Storm }
     val title = when (art) {
@@ -233,9 +355,17 @@ fun ErrorBox(message: String, modifier: Modifier = Modifier, onRetry: (() -> Uni
     // "Sonarr timed out" alone doesn't say what to do: point at the usual culprit.
     val hint = if (art == SeaScene.Fog && listOf("network", "vpn", "address", "running").none { e.message.contains(it, ignoreCase = true) })
         "${e.message.trimEnd('.')}. Check your network or VPN." else e.message
-    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        MessageBox(Icons.Rounded.CloudOff, title, hint = hint, action = if (onRetry != null) "Try again" else null, onAction = onRetry, scene = art)
-        if (e.details != null) ErrorDetails(e.details, Modifier.padding(horizontal = 32.dp).padding(bottom = 24.dp))
+    if (fullBleed) {
+        val text = rememberSeaTextColors()
+        MessageBoxImpl(
+            Icons.Rounded.CloudOff, art, title, modifier, hint, if (onRetry != null) "Try again" else null, onRetry, Dp.Unspecified, true,
+            below = e.details?.let { d -> { ErrorDetails(d, toggleColor = text.title) } },
+        )
+    } else {
+        Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            MessageBox(Icons.Rounded.CloudOff, title, hint = hint, action = if (onRetry != null) "Try again" else null, onAction = onRetry, scene = art, fullBleed = false)
+            if (e.details != null) ErrorDetails(e.details, Modifier.padding(horizontal = 32.dp).padding(bottom = 24.dp))
+        }
     }
 }
 
@@ -248,10 +378,13 @@ private fun isUnreachable(raw: String): Boolean {
 
 /** "Details" toggle revealing the technical error text (selectable, so it can be copied into a bug report). */
 @Composable
-fun ErrorDetails(details: String, modifier: Modifier = Modifier) {
+fun ErrorDetails(details: String, modifier: Modifier = Modifier, toggleColor: Color = Color.Unspecified) {
     var open by rememberSaveable { mutableStateOf(false) }
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        TextButton(onClick = { open = !open }) { Text(if (open) "Hide details" else "Details") }
+        TextButton(
+            onClick = { open = !open },
+            colors = if (toggleColor.isSpecified) ButtonDefaults.textButtonColors(contentColor = toggleColor) else ButtonDefaults.textButtonColors(),
+        ) { Text(if (open) "Hide details" else "Details") }
         AnimatedVisibility(open) {
             SelectionContainer {
                 Text(
@@ -288,7 +421,7 @@ fun <T> LoadContent(
                 if (s.error != null) ErrorBanner(s.error)
                 Box(Modifier.weight(1f)) { content(s.value) }
             }
-            s.error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { ErrorBox(s.error, onRetry = { loader.refresh() }) }
+            s.error != null -> FullScreenScroll { m -> ErrorBox(s.error, m, onRetry = { loader.refresh() }) }
             else -> LoadingBox()
         }
         }

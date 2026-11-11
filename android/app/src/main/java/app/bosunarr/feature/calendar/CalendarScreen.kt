@@ -15,6 +15,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.derivedStateOf
 import app.bosunarr.ui.art.SeaScene
+import app.bosunarr.ui.common.FullScreenScroll
 import app.bosunarr.ui.common.plural
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -100,9 +101,9 @@ fun CalendarScreen(nav: NavController) {
     when {
         loaded == null -> AppScaffold("Calendar") { p -> LoadingBox(Modifier.padding(p)) }
         arrs.isEmpty() -> AppScaffold("Calendar") { p ->
-            Column(Modifier.padding(p).fillMaxSize().verticalScroll(rememberScrollState())) {
+            FullScreenScroll(Modifier.padding(p)) { m ->
                 MessageBox(
-                    Icons.Rounded.Dns, "No Sonarr or Radarr yet",
+                    Icons.Rounded.Dns, "No Sonarr or Radarr yet", m,
                     hint = "Add a Sonarr or Radarr service to see upcoming episodes and movie releases.",
                     action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
                     scene = SeaScene.Harbor,
@@ -216,15 +217,15 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
                 when {
-                    data == null && state.error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                        ErrorBox(state.error, onRetry = { loader.refresh() })
+                    data == null && state.error != null -> FullScreenScroll { m ->
+                        ErrorBox(state.error, m, onRetry = { loader.refresh() })
                     }
                     data == null -> Column(Modifier.fillMaxSize()) {
                         DayHeader(today, null)
                         repeat(6) { SkeletonRow() }
                     }
-                    data.entries.isEmpty() -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                        MessageBox(Icons.Rounded.CalendarMonth, "Nothing on the horizon", hint = "No monitored episodes or movie releases in the next 4 weeks.", scene = SeaScene.Horizon)
+                    data.entries.isEmpty() -> FullScreenScroll { m ->
+                        MessageBox(Icons.Rounded.CalendarMonth, "Nothing on the horizon", m, hint = "No monitored episodes or movie releases in the next 4 weeks.", scene = SeaScene.Horizon)
                     }
                     else -> LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
                         rows.forEach { r ->
