@@ -60,7 +60,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import app.bosunarr.app
-import app.bosunarr.demo.DemoBanner
 import app.bosunarr.feature.activity.ActivityScreen
 import app.bosunarr.feature.calendar.CalendarScreen
 import app.bosunarr.feature.dashboard.DashboardScreen
@@ -189,7 +188,6 @@ fun AppRoot() {
                 composable<ServiceRoute> { ServiceScreen(it.toRoute<ServiceRoute>().id, nav) }
                 composable<LicencesRoute> { LicencesScreen(nav) }
             }
-            DemoBanner(nav, Modifier.padding(inner))
         }
     }
 }

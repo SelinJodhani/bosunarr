@@ -62,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import app.bosunarr.app
+import app.bosunarr.demo.DemoChip
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.services.CardEmpty
@@ -123,7 +124,10 @@ fun DashboardScreen(nav: NavController) {
     AppScaffold(
         title,
         large = true,
-        actions = { IconButton(onClick = { nav.navigate(SettingsRoute) }) { Icon(Icons.Rounded.Settings, "Settings") } },
+        actions = {
+            DemoChip(nav)
+            IconButton(onClick = { nav.navigate(SettingsRoute) }) { Icon(Icons.Rounded.Settings, "Settings") }
+        },
     ) { p ->
         Box(Modifier.padding(p).fillMaxSize()) {
             val st = state ?: return@Box // still reading the encrypted store: show nothing rather than flash "welcome"

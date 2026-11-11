@@ -131,6 +131,41 @@ fun DemoBanner(nav: NavController, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Small "Demo" chip for the dashboard's top bar while the demo is on. Tapping asks before leaving, so a stray tap
+ * doesn't throw the user out of the tour.
+ */
+@Composable
+fun DemoChip(nav: NavController) {
+    val demo = app.state.collectAsState().value?.demo == true
+    if (!demo) return
+    val scope = rememberCoroutineScope()
+    var confirm by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    Surface(
+        onClick = { confirm = true },
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        modifier = Modifier.padding(end = 4.dp),
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Science, null, Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Demo", style = MaterialTheme.typography.labelLarge)
+        }
+    }
+    if (confirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirm = false },
+            icon = { Icon(Icons.Rounded.Science, null) },
+            title = { Text("Leave the demo?") },
+            text = { Text("The sample stack goes away and you can connect your own services.") },
+            confirmButton = { androidx.compose.material3.Button(onClick = { confirm = false; scope.launch { exitDemo(nav) } }) { Text("Exit demo") } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text("Keep exploring") } },
+        )
+    }
+}
+
 /** Settings card shown while the demo is on, with the way out. */
 @Composable
 fun DemoSettingsCard(nav: NavController) {
