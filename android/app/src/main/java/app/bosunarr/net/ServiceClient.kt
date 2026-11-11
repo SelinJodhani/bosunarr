@@ -130,6 +130,8 @@ class ServiceClient(base: OkHttpClient) {
     suspend fun test(s: ServiceConfig): TestResult {
         val started = System.nanoTime()
         val type = s.serviceType ?: throw ServiceException("Unknown service type")
+        // Server is SSH, not HTTP: connect + authenticate against the pinned host key.
+        if (type == ServiceType.Server) return TestResult(null, app.bosunarr.feature.server.ServerProbe.status(s))
         val probe = PROBES.getValue(type)
         val text = request(s, probe.path)
         if (text.trimStart().startsWith("<")) throw ServiceException("${s.name} answered with a web page instead of its API — check the address")

@@ -16,3 +16,25 @@
 # Tink
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
+# JSch (SSH for the Server type) instantiates its algorithms by class name from its config (Class.forName):
+# key exchanges (DH*), user-auth methods, JCE algorithms, and the BouncyCastle-backed ones selected in
+# feature/server/Ssh.kt. Everything else in JSch (SFTP, X11, agents, proxies…) is unused and shrunk away.
+# Optional integrations (SLF4J/Log4j loggers, JNA/FFM Pageant and Unix sockets, GSS-API) never run on Android.
+-keep class com.jcraft.jsch.jce.** { <init>(); }
+-keep class com.jcraft.jsch.DH* { <init>(); }
+-keep class com.jcraft.jsch.UserAuth* { <init>(); }
+-keep class com.jcraft.jsch.CipherNone { <init>(); }
+-keep class com.jcraft.jsch.jbcrypt.JBCrypt { <init>(); }
+-keep class com.jcraft.jsch.bc.XDH,
+            com.jcraft.jsch.bc.SignatureEd25519,
+            com.jcraft.jsch.bc.SignatureEd448,
+            com.jcraft.jsch.bc.KeyPairGenEdDSA,
+            com.jcraft.jsch.bc.ChaCha20Poly1305,
+            com.jcraft.jsch.bc.MLKEM768,
+            com.jcraft.jsch.bc.MLKEM1024,
+            com.jcraft.jsch.bc.SNTRUP761,
+            com.jcraft.jsch.bc.SCrypt { <init>(); }
+-dontwarn com.jcraft.jsch.**
+-dontwarn org.ietf.jgss.**
+-dontwarn org.apache.logging.log4j.**
+-dontwarn com.sun.jna.**

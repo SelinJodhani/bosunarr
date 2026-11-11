@@ -2,11 +2,13 @@ package app.bosunarr.data
 
 import androidx.compose.ui.graphics.Color
 
-enum class Credentials { ApiKey, UserPass, None }
+/** How a service authenticates. [Ssh]: host + user, then a private key (default) or a password. */
+enum class Credentials { ApiKey, UserPass, None, Ssh }
 
 enum class ServiceCategory(val label: String) {
     Media("Media managers"), Requests("Requests"), Indexers("Indexers"), Subtitles("Subtitles"),
-    Downloads("Downloads"), Server("Media server"), Stats("Statistics"), Users("Users & invites")
+    Downloads("Downloads"), Server("Media server"), Stats("Statistics"), Users("Users & invites"),
+    Host("Server & containers")
 }
 
 /** Every service Bosunarr can talk to. `id` is the stable key stored on disk. */
@@ -31,7 +33,9 @@ enum class ServiceType(
     QBittorrent("qbittorrent", "qBittorrent", ServiceCategory.Downloads, Credentials.UserPass, 8080, "Your qBittorrent Web UI username and password", Color(0xFF2F67BA), "Downloads"),
     Jellyfin("jellyfin", "Jellyfin", ServiceCategory.Server, Credentials.ApiKey, 8096, "Jellyfin → Dashboard → API Keys", Color(0xFFAA5CC3), "Media server"),
     Jellystat("jellystat", "Jellystat", ServiceCategory.Stats, Credentials.ApiKey, 3000, "Jellystat → Settings → API Keys", Color(0xFFF472B6), "Watch stats"),
-    Wizarr("wizarr", "Wizarr", ServiceCategory.Users, Credentials.ApiKey, 5690, "Wizarr → Settings → API Keys", Color(0xFFF59E0B), "Invites");
+    Wizarr("wizarr", "Wizarr", ServiceCategory.Users, Credentials.ApiKey, 5690, "Wizarr → Settings → API Keys", Color(0xFFF59E0B), "Invites"),
+    /** The machine the stack runs on, over SSH: health and Docker containers. `url` is `ssh://host:port`. */
+    Server("server", "Server", ServiceCategory.Host, Credentials.Ssh, 22, "An SSH login on the machine running your stack", Color(0xFF7C8DA6), "SSH");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }

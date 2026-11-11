@@ -18,9 +18,25 @@ data class ServiceConfig(
     val username: String? = null,
     val password: String? = null,
     val sort: Int = 0,
+    /*
+     * Server (SSH) only. The user is [username]; host and port are in [url] as `ssh://host:port`. With key auth,
+     * [password] holds the key's passphrase (if any); with password auth, the login password.
+     */
+    /** "key" (default) or "password". */
+    val sshAuth: String? = null,
+    /** Private key, OpenSSH or PEM text. */
+    val sshPrivateKey: String? = null,
+    /** Pinned host key, "<type> SHA256:<base64>" (trust on first use). */
+    val sshHostKey: String? = null,
+    /** Saved commands for the Server screen's Commands tab. */
+    val sshCommands: List<SshCommand> = emptyList(),
 ) {
     val serviceType: ServiceType? get() = ServiceType.of(type)
 }
+
+/** A user-defined command run over SSH (after a confirmation), e.g. `docker compose pull` in a stack folder. */
+@Serializable
+data class SshCommand(val id: String, val name: String, val command: String)
 
 @Serializable
 data class AppState(

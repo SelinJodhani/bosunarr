@@ -90,6 +90,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.tink.android)
+    // SSH (Server type): JSch fork + BouncyCastle for Ed25519 / curve25519 / chacha20 on every Android version.
+    implementation(libs.jsch)
+    implementation(libs.bouncycastle.prov)
 
     testImplementation(libs.junit)
+    testImplementation(libs.sshd.core)
 }

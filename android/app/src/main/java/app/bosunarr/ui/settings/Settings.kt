@@ -85,6 +85,10 @@ import app.bosunarr.ui.common.feedbackUrl
 import app.bosunarr.ui.common.safeOpen
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.feature.server.HostKeyDialog
+import app.bosunarr.feature.server.HostKeyMismatch
+import app.bosunarr.feature.server.HostKeyUnknown
+import app.bosunarr.feature.server.SshException
 import app.bosunarr.feature.services.okColor
 import app.bosunarr.nav.ServiceEditRoute
 import app.bosunarr.nav.ServiceRoute
@@ -105,7 +109,7 @@ import app.bosunarr.ui.onboarding.Probe
 import app.bosunarr.ui.onboarding.ProbeResult
 import app.bosunarr.ui.onboarding.ServiceFormFields
 import app.bosunarr.ui.onboarding.SetupStep
-import app.bosunarr.ui.onboarding.connectedText
+import app.bosunarr.ui.onboarding.probeService
 import app.bosunarr.ui.onboarding.rememberServiceForm
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -408,6 +412,7 @@ private fun EditServiceScreen(nav: NavController, existing: ServiceConfig, type:
     val autofill = LocalAutofillManager.current
     val form = rememberServiceForm(type, existing)
     var probe by remember { mutableStateOf<Probe>(Probe.Idle) }
+    var hostKeyQuestion by remember { mutableStateOf<SshException?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
 
@@ -418,10 +423,13 @@ private fun EditServiceScreen(nav: NavController, existing: ServiceConfig, type:
             val cfg = form.config(id = "test-${existing.id}")
             app.client.reset(cfg.id)
             probe = try {
-                val r = app.client.test(cfg)
-                Probe.Ok(connectedText(r.version, r.ms))
+                Probe.Ok(probeService(cfg).text)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: HostKeyUnknown) {
+                hostKeyQuestion = e; Probe.Idle
+            } catch (e: HostKeyMismatch) {
+                hostKeyQuestion = e; Probe.Idle
             } catch (e: Exception) {
                 Probe.Failed(e.userMessage())
             }
@@ -480,7 +488,9 @@ private fun EditServiceScreen(nav: NavController, existing: ServiceConfig, type:
                             saving = true
                             autofill?.commit()
                             scope.launch {
-                                app.saveService(form.config(id = existing.id, sort = existing.sort))
+                                // Saved commands (Server) aren't part of the form: keep the current ones.
+                                val commands = app.service(existing.id)?.sshCommands ?: existing.sshCommands
+                                app.saveService(form.config(id = existing.id, sort = existing.sort).copy(sshCommands = commands))
                                 nav.back()
                             }
                         },
@@ -489,6 +499,14 @@ private fun EditServiceScreen(nav: NavController, existing: ServiceConfig, type:
                 }
             }
         }
+    }
+
+    hostKeyQuestion?.let { q ->
+        HostKeyDialog(
+            q,
+            onTrust = { pin -> form.sshHostKey = pin.encode(); hostKeyQuestion = null; test() },
+            onDismiss = { hostKeyQuestion = null; probe = Probe.Failed(q.message ?: "Host key not trusted") },
+        )
     }
 
     if (confirmDelete) {

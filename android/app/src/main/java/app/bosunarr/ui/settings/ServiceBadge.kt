@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +49,13 @@ fun serviceLogo(type: ServiceType?): Int? = when (type) {
     ServiceType.Jellystat -> R.drawable.svc_jellystat
     ServiceType.Wizarr -> R.drawable.svc_wizarr
     ServiceType.Whisparr -> R.drawable.svc_whisparr
-    null -> null
+    ServiceType.Server, null -> null
+}
+
+/** A Material icon for types with no brand logo (a generic server). */
+fun serviceIcon(type: ServiceType?): ImageVector? = when (type) {
+    ServiceType.Server -> Icons.Rounded.Dns
+    else -> null
 }
 
 /**
@@ -64,6 +74,16 @@ fun ServiceBadge(type: ServiceType?, modifier: Modifier = Modifier, size: Dp = 4
             contentAlignment = Alignment.Center,
         ) {
             Image(painterResource(logo), contentDescription = null, modifier = Modifier.fillMaxSize().padding(size * 0.17f))
+        }
+    } else if (serviceIcon(type) != null) {
+        val c = type?.color ?: MaterialTheme.colorScheme.primary
+        Box(
+            modifier.size(size).clip(shape)
+                .background(Brush.linearGradient(listOf(c.copy(alpha = 0.30f), c.copy(alpha = 0.14f))))
+                .border(0.5.dp, c.copy(alpha = 0.35f), shape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(serviceIcon(type)!!, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f), modifier = Modifier.fillMaxSize().padding(size * 0.2f))
         }
     } else {
         val c = type?.color ?: MaterialTheme.colorScheme.primary

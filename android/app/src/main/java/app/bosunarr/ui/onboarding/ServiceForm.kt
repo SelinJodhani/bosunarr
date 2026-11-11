@@ -66,6 +66,14 @@ import app.bosunarr.data.Credentials
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.data.normalizeUrl
+import app.bosunarr.feature.server.HostKeyDialog
+import app.bosunarr.feature.server.HostKeyMismatch
+import app.bosunarr.feature.server.HostKeyUnknown
+import app.bosunarr.feature.server.ServerProbe
+import app.bosunarr.feature.server.SshException
+import app.bosunarr.feature.server.SshFormFields
+import app.bosunarr.feature.server.SshTarget
+import app.bosunarr.feature.server.sshHelp
 import app.bosunarr.feature.services.okColor
 import app.bosunarr.net.userMessage
 import app.bosunarr.ui.settings.ServiceBadge
@@ -85,6 +93,11 @@ internal class ServiceForm(
     username: String,
     password: String,
     more: Boolean,
+    sshHost: String = "",
+    sshPort: String = "22",
+    sshAuth: String = "key",
+    sshKey: String = "",
+    sshHostKey: String = "",
 ) {
     var url by mutableStateOf(url)
     var altUrl by mutableStateOf(altUrl)
@@ -95,14 +108,29 @@ internal class ServiceForm(
     /** "More options" (name, fallback address) expanded. */
     var more by mutableStateOf(more)
 
+    // Server (SSH). [username] is the SSH user; [password] the login password or the key's passphrase.
+    var sshHost by mutableStateOf(sshHost)
+    var sshPort by mutableStateOf(sshPort)
+    /** "key" or "password". */
+    var sshAuth by mutableStateOf(sshAuth)
+    /** Private key text (OpenSSH/PEM). Kept out of saved instance state: see [saver]. */
+    var sshKey by mutableStateOf(sshKey)
+    /** Pinned host key ("<type> SHA256:..."), set when the user trusts it in the test dialog. */
+    var sshHostKey by mutableStateOf(sshHostKey)
+
+    private val sshTarget get() = SshTarget.parse(sshHost, sshPort.trim().toIntOrNull() ?: 22)
+
     val ready: Boolean
-        get() = url.isNotBlank() && when (type.credentials) {
-            Credentials.ApiKey -> apiKey.isNotBlank()
-            Credentials.UserPass -> username.isNotBlank()
-            Credentials.None -> true
+        get() = when (type.credentials) {
+            Credentials.ApiKey -> url.isNotBlank() && apiKey.isNotBlank()
+            Credentials.UserPass -> url.isNotBlank() && username.isNotBlank()
+            Credentials.None -> url.isNotBlank()
+            // Server: the address is host + port (the form's `url` isn't used).
+            Credentials.Ssh -> sshTarget != null && username.isNotBlank() &&
+                (if (sshAuth == "password") password.isNotEmpty() else sshKey.isNotBlank())
         }
 
-    fun config(id: String, sort: Int = 0) = ServiceConfig(
+    fun config(id: String, sort: Int = 0): ServiceConfig = if (type.credentials == Credentials.Ssh) sshConfig(id, sort) else ServiceConfig(
         id = id,
         type = type.id,
         name = name.trim().ifEmpty { type.label },
@@ -114,18 +142,64 @@ internal class ServiceForm(
         sort = sort,
     )
 
-    companion object {
-        fun saver(type: ServiceType) = listSaver<ServiceForm, Any>(
-            save = { listOf(it.url, it.altUrl, it.name, it.apiKey, it.username, it.password, it.more) },
-            restore = { ServiceForm(type, it[0] as String, it[1] as String, it[2] as String, it[3] as String, it[4] as String, it[5] as String, it[6] as Boolean) },
+    private fun sshConfig(id: String, sort: Int): ServiceConfig {
+        val port = sshPort.trim().toIntOrNull() ?: 22
+        return ServiceConfig(
+            id = id,
+            type = type.id,
+            name = name.trim().ifEmpty { type.label },
+            url = sshTarget?.let { "ssh://${it.hostPort}" } ?: "ssh://${sshHost.trim()}",
+            altUrl = SshTarget.parse(altUrl, port)?.let { "ssh://${it.hostPort}" },
+            username = username.trim().ifEmpty { null },
+            password = password.ifEmpty { null },
+            sshAuth = sshAuth,
+            // Kept in password mode too: switching back shouldn't lose a key that's already on the server.
+            sshPrivateKey = sshKey.trim().ifEmpty { null }?.let { it + "\n" },
+            sshHostKey = sshHostKey.ifBlank { null },
+            sort = sort,
         )
     }
+
+    companion object {
+        /**
+         * The private key never goes into the saved-state Bundle: only a token for an in-memory copy, so it survives
+         * rotation but not process death — then [savedKey] (the key already in the encrypted store) is used, or a
+         * key generated in an unsaved form has to be generated again.
+         */
+        fun saver(type: ServiceType, savedKey: String = "") = listSaver<ServiceForm, Any>(
+            save = { listOf(it.url, it.altUrl, it.name, it.apiKey, it.username, it.password, it.more, it.sshHost, it.sshPort, it.sshAuth, PendingKeys.put(it.sshKey), it.sshHostKey) },
+            restore = {
+                ServiceForm(
+                    type, it[0] as String, it[1] as String, it[2] as String, it[3] as String, it[4] as String, it[5] as String, it[6] as Boolean,
+                    it[7] as String, it[8] as String, it[9] as String, PendingKeys.get(it[10] as String, savedKey), it[11] as String,
+                )
+            },
+        )
+    }
+}
+
+/** In-memory private keys of open forms, by opaque token (see [ServiceForm.saver]). */
+private object PendingKeys {
+    // Bounded: a token is minted on every state save, but only restored after a config change.
+    private val keys = object : LinkedHashMap<String, String>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 8
+    }
+
+    @Synchronized fun put(key: String): String {
+        if (key.isEmpty()) return ""
+        val token = java.util.UUID.randomUUID().toString()
+        keys[token] = key
+        return token
+    }
+
+    /** The key for [token]; [fallback] (the saved key) if there was one but it was lost with the process. */
+    @Synchronized fun get(token: String, fallback: String): String = if (token.isEmpty()) "" else keys.remove(token) ?: fallback
 }
 
 /** Form for [type], pre-filled from [existing] when editing. Survives rotation and process death. */
 @Composable
 internal fun rememberServiceForm(type: ServiceType, existing: ServiceConfig? = null): ServiceForm =
-    rememberSaveable(type.id, existing?.id, saver = ServiceForm.saver(type)) {
+    rememberSaveable(type.id, existing?.id, saver = ServiceForm.saver(type, existing?.sshPrivateKey?.trim().orEmpty())) {
         ServiceForm(
             type = type,
             url = existing?.url.orEmpty(),
@@ -135,6 +209,11 @@ internal fun rememberServiceForm(type: ServiceType, existing: ServiceConfig? = n
             username = existing?.username.orEmpty(),
             password = existing?.password.orEmpty(),
             more = existing != null && (!existing.altUrl.isNullOrBlank() || existing.name != type.label),
+            sshHost = existing?.takeIf { type.credentials == Credentials.Ssh }?.let { SshTarget.parse(it.url)?.host }.orEmpty(),
+            sshPort = existing?.takeIf { type.credentials == Credentials.Ssh }?.let { SshTarget.parse(it.url)?.port?.toString() } ?: "22",
+            sshAuth = existing?.sshAuth ?: "key",
+            sshKey = existing?.sshPrivateKey?.trim().orEmpty(),
+            sshHostKey = existing?.sshHostKey.orEmpty(),
         )
     }
 
@@ -161,7 +240,8 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
     val type = form.type
     var show by remember(type.id) { mutableStateOf(false) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
+        if (type.credentials == Credentials.Ssh) SshFormFields(form, onEdited, onSubmit)
+        else OutlinedTextField(
             form.url, { form.url = it; onEdited() },
             label = { Text("Address") },
             placeholder = { Text("http://192.168.1.10:${type.defaultPort}") },
@@ -207,7 +287,7 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
                     modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
                 )
             }
-            Credentials.None -> Unit
+            Credentials.None, Credentials.Ssh -> Unit
         }
 
         TextButton(onClick = { form.more = !form.more }, contentPadding = PaddingValues(horizontal = 4.dp)) {
@@ -221,6 +301,7 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
                 OutlinedTextField(
                     form.altUrl, { form.altUrl = it; onEdited() },
                     label = { Text("Fallback address") },
+                    placeholder = if (type.credentials == Credentials.Ssh) ({ Text("my-server.tailnet.ts.net") }) else null,
                     supportingText = { Text("Tried when the first one is unreachable, e.g. your Tailscale address") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
@@ -267,6 +348,7 @@ private fun FailurePanel(msg: String, type: ServiceType, onSaveAnyway: (() -> Un
             Spacer(Modifier.height(4.dp))
             Text(msg, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
             val help = when {
+                type.credentials == Credentials.Ssh -> sshHelp(msg)
                 msg.contains("timed out") || msg.contains("unreachable") ->
                     "Check the address and port, and that this phone can reach it — same Wi-Fi, or your VPN (e.g. Tailscale) is on."
                 msg.contains("credentials") || msg.contains("login failed") -> "Double-check the ${if (type.credentials == Credentials.UserPass) "username and password" else "API key"}."
@@ -280,6 +362,23 @@ private fun FailurePanel(msg: String, type: ServiceType, onSaveAnyway: (() -> Un
             if (onSaveAnyway != null) TextButton(onClick = onSaveAnyway, contentPadding = PaddingValues(0.dp)) { Text("Save anyway") }
         }
     }
+}
+
+/* ------------------------------------------------------------------ testing */
+
+internal data class ProbeOk(val text: String, val version: String?)
+
+/**
+ * "Test"/"Connect" for any type. Server goes over SSH: it throws [HostKeyUnknown] / [HostKeyMismatch] for the
+ * caller to ask the user (see [HostKeyDialog]); the others use the HTTP probe.
+ */
+internal suspend fun probeService(cfg: ServiceConfig): ProbeOk {
+    if (cfg.serviceType == ServiceType.Server) {
+        val r = ServerProbe.test(cfg)
+        return ProbeOk("Connected · ${r.ms} ms\n${r.uname}", r.uname.split(' ').getOrNull(2))
+    }
+    val r = app.client.test(cfg)
+    return ProbeOk(connectedText(r.version, r.ms), r.version)
 }
 
 /* ------------------------------------------------------------------ setup one service */
@@ -306,6 +405,7 @@ internal fun SetupStep(
     // Keyed by type so going back/forward between services keeps each one's inputs.
     val form = rememberServiceForm(type)
     var probe by remember(type.id) { mutableStateOf<Probe>(Probe.Idle) }
+    var hostKeyQuestion by remember(type.id) { mutableStateOf<SshException?>(null) }
 
     fun save(version: String?) = scope.launch {
         val saved = app.saveService(form.config(id = ""))
@@ -320,12 +420,16 @@ internal fun SetupStep(
             val cfg = form.config(id = "onboarding-${type.id}")
             app.client.reset(cfg.id)
             try {
-                val r = app.client.test(cfg)
+                val r = probeService(cfg)
                 // Only now offer to save the key to the password manager: it's known to work.
                 autofill?.commit()
                 save(r.version)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: HostKeyUnknown) {
+                probe = Probe.Idle; hostKeyQuestion = e
+            } catch (e: HostKeyMismatch) {
+                probe = Probe.Idle; hostKeyQuestion = e
             } catch (e: Exception) {
                 probe = Probe.Failed(e.userMessage())
             }
@@ -352,5 +456,13 @@ internal fun SetupStep(
                 }
             }
         }
+    }
+
+    hostKeyQuestion?.let { q ->
+        HostKeyDialog(
+            q,
+            onTrust = { pin -> form.sshHostKey = pin.encode(); hostKeyQuestion = null; connect() },
+            onDismiss = { hostKeyQuestion = null; probe = Probe.Failed(q.message ?: "Host key not trusted") },
+        )
     }
 }

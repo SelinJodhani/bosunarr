@@ -40,6 +40,7 @@ import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.activity.QbittorrentServiceScreen
+import app.bosunarr.feature.server.ServerServiceScreen
 import app.bosunarr.nav.DiscoverRoute
 import app.bosunarr.nav.RequestsRoute
 import app.bosunarr.ui.common.AppScaffold
@@ -70,6 +71,7 @@ fun ServiceScreen(id: String, nav: NavController) {
         ServiceType.Wizarr -> WizarrServiceScreen(s, nav)
         ServiceType.Jellyseerr, ServiceType.Overseerr -> SeerrServiceScreen(s, nav)
         ServiceType.QBittorrent -> QbittorrentServiceScreen(s, nav)
+        ServiceType.Server -> ServerServiceScreen(s, nav)
         null -> AppScaffold(s.name, onBack = { nav.back() }) { p ->
             MessageBox(Icons.Rounded.Dns, "Unsupported service", Modifier.padding(p), hint = "Bosunarr doesn't know the service type \"${s.type}\".")
         }
