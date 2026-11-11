@@ -45,6 +45,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import androidx.compose.material3.SnackbarHostState
 import app.bosunarr.app
+import app.bosunarr.update.UpdatePrompt
+import app.bosunarr.update.Updater
 import app.bosunarr.feature.activity.ActivityScreen
 import app.bosunarr.feature.calendar.CalendarScreen
 import app.bosunarr.feature.dashboard.DashboardScreen
@@ -107,7 +109,11 @@ fun AppRoot() {
         }
     }
 
+    // Quiet update check once the store is loaded (at most every 12 h; release builds only).
+    LaunchedEffect(appState != null) { if (appState != null) Updater.autoCheck() }
+
     CompositionLocalProvider(LocalSnackbar provides snackbar) {
+        UpdatePrompt()
         Scaffold(
             contentWindowInsets = WindowInsets(0),
             snackbarHost = { SnackbarHost(snackbar) },

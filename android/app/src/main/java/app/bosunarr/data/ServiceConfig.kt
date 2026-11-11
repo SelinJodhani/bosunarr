@@ -29,6 +29,9 @@ data class AppState(
     val themeMode: String = "system",
     /** Set once the first-run setup has been finished or skipped. */
     val onboarded: Boolean = false,
+    /** Last automatic update check (epoch ms) and a release the user chose to skip. */
+    val lastUpdateCheck: Long = 0,
+    val skippedVersion: String? = null,
     val seedColor: Long? = null,
 )
 

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Error
@@ -74,6 +75,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import app.bosunarr.BuildConfig
 import app.bosunarr.app
+import app.bosunarr.update.UpdateSettingsRow
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.services.okColor
@@ -215,7 +217,7 @@ fun SettingsScreen(nav: NavController) {
 
             item("h:about") { GroupHeader("About") }
             item("app") {
-                GroupRow(0, 3) {
+                GroupRow(0, 4) {
                     ListItem(
                         headlineContent = { Text("Bosunarr", style = MaterialTheme.typography.titleMedium) },
                         supportingContent = { Text("Version ${BuildConfig.VERSION_NAME}") },
@@ -224,8 +226,13 @@ fun SettingsScreen(nav: NavController) {
                     )
                 }
             }
+            item("updates") {
+                GroupRow(1, 4) {
+                    UpdateSettingsRow(leading = { RowIcon(Icons.Rounded.SystemUpdate) }, colors = TransparentListItem)
+                }
+            }
             item("github") {
-                GroupRow(1, 3, onClick = { runCatching { uri.openUri(GITHUB_URL) } }) {
+                GroupRow(2, 4, onClick = { runCatching { uri.openUri(GITHUB_URL) } }) {
                     ListItem(
                         headlineContent = { Text("Source code") },
                         supportingContent = { Text("github.com/SelinJodhani/bosunarr", maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -236,7 +243,7 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
             item("web") {
-                GroupRow(2, 3, onClick = { runCatching { uri.openUri(WEBSITE_URL) } }) {
+                GroupRow(3, 4, onClick = { runCatching { uri.openUri(WEBSITE_URL) } }) {
                     ListItem(
                         headlineContent = { Text("Website") },
                         supportingContent = { Text("selinjodhani.github.io/bosunarr", maxLines = 1, overflow = TextOverflow.Ellipsis) },
