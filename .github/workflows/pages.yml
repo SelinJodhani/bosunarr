@@ -26,6 +26,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Browsers may keep styles.css/app.js for 10 min; stamp each deploy's links so a returning visitor never
+      # mixes a cached old stylesheet with new HTML.
+      - name: Cache-bust CSS and JS
+        run: |
+          v="${GITHUB_SHA::8}"
+          sed -i -E "s#(styles\.css|app\.js)\"#\1?v=${v}\"#g" site/*.html
+          grep -ho '\(styles\.css\|app\.js\)?v=[0-9a-f]*' site/*.html | sort | uniq -c
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
