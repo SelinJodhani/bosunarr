@@ -77,7 +77,7 @@ import kotlinx.coroutines.launch
 fun ActivityScreen(nav: NavController) {
     val appState by app.state.collectAsState()
     val services by app.services.collectAsState()
-    val arrs = remember(services) { services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr } }
+    val arrs = remember(services) { services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Whisparr } }
     val qbits = remember(services) { services.filter { it.serviceType == ServiceType.QBittorrent } }
     val snackbar = LocalSnackbar.current
     val scope = rememberCoroutineScope()

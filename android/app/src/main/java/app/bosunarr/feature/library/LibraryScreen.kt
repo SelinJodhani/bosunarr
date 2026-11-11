@@ -77,7 +77,8 @@ import app.bosunarr.ui.common.MessageBox
 import app.bosunarr.ui.common.rememberLoader
 import java.util.Locale
 
-private enum class KindFilter(val label: String) { All("All"), Series("Series"), Movies("Movies") }
+/** Adult (Whisparr) titles never mix into All/Movies; they only show under their own chip. */
+private enum class KindFilter(val label: String) { All("All"), Series("Series"), Movies("Movies"), Adult("Adult") }
 private enum class StatusFilter(val label: String) { Any("Any"), Monitored("Monitored"), Missing("Missing"), Downloaded("Downloaded"), Unmonitored("Unmonitored") }
 private enum class SortKey(val label: String) { Title("Title"), Added("Recently added"), Year("Year"), Size("Size on disk") }
 
@@ -87,7 +88,7 @@ private fun count(n: Int) = String.format(Locale.getDefault(), "%,d", n)
 fun LibraryScreen(nav: NavController) {
     val loaded by app.state.collectAsState()
     val all by app.services.collectAsState()
-    val arrs = remember(all) { all.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr } }
+    val arrs = remember(all) { all.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Whisparr } }
     when {
         loaded == null -> AppScaffold("Library") { p -> LoadingBox(Modifier.padding(p)) }
         arrs.isEmpty() -> AppScaffold("Library") { p ->
@@ -129,14 +130,30 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
 
     val hasSonarr = arrs.any { it.serviceType == ServiceType.Sonarr }
     val hasRadarr = arrs.any { it.serviceType == ServiceType.Radarr }
+    val hasWhisparr = arrs.any { it.serviceType == ServiceType.Whisparr }
+    val adultIds = remember(arrs) { arrs.filter { it.serviceType == ServiceType.Whisparr }.map { it.id }.toSet() }
+    // With only Whisparr configured there's nothing else to show, so "All" includes it.
+    val allIncludesAdult = !hasSonarr && !hasRadarr
     val byId = remember(arrs) { arrs.associateBy { it.id } }
 
     val data = state.value
-    val everything = remember(data, overrides) { data?.let { LibraryStore.apply(it.items, it.fetchedAt, overrides) } ?: emptyList() }
+    val loadedItems = remember(data, overrides) { data?.let { LibraryStore.apply(it.items, it.fetchedAt, overrides) } ?: emptyList() }
+    // The pool the current kind draws from: adult titles only under the Adult chip.
+    val everything = remember(loadedItems, kind, adultIds) {
+        when {
+            kind == KindFilter.Adult -> loadedItems.filter { it.serviceId in adultIds }
+            allIncludesAdult -> loadedItems
+            else -> loadedItems.filter { it.serviceId !in adultIds }
+        }
+    }
     val shown = remember(everything, query, kind, status, sort) {
         val needle = query.trim().lowercase()
         val list = everything.filter { i ->
-            (kind == KindFilter.All || (kind == KindFilter.Series) == (i.kind == LibKind.Series)) &&
+            when (kind) {
+                KindFilter.All, KindFilter.Adult -> true
+                KindFilter.Series -> i.kind == LibKind.Series
+                KindFilter.Movies -> i.kind == LibKind.Movie
+            } &&
                 when (status) {
                     StatusFilter.Any -> true
                     StatusFilter.Monitored -> i.monitored
@@ -175,6 +192,7 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
     }
 
     val addKind = when {
+        kind == KindFilter.Adult -> "adult"
         kind == KindFilter.Movies -> "movie"
         kind == KindFilter.Series -> "series"
         hasSonarr -> "series"
@@ -238,8 +256,16 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (hasSonarr && hasRadarr) {
-                    KindFilter.entries.forEach { k ->
+                val kinds = KindFilter.entries.filter {
+                    when (it) {
+                        KindFilter.All -> true
+                        KindFilter.Series -> hasSonarr
+                        KindFilter.Movies -> hasRadarr
+                        KindFilter.Adult -> hasWhisparr
+                    }
+                }
+                if (kinds.size > 2) {
+                    kinds.forEach { k ->
                         FilterChip(
                             selected = kind == k,
                             onClick = { kind = k },

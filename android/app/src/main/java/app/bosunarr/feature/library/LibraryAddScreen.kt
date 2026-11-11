@@ -153,11 +153,14 @@ fun LibraryAddScreen(nav: NavController, route: LibraryAddRoute) {
     val loaded by app.state.collectAsState()
     val all by app.services.collectAsState()
     val sonarrs = remember(all) { all.filter { it.serviceType == ServiceType.Sonarr } }
-    val radarrs = remember(all) { all.filter { it.serviceType == ServiceType.Radarr } }
-    val initial = if (route.kind == "movie") LibKind.Movie else LibKind.Series
+    val adult = route.kind == "adult"
+    // Whisparr (Radarr-based) adds through the same movie flow, kept apart from Radarr.
+    val radarrs = remember(all, adult) { all.filter { it.serviceType == if (adult) ServiceType.Whisparr else ServiceType.Radarr } }
+    val initial = if (route.kind == "movie" || adult) LibKind.Movie else LibKind.Series
     var chosenKind by rememberSaveable { mutableStateOf(initial) }
     // Fall back to whichever kind is configured.
     val kind = when {
+        adult -> LibKind.Movie
         chosenKind == LibKind.Series && sonarrs.isEmpty() && radarrs.isNotEmpty() -> LibKind.Movie
         chosenKind == LibKind.Movie && radarrs.isEmpty() && sonarrs.isNotEmpty() -> LibKind.Series
         else -> chosenKind
@@ -178,7 +181,7 @@ fun LibraryAddScreen(nav: NavController, route: LibraryAddRoute) {
     }
     LaunchedEffect(Unit) { if (route.term.isBlank()) runCatching { focus.requestFocus() } }
 
-    AppScaffold(if (kind == LibKind.Series) "Add series" else "Add movie", onBack = { nav.back() }) { p ->
+    AppScaffold(if (adult) "Add to Whisparr" else if (kind == LibKind.Series) "Add series" else "Add movie", onBack = { nav.back() }) { p ->
         if (loaded != null && services.isEmpty()) {
             Column(Modifier.padding(p).fillMaxSize().verticalScroll(rememberScrollState())) {
                 MessageBox(
@@ -189,7 +192,7 @@ fun LibraryAddScreen(nav: NavController, route: LibraryAddRoute) {
             return@AppScaffold
         }
         Column(Modifier.padding(p).fillMaxSize()) {
-            if (sonarrs.isNotEmpty() && radarrs.isNotEmpty()) {
+            if (!adult && sonarrs.isNotEmpty() && radarrs.isNotEmpty()) {
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                     listOf(LibKind.Series to "Series", LibKind.Movie to "Movies").forEachIndexed { i, (k, label) ->
                         SegmentedButton(selected = kind == k, onClick = { chosenKind = k }, shape = SegmentedButtonDefaults.itemShape(i, 2)) { Text(label) }

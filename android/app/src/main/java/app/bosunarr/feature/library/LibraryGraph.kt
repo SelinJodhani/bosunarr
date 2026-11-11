@@ -32,21 +32,22 @@ fun NavGraphBuilder.libraryGraph(nav: NavController) {
     composable<LibraryRoute> { LibraryScreen(nav) }
     composable<SeriesRoute> { entry ->
         val r = entry.toRoute<SeriesRoute>()
-        WithArrService(nav, r.serviceId, ServiceType.Sonarr, "Series") { s -> SeriesScreen(nav, entry, s, r.id) }
+        WithArrService(nav, r.serviceId, setOf(ServiceType.Sonarr), "Series") { s -> SeriesScreen(nav, entry, s, r.id) }
     }
     composable<MovieRoute> { entry ->
         val r = entry.toRoute<MovieRoute>()
-        WithArrService(nav, r.serviceId, ServiceType.Radarr, "Movie") { s -> MovieScreen(nav, entry, s, r.id) }
+        WithArrService(nav, r.serviceId, setOf(ServiceType.Radarr, ServiceType.Whisparr), "Movie") { s -> MovieScreen(nav, entry, s, r.id) }
     }
     composable<LibraryAddRoute> { entry -> LibraryAddScreen(nav, entry.toRoute<LibraryAddRoute>()) }
 }
 
 /** Resolve the route's service (waiting for the encrypted store on a cold start), or explain why it's gone. */
 @Composable
-private fun WithArrService(nav: NavController, id: String, type: ServiceType, title: String, content: @Composable (ServiceConfig) -> Unit) {
+private fun WithArrService(nav: NavController, id: String, types: Set<ServiceType>, title: String, content: @Composable (ServiceConfig) -> Unit) {
+    val type = types.first()
     val loaded by app.state.collectAsState()
     val services by app.services.collectAsState()
-    val s = services.firstOrNull { it.id == id && it.serviceType == type }
+    val s = services.firstOrNull { it.id == id && it.serviceType in types }
     when {
         s != null -> content(s)
         loaded == null -> AppScaffold(title, onBack = { nav.back() }) { p -> LoadingBox(Modifier.padding(p)) }
