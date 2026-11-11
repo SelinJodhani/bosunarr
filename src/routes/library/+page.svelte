@@ -326,7 +326,7 @@
 				{/each}
 			</ConnectedButtons>
 		</div>
-		<div class="statuses" role="group" aria-label="Status">
+		<div class="statuses chip-row" role="group" aria-label="Status">
 			{#each STATUSES as s (s.value)}
 				<Chip
 					variant="general"
@@ -539,11 +539,7 @@
 		padding-left: 0.75rem;
 		border-left: 1px solid var(--m3c-outline-variant);
 	}
-	/* 40 px tap targets: same height as the type buttons beside them. */
-	.statuses :global(.m3-container) {
-		height: 2.5rem;
-		border-radius: 0.75rem;
-	}
+	/* Status chips: standard 32 px chips with a 40 px tap area (`.chip-row` in app.css). */
 	.empty {
 		display: grid;
 		justify-items: center;

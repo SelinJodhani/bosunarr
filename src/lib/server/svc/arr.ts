@@ -183,11 +183,13 @@ function disks(space: DiskSpace[], roots: RootFolder[]): ArrDisk[] {
 		};
 	});
 	// Drives: skip ones already shown through a root folder and duplicates of the same filesystem.
-	const seen = new Set<string>();
+	// Container-internal mounts (/config, /app) are the same filesystem as / and add nothing. The arr reads each
+	// mount a moment apart, so "same filesystem" = same size with nearly the same free space, not an exact match.
+	const seen: Array<{ total: number; free: number }> = [];
+	const sameFs = (d: DiskSpace) => seen.some((x) => x.total === d.totalSpace && Math.abs(x.free - d.freeSpace) <= Math.max(1024 ** 3, d.totalSpace * 0.001));
 	for (const d of space) {
-		const sig = `${d.freeSpace}:${d.totalSpace}`;
-		if (used.has(d.path) || seen.has(sig) || !d.totalSpace) continue;
-		seen.add(sig);
+		if (used.has(d.path) || !d.totalSpace || /^\/(config|app)(\/|$)/.test(norm(d.path)) || sameFs(d)) continue;
+		seen.push({ total: d.totalSpace, free: d.freeSpace });
 		out.push({ path: d.path, free: d.freeSpace, total: d.totalSpace, rootFolder: false, accessible: true, unmapped: 0 });
 	}
 	return out;
@@ -223,9 +225,12 @@ const COMMAND_LABELS: Record<string, string> = {
 	ImportListSync: 'Import list sync',
 	MessagingCleanup: 'Clean up messages'
 };
-/** Commands the arr runs on its own every few minutes; hidden when the arr doesn't report a trigger. */
-const SCHEDULED = new Set(['RefreshMonitoredDownloads', 'MessagingCleanup', 'Housekeeping', 'CheckHealth', 'ApplicationUpdateCheck', 'ImportListSync']);
-const isManual = (c: Command) => (c.trigger ? c.trigger === 'manual' : !SCHEDULED.has(c.name ?? ''));
+/** Housekeeping the arr runs on its own every minute or so. Always hidden: some versions (Radarr 6.4) report
+ *  them as "manual" because reading the queue over the API triggers them. */
+const SCHEDULED = new Set(['RefreshMonitoredDownloads', 'MessagingCleanup', 'Housekeeping', 'CheckHealth', 'ApplicationUpdateCheck', 'ImportListSync', 'ProcessMonitoredDownloads']);
+const isManual = (c: Command) => !SCHEDULED.has(c.name ?? '') && (!c.trigger || c.trigger === 'manual');
+/** Keep only the newest run of each command (input must be sorted newest first). */
+const latestPerName = (c: Command, i: number, all: Command[]) => all.findIndex((x) => x.name === c.name) === i;
 const commandTime = (c: Command) => +new Date(c.queued ?? c.started ?? 0) || 0;
 
 /** Resolves to null if `p` takes longer than `ms` (the promise keeps running and fills its cache). */
@@ -296,6 +301,7 @@ export function overview(s: ServiceRecord): Promise<ArrOverview> {
 				.filter(isManual)
 				.filter((c) => c.status === 'started' || c.status === 'queued' || (c.ended && Date.now() - +new Date(c.ended) < 10 * 60_000))
 				.sort((a, b) => commandTime(b) - commandTime(a))
+				.filter(latestPerName)
 				.slice(0, 8)
 				.map((c): ArrCommandInfo => ({
 					id: c.id,

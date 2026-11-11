@@ -4,7 +4,8 @@ import { getService, type ServiceRecord } from '$lib/server/services/store';
 import { cachedImage } from '$lib/server/imagecache';
 
 /** Only image paths are proxied — this is not a general-purpose proxy. */
-const LAST_WRITE = String.raw`(\?lastWrite=\d+)?`;
+// Cache-busting query the arrs append to cover URLs: `?lastWrite=<ticks>` (Sonarr, Radarr ≤ 6.3) or `?h=<hash>` (Radarr 6.4+).
+const LAST_WRITE = String.raw`(\?(lastWrite=\d+|h=[0-9a-fA-F]+))?`;
 const ALLOWED: Partial<Record<ServiceRecord['type'], RegExp>> = {
 	sonarr: new RegExp(String.raw`^/(api/v3/)?MediaCover/[\w./-]+${LAST_WRITE}$`),
 	radarr: new RegExp(String.raw`^/(api/v3/)?MediaCover/[\w./-]+${LAST_WRITE}$`),

@@ -171,7 +171,7 @@
 	{/if}
 {:else if t}
 	<Summary
-		meta={[o.version ? `qBittorrent ${o.version.replace(/^v/, '')}` : 'qBittorrent', CONN[t.connection], altOn && 'Alternative speed on']}
+		meta={[o.version ? `Version ${o.version.replace(/^v/, '')}` : null, CONN[t.connection], altOn && 'Alternative speed on']}
 		stats={[
 			{ value: tile(speed(t.down)), label: 'Download', tone: t.down > 0 ? 'info' : undefined },
 			{ value: tile(speed(t.up)), label: 'Upload' },

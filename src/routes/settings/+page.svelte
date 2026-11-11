@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { replaceState } from '$app/navigation';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Button, Dialog, snackbar } from 'm3-svelte';
@@ -77,6 +78,13 @@
 		const id = Number(page.url.searchParams.get('edit'));
 		const target = data.services.find((s) => s.id === id);
 		if (target && data.user?.isAdmin) edit(target);
+	});
+	// Once that dialog closes, drop ?edit= so a reload doesn't reopen it.
+	$effect(() => {
+		if (dialogOpen || !page.url.searchParams.has('edit')) return;
+		const url = new URL(page.url);
+		url.searchParams.delete('edit');
+		replaceState(url, page.state);
 	});
 	function setAppearance(patch: Partial<Appearance>) {
 		appearance = { ...appearance, ...patch };

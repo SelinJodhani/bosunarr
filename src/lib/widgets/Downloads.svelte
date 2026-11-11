@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Icon, LinearProgress } from 'm3-svelte';
+	import { Button, Icon, LinearProgress } from 'm3-svelte';
 	import { live } from '$lib/live.svelte';
 	import { eta, speed } from '$lib/format';
 	import { iDownload, iUpload } from '$lib/icons';
@@ -50,6 +50,7 @@
 			<div class="empty-state compact idle">
 				<span class="es-icon"><Icon icon={iIdle} size={32} /></span>
 				<p class="es-title">Nothing downloading</p>
+				<div class="es-action"><Button variant="text" href="/activity">Open Activity</Button></div>
 			</div>
 		{/if}
 	{/if}

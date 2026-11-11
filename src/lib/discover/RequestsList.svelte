@@ -18,7 +18,7 @@
 	import Empty from './Empty.svelte';
 	import RequestConfirm from './RequestConfirm.svelte';
 	import StatusBadge from './StatusBadge.svelte';
-	import { backClose } from './backClose.svelte';
+	import { useBackClose } from '$lib/components/backClose.svelte';
 	import type { ConfirmTarget, RequestAction, RequestItem } from './types';
 
 	/** Re-mounted by the parent ({#key}) when the filter changes. */
@@ -110,11 +110,14 @@
 		menuPos = { top: Math.min(r.bottom + 4, window.innerHeight - 64), right: Math.max(8, window.innerWidth - r.right) };
 		menuEl?.showPopover();
 	}
-	// System back closes the menu rather than leaving the page.
-	const menuBack = backClose('requestMenu', () => closeMenu());
+	// System back closes the menu rather than leaving the page (shared helper: CloseWatcher, else a shallow history entry).
+	let menuOpen = $state(false);
+	useBackClose(
+		() => menuOpen,
+		() => closeMenu()
+	);
 	function onMenuToggle(e: ToggleEvent) {
-		if (e.newState === 'open') menuBack.opened();
-		else menuBack.closed();
+		menuOpen = e.newState === 'open';
 	}
 	function closeMenu() {
 		try {
