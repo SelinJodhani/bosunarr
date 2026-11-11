@@ -1,0 +1,24 @@
+{
+ "data": [
+  {
+   "name": "opensubtitlescom",
+   "status": "Good",
+   "retry": "-"
+  },
+  {
+   "name": "podnapisi",
+   "status": "Good",
+   "retry": "-"
+  },
+  {
+   "name": "embeddedsubtitles",
+   "status": "Good",
+   "retry": "-"
+  },
+  {
+   "name": "subf2m",
+   "status": "TooManyRequests",
+   "retry": "@now+16h"
+  }
+ ]
+}

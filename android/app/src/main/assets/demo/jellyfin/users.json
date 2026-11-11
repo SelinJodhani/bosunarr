@@ -1,0 +1,39 @@
+[
+ {
+  "Name": "Alex",
+  "key": "alex",
+  "admin": true,
+  "LastActivityDate": "@now-4m"
+ },
+ {
+  "Name": "Maya",
+  "key": "maya",
+  "admin": false,
+  "LastActivityDate": "@now-1m"
+ },
+ {
+  "Name": "Theo",
+  "key": "theo",
+  "admin": false,
+  "LastActivityDate": "@now-2m"
+ },
+ {
+  "Name": "Nana",
+  "key": "nana",
+  "admin": false,
+  "LastActivityDate": "@now-9m"
+ },
+ {
+  "Name": "Sam",
+  "key": "sam",
+  "admin": false,
+  "LastActivityDate": "@now-6d"
+ },
+ {
+  "Name": "Guest",
+  "key": "guest",
+  "admin": false,
+  "disabled": true,
+  "LastActivityDate": "@now-41d"
+ }
+]

@@ -1,0 +1,11 @@
+[
+ {
+  "id": 0,
+  "name": "Radarr",
+  "is4k": false,
+  "isDefault": true,
+  "activeProfileId": 4,
+  "activeDirectory": "/data/media/movies",
+  "activeTags": []
+ }
+]

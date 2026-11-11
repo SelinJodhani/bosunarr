@@ -1,0 +1,62 @@
+[
+ {
+  "id": 1,
+  "name": "Internet Archive",
+  "enable": true,
+  "protocol": "torrent",
+  "privacy": "public",
+  "priority": 10,
+  "implementationName": "Cardigann",
+  "definitionName": "internetarchive"
+ },
+ {
+  "id": 2,
+  "name": "Public Domain Torrents",
+  "enable": true,
+  "protocol": "torrent",
+  "privacy": "public",
+  "priority": 20,
+  "implementationName": "Cardigann",
+  "definitionName": "publicdomaintorrents"
+ },
+ {
+  "id": 3,
+  "name": "Academic Torrents",
+  "enable": true,
+  "protocol": "torrent",
+  "privacy": "public",
+  "priority": 25,
+  "implementationName": "Cardigann",
+  "definitionName": "academictorrents"
+ },
+ {
+  "id": 4,
+  "name": "Linux Tracker",
+  "enable": true,
+  "protocol": "torrent",
+  "privacy": "public",
+  "priority": 40,
+  "implementationName": "Cardigann",
+  "definitionName": "linuxtracker"
+ },
+ {
+  "id": 5,
+  "name": "Home Newznab",
+  "enable": true,
+  "protocol": "usenet",
+  "privacy": "private",
+  "priority": 25,
+  "implementationName": "Newznab",
+  "definitionName": "newznab"
+ },
+ {
+  "id": 6,
+  "name": "Old Reel Archive",
+  "enable": false,
+  "protocol": "torrent",
+  "privacy": "semiPrivate",
+  "priority": 30,
+  "implementationName": "Cardigann",
+  "definitionName": "oldreel"
+ }
+]

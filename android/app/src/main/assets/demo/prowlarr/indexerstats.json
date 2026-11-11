@@ -1,0 +1,71 @@
+{
+ "indexers": [
+  {
+   "indexerId": 1,
+   "indexerName": "Internet Archive",
+   "averageResponseTime": 412,
+   "numberOfQueries": 1284,
+   "numberOfGrabs": 61,
+   "numberOfRssQueries": 2016,
+   "numberOfAuthQueries": 0,
+   "numberOfFailedQueries": 7,
+   "numberOfFailedGrabs": 0,
+   "numberOfFailedRssQueries": 3,
+   "numberOfFailedAuthQueries": 0
+  },
+  {
+   "indexerId": 2,
+   "indexerName": "Public Domain Torrents",
+   "averageResponseTime": 655,
+   "numberOfQueries": 1190,
+   "numberOfGrabs": 38,
+   "numberOfRssQueries": 2016,
+   "numberOfAuthQueries": 0,
+   "numberOfFailedQueries": 19,
+   "numberOfFailedGrabs": 1,
+   "numberOfFailedRssQueries": 11,
+   "numberOfFailedAuthQueries": 0
+  },
+  {
+   "indexerId": 3,
+   "indexerName": "Academic Torrents",
+   "averageResponseTime": 893,
+   "numberOfQueries": 802,
+   "numberOfGrabs": 9,
+   "numberOfRssQueries": 1008,
+   "numberOfAuthQueries": 0,
+   "numberOfFailedQueries": 4,
+   "numberOfFailedGrabs": 0,
+   "numberOfFailedRssQueries": 2,
+   "numberOfFailedAuthQueries": 0
+  },
+  {
+   "indexerId": 4,
+   "indexerName": "Linux Tracker",
+   "averageResponseTime": 301,
+   "numberOfQueries": 96,
+   "numberOfGrabs": 3,
+   "numberOfRssQueries": 1008,
+   "numberOfAuthQueries": 0,
+   "numberOfFailedQueries": 0,
+   "numberOfFailedGrabs": 0,
+   "numberOfFailedRssQueries": 0,
+   "numberOfFailedAuthQueries": 0
+  },
+  {
+   "indexerId": 5,
+   "indexerName": "Home Newznab",
+   "averageResponseTime": 1874,
+   "numberOfQueries": 655,
+   "numberOfGrabs": 12,
+   "numberOfRssQueries": 1450,
+   "numberOfAuthQueries": 4,
+   "numberOfFailedQueries": 141,
+   "numberOfFailedGrabs": 2,
+   "numberOfFailedRssQueries": 96,
+   "numberOfFailedAuthQueries": 1
+  }
+ ],
+ "userAgents": [],
+ "hosts": []
+}

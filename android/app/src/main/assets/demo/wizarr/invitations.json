@@ -1,0 +1,89 @@
+{
+ "invitations": [
+  {
+   "id": 7,
+   "code": "MOVIENIGHT",
+   "url": "/j/MOVIENIGHT",
+   "status": "pending",
+   "created": "@naive-2h",
+   "expires": "@naive+7d",
+   "used_at": null,
+   "used_by": null,
+   "duration": "unlimited",
+   "unlimited": false,
+   "specific_libraries": [
+    1,
+    2
+   ],
+   "server_names": [
+    "Living Room"
+   ]
+  },
+  {
+   "id": 6,
+   "code": "GRANDPA24",
+   "url": "/j/GRANDPA24",
+   "status": "pending",
+   "created": "@naive-1d",
+   "expires": null,
+   "used_at": null,
+   "used_by": null,
+   "duration": "unlimited",
+   "unlimited": true,
+   "specific_libraries": [
+    2
+   ],
+   "server_names": [
+    "Living Room"
+   ]
+  },
+  {
+   "id": 5,
+   "code": "SAMTRIAL",
+   "url": "/j/SAMTRIAL",
+   "status": "used",
+   "created": "@naive-7d",
+   "expires": "@naive-6d",
+   "used_at": "@naive-6d",
+   "used_by": "sam",
+   "duration": "30",
+   "unlimited": false,
+   "specific_libraries": [],
+   "server_names": [
+    "Living Room"
+   ]
+  },
+  {
+   "id": 4,
+   "code": "BOOKCLUB",
+   "url": "/j/BOOKCLUB",
+   "status": "expired",
+   "created": "@naive-40d",
+   "expires": "@naive-33d",
+   "used_at": null,
+   "used_by": null,
+   "duration": "unlimited",
+   "unlimited": false,
+   "specific_libraries": [],
+   "server_names": [
+    "Living Room"
+   ]
+  },
+  {
+   "id": 3,
+   "code": "NANA2026",
+   "url": "/j/NANA2026",
+   "status": "used",
+   "created": "@naive-96d",
+   "expires": null,
+   "used_at": "@naive-95d",
+   "used_by": "nana",
+   "duration": "unlimited",
+   "unlimited": false,
+   "specific_libraries": [],
+   "server_names": [
+    "Living Room"
+   ]
+  }
+ ]
+}

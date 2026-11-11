@@ -49,6 +49,9 @@ data class AppState(
     val lastUpdateCheck: Long = 0,
     val skippedVersion: String? = null,
     val seedColor: Long? = null,
+    /** Demo mode: [services] holds the fake demo stack and the user's own services wait in [realServices]. */
+    val demo: Boolean = false,
+    val realServices: List<ServiceConfig>? = null,
 )
 
 @Serializable

@@ -1,0 +1,22 @@
+{
+ "libraries": [
+  {
+   "id": 1,
+   "name": "Movies",
+   "server_id": 1,
+   "enabled": true
+  },
+  {
+   "id": 2,
+   "name": "Classics",
+   "server_id": 1,
+   "enabled": true
+  },
+  {
+   "id": 3,
+   "name": "Shows",
+   "server_id": 1,
+   "enabled": true
+  }
+ ]
+}

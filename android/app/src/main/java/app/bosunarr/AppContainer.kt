@@ -5,6 +5,8 @@ import app.bosunarr.data.AppState
 import app.bosunarr.data.SecureStore
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.demo.Demo
+import app.bosunarr.demo.DemoInterceptor
 import app.bosunarr.net.ServiceClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +25,8 @@ class AppContainer(context: Context) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val store = SecureStore(context)
 
-    private val baseHttp = OkHttpClient.Builder().retryOnConnectionFailure(true).build()
+    // The demo interceptor answers requests to the demo services (*.bosunarr.invalid) locally; others pass through.
+    private val baseHttp = OkHttpClient.Builder().addInterceptor(DemoInterceptor(context)).retryOnConnectionFailure(true).build()
     val client = ServiceClient(baseHttp)
     // No redirects: image requests carry API-key headers, which OkHttp would forward to another host.
     val imageHttp: OkHttpClient = baseHttp.newBuilder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS)
@@ -54,7 +57,9 @@ class AppContainer(context: Context) {
 
     suspend fun saveService(s: ServiceConfig): ServiceConfig {
         val saved = if (s.id.isBlank()) s.copy(id = UUID.randomUUID().toString()) else s
-        store.update { st ->
+        store.update { cur ->
+            // Saving a real service while in the demo ends the demo: the user's own services come back, plus this one.
+            val st = if (cur.demo && !Demo.isDemo(saved)) Demo.exitState(cur).copy(onboarded = true) else cur
             val list = st.services.toMutableList()
             val i = list.indexOfFirst { it.id == saved.id }
             if (i >= 0) list[i] = saved else list += saved
@@ -72,4 +77,7 @@ class AppContainer(context: Context) {
     fun updateState(transform: (AppState) -> AppState) {
         scope.launch { store.update(transform) }
     }
+
+    /** [updateState] that returns once the change is stored. */
+    suspend fun updateStateNow(transform: (AppState) -> AppState) = store.update(transform)
 }

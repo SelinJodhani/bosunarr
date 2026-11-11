@@ -1,0 +1,11 @@
+{
+ "servers": [
+  {
+   "id": 1,
+   "name": "Living Room",
+   "server_type": "jellyfin",
+   "url": "http://jellyfin:8096",
+   "verified": true
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+[
+ {
+  "id": 1,
+  "indexerId": 5,
+  "initialFailure": "@now-5.2h",
+  "mostRecentFailure": "@now-14m",
+  "disabledTill": "@now+46m"
+ }
+]

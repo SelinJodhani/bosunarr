@@ -1,0 +1,42 @@
+[
+ {
+  "id": 1,
+  "displayName": "Alex",
+  "username": "alex",
+  "jellyfinUsername": "alex",
+  "email": "alex@example.org",
+  "permissions": 2,
+  "userType": 3,
+  "requestCount": 14
+ },
+ {
+  "id": 2,
+  "displayName": "Maya",
+  "username": "maya",
+  "jellyfinUsername": "maya",
+  "email": "maya@example.org",
+  "permissions": 32,
+  "userType": 3,
+  "requestCount": 9
+ },
+ {
+  "id": 3,
+  "displayName": "Theo",
+  "username": "theo",
+  "jellyfinUsername": "theo",
+  "email": "theo@example.org",
+  "permissions": 32,
+  "userType": 3,
+  "requestCount": 6
+ },
+ {
+  "id": 4,
+  "displayName": "Nana",
+  "username": "nana",
+  "jellyfinUsername": "nana",
+  "email": "nana@example.org",
+  "permissions": 32,
+  "userType": 3,
+  "requestCount": 3
+ }
+]

@@ -1,0 +1,20 @@
+[
+ {
+  "path": "/",
+  "label": "overlay",
+  "freeSpace": 41875931136,
+  "totalSpace": 125829120000
+ },
+ {
+  "path": "/config",
+  "label": "nvme0n1p2",
+  "freeSpace": 189246996480,
+  "totalSpace": 494384795648
+ },
+ {
+  "path": "/data",
+  "label": "tank",
+  "freeSpace": 3412000000000,
+  "totalSpace": 11997997989888
+ }
+]

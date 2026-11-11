@@ -73,6 +73,8 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import app.bosunarr.demo.DemoCreditsLine
+import app.bosunarr.demo.DemoSettingsCard
 import app.bosunarr.BuildConfig
 import app.bosunarr.app
 import app.bosunarr.update.UpdateSettingsRow
@@ -183,6 +185,7 @@ fun SettingsScreen(nav: NavController) {
 
     AppScaffold("Settings", onBack = { nav.back() }, large = true) { p ->
         LazyColumn(Modifier.padding(p).fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
+            if (state?.demo == true) item("demo") { DemoSettingsCard(nav) }
             item("h:services") { GroupHeader("Services") }
             val rows = services.size + 1
             itemsIndexed(services, key = { _, s -> s.id }) { i, s ->
@@ -309,6 +312,7 @@ fun SettingsScreen(nav: NavController) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    DemoCreditsLine()
                 }
             }
         }

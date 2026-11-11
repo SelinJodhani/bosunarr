@@ -87,6 +87,7 @@ import app.bosunarr.data.Credentials
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.data.normalizeUrl
+import app.bosunarr.demo.TryDemoButton
 import app.bosunarr.net.userMessage
 import app.bosunarr.ui.common.AppMark
 import app.bosunarr.ui.settings.ServiceBadge
@@ -135,7 +136,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             label = "onboarding",
         ) { s ->
             when (s) {
-                Step.Welcome -> WelcomeStep(onStart = { go(Step.Pick) }, onSkip = { finish() })
+                Step.Welcome -> WelcomeStep(onStart = { go(Step.Pick) }, onSkip = { finish() }, onDemo = onFinish)
                 Step.Pick -> PickStep(
                     picked = picked,
                     onBack = { go(Step.Welcome, false) },
@@ -169,7 +170,7 @@ private fun listSaver() = androidx.compose.runtime.saveable.listSaver<androidx.c
 /* ------------------------------------------------------------------ welcome */
 
 @Composable
-private fun WelcomeStep(onStart: () -> Unit, onSkip: () -> Unit) {
+private fun WelcomeStep(onStart: () -> Unit, onSkip: () -> Unit, onDemo: () -> Unit) {
     Column(
         Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -191,6 +192,9 @@ private fun WelcomeStep(onStart: () -> Unit, onSkip: () -> Unit) {
         Feature(Icons.Rounded.Lock, "Your keys stay on this phone", "Addresses and API keys are encrypted with a key that never leaves the device.")
         Spacer(Modifier.height(40.dp))
         Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Get started", style = MaterialTheme.typography.titleMedium) }
+        Spacer(Modifier.height(12.dp))
+        // No server yet? Look around a fake stack first (see app.bosunarr.demo).
+        TryDemoButton(onEntered = onDemo)
         TextButton(onClick = onSkip, modifier = Modifier.padding(vertical = 8.dp)) { Text("I'll set it up later") }
         Spacer(Modifier.height(8.dp))
     }

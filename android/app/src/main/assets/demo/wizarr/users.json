@@ -1,0 +1,40 @@
+{
+ "users": [
+  {
+   "id": 1,
+   "username": "maya",
+   "email": "maya@example.org",
+   "server": "Living Room",
+   "server_type": "jellyfin",
+   "expires": null,
+   "created_at": "@naive-212d"
+  },
+  {
+   "id": 2,
+   "username": "theo",
+   "email": "theo@example.org",
+   "server": "Living Room",
+   "server_type": "jellyfin",
+   "expires": null,
+   "created_at": "@naive-160d"
+  },
+  {
+   "id": 3,
+   "username": "nana",
+   "email": "nana@example.org",
+   "server": "Living Room",
+   "server_type": "jellyfin",
+   "expires": null,
+   "created_at": "@naive-95d"
+  },
+  {
+   "id": 4,
+   "username": "sam",
+   "email": "sam@example.org",
+   "server": "Living Room",
+   "server_type": "jellyfin",
+   "expires": "@naive+24d",
+   "created_at": "@naive-6d"
+  }
+ ]
+}
