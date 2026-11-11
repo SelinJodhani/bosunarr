@@ -54,6 +54,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.platform.LocalAutofillManager
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -201,6 +205,7 @@ fun ServiceEditScreen(nav: NavController, id: String?, typeId: String?) {
     var test by remember { mutableStateOf<TestState>(TestState.Idle) }
     var confirmDelete by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
+    val autofill = LocalAutofillManager.current
 
     fun current() = ServiceConfig(
         id = existing?.id ?: "test-${type.id}",
@@ -266,11 +271,12 @@ fun ServiceEditScreen(nav: NavController, id: String?, typeId: String?) {
                     visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                     trailingIcon = eye,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
                 )
                 Credentials.UserPass -> {
                     OutlinedTextField(username, { username = it; test = TestState.Idle }, label = { Text("Username") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false), modifier = Modifier.fillMaxWidth())
+                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                        modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Username })
                     OutlinedTextField(
                         password, { password = it; test = TestState.Idle },
                         label = { Text("Password") },
@@ -279,7 +285,7 @@ fun ServiceEditScreen(nav: NavController, id: String?, typeId: String?) {
                         visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                         trailingIcon = eye,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
                     )
                 }
                 Credentials.None -> Unit
@@ -323,6 +329,7 @@ fun ServiceEditScreen(nav: NavController, id: String?, typeId: String?) {
                     onClick = {
                         if (saving) return@Button
                         saving = true
+                        autofill?.commit()
                         scope.launch {
                             val cfg = current().let { if (existing == null) it.copy(id = "") else it }
                             app.saveService(cfg)
