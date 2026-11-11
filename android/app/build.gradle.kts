@@ -94,6 +94,11 @@ dependencies {
     implementation(libs.jsch)
     implementation(libs.bouncycastle.prov)
 
+    // Home-screen widgets (Glance) refreshed by WorkManager; androidx.startup hooks "app opened" refreshes.
+    implementation(libs.glance.appwidget)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.startup.runtime)
+
     testImplementation(libs.junit)
     testImplementation(libs.sshd.core)
 }

@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">Bosunarr</string>
+
+    <!-- Home-screen widgets -->
+    <string name="widget_downloads_title">Downloads</string>
+    <string name="widget_downloads_description">Download speed, active downloads and progress</string>
+    <string name="widget_downloads_preview_header">Downloads  ↓ 12.4 MB/s  ↑ 860 KB/s</string>
+    <string name="widget_downloads_preview_item1">Severance · S02E07   72%</string>
+    <string name="widget_downloads_preview_item2">Dune: Part Two (2024)   41%</string>
+    <string name="widget_up_next_title">Up next</string>
+    <string name="widget_up_next_description">Upcoming episodes and movies from Sonarr and Radarr</string>
+    <string name="widget_up_next_preview_days">Today · Tomorrow · Fri · Sun</string>
+    <string name="widget_status_title">Services</string>
+    <string name="widget_status_description">Which of your services are online</string>
+    <string name="widget_status_preview_headline">All 6 online</string>
+    <string name="widget_status_preview_list">● Sonarr   ● Radarr\n● qBittorrent   ● Jellyfin</string>
+
+    <!-- Quick Settings tiles -->
+    <string name="tile_alt_speed">Alt speed</string>
+    <string name="tile_pause">Pause downloads</string>
 </resources>
