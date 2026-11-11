@@ -162,7 +162,7 @@ private fun Welcome(nav: NavController) {
         )
         Spacer(Modifier.height(24.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ServiceType.entries.filter { it != ServiceType.Whisparr }.forEach { t -> ServiceBadge(t, size = 36.dp) }
+            ServiceType.offered.forEach { t -> ServiceBadge(t, size = 36.dp) }
         }
         Spacer(Modifier.height(32.dp))
         Button(onClick = { nav.navigate(OnboardingRoute) }, modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth().height(52.dp)) { Text("Connect services") }

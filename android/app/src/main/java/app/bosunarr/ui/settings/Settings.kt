@@ -323,7 +323,7 @@ fun SettingsScreen(nav: NavController) {
         ModalBottomSheet(onDismissRequest = { picking = false }) {
             Text("Add a service", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 8.dp))
             Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 16.dp)) {
-                ServiceType.entries.forEach { t ->
+                ServiceType.offered.forEach { t ->
                     ListItem(
                         headlineContent = { Text(t.label) },
                         supportingContent = { Text(if (t in existing) "${t.role} · already added" else t.role) },

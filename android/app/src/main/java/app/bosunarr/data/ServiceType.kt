@@ -41,5 +41,11 @@ enum class ServiceType(
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }
+
+        /**
+         * Types offered when adding a service (onboarding, Settings). Whisparr is hidden for now: services the
+         * user already configured keep working, it just isn't offered for new setups.
+         */
+        val offered: List<ServiceType> get() = entries.filter { it != Whisparr }
     }
 }

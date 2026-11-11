@@ -248,7 +248,7 @@ private fun PickStep(picked: MutableList<String>, onBack: () -> Unit, onNext: ()
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(ServiceType.entries, key = { it.id }) { t ->
+            items(ServiceType.offered, key = { it.id }) { t ->
                 val on = t.id in picked
                 val added = t in existing
                 Surface(
