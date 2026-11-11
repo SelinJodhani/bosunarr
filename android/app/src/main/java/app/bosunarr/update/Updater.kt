@@ -90,8 +90,20 @@ object Updater {
         if (BuildConfig.DEBUG) return
         val st = app.state.value ?: return
         if (System.currentTimeMillis() - st.lastUpdateCheck < AUTO_INTERVAL_MS) return
+        val u = try {
+            fetchNewer()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Typical at cold start (network/VPN not up yet): don't record the attempt, so the next launch retries.
+            android.util.Log.w("Bosunarr", "Update check failed: ${e.message}")
+            return
+        }
         app.updateState { it.copy(lastUpdateCheck = System.currentTimeMillis()) }
-        val u = runCatching { fetchNewer() }.getOrNull() ?: return
+        if (u == null) {
+            if (_state.value == State.Idle) _state.value = State.UpToDate
+            return
+        }
         _state.value = State.Available(u)
         if (u.version != st.skippedVersion) prompt.value = u
     }
@@ -199,8 +211,20 @@ object Updater {
     }
 
     /** Hand the verified APK to Android's installer (asks for "install unknown apps" the first time). */
+    /** Set while the user is in "Install unknown apps"; the install continues when they come back. */
+    private var pendingInstall: File? = null
+
+    /** Called from the activity's onResume. */
+    fun resumePendingInstall(ctx: Context) {
+        val f = pendingInstall ?: return
+        if (!ctx.packageManager.canRequestPackageInstalls()) return
+        pendingInstall = null
+        if (f.exists()) install(ctx, f)
+    }
+
     fun install(ctx: Context, file: File) {
         if (!ctx.packageManager.canRequestPackageInstalls()) {
+            pendingInstall = file
             ctx.startActivity(
                 Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${ctx.packageName}"))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),

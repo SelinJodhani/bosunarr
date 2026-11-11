@@ -13,6 +13,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import app.bosunarr.ui.AppRoot
+import app.bosunarr.update.Updater
 import app.bosunarr.ui.theme.BosunarrTheme
 
 class MainActivity : ComponentActivity() {
@@ -47,6 +48,12 @@ class MainActivity : ComponentActivity() {
             else -> UiModeManager.MODE_NIGHT_AUTO
         }
         runCatching { ui.setApplicationNightMode(night) }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Back from "Install unknown apps": finish the update the user started.
+        Updater.resumePendingInstall(this)
     }
 
     override fun onNewIntent(intent: Intent) {
