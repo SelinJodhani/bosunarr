@@ -34,6 +34,8 @@ enum class ServiceType(
     Jellyfin("jellyfin", "Jellyfin", ServiceCategory.Server, Credentials.ApiKey, 8096, "Jellyfin → Dashboard → API Keys", Color(0xFFAA5CC3), "Media server"),
     Jellystat("jellystat", "Jellystat", ServiceCategory.Stats, Credentials.ApiKey, 3000, "Jellystat → Settings → API Keys", Color(0xFFF472B6), "Watch stats"),
     Wizarr("wizarr", "Wizarr", ServiceCategory.Users, Credentials.ApiKey, 5690, "Wizarr → Settings → API Keys", Color(0xFFF59E0B), "Invites"),
+    Sabnzbd("sabnzbd", "SABnzbd", ServiceCategory.Downloads, Credentials.ApiKey, 8080, "SABnzbd → Config → General → Security → API Key", Color(0xFFFFB300), "Usenet"),
+    Nzbget("nzbget", "NZBGet", ServiceCategory.Downloads, Credentials.UserPass, 6789, "NZBGet → Settings → Security → ControlUsername and ControlPassword", Color(0xFF35CC35), "Usenet"),
     /** The machine the stack runs on, over SSH: health and Docker containers. `url` is `ssh://host:port`. */
     Server("server", "Server", ServiceCategory.Host, Credentials.Ssh, 22, "An SSH login on the machine running your stack", Color(0xFF7C8DA6), "SSH");
 

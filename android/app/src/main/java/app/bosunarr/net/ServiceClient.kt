@@ -18,6 +18,7 @@ import kotlinx.serialization.serializer
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -80,6 +81,9 @@ class ServiceClient(base: OkHttpClient) {
             )
             ServiceType.Jellystat -> mapOf("x-api-token" to key)
             ServiceType.QBittorrent, null -> emptyMap()
+            // SABnzbd only reads `apikey` from the query string (added in requestAt); NZBGet uses HTTP basic auth.
+            ServiceType.Sabnzbd -> emptyMap()
+            ServiceType.Nzbget -> mapOf("Authorization" to okhttp3.Credentials.basic(s.username.orEmpty(), s.password.orEmpty(), Charsets.UTF_8))
             else -> mapOf("X-Api-Key" to key)
         }
     }
@@ -171,7 +175,7 @@ class ServiceClient(base: OkHttpClient) {
 
     private suspend fun requestAt(s: ServiceConfig, base: String, path: String, method: String, body: RequestBody?, retried: Boolean): String {
         val isQbit = s.serviceType == ServiceType.QBittorrent
-        val builder = Request.Builder().url(base + path).method(method, body).header("Accept", "application/json")
+        val builder = Request.Builder().url(withQueryAuth(s, base + path)).method(method, body).header("Accept", "application/json")
         authHeaders(s).forEach { (k, v) -> builder.header(k, v) }
         if (isQbit) {
             builder.header("Cookie", qbitSids[s.id] ?: qbitLogin(s, base))
@@ -190,6 +194,7 @@ class ServiceClient(base: OkHttpClient) {
             }
             if (it.code in 300..399) throw ServiceException("${s.name} redirected to another page (a login?) — check the URL")
             if (it.code == 401 || it.code == 403) throw ServiceException("${s.name} rejected the credentials", 401)
+            if (it.isSuccessful && s.serviceType == ServiceType.Sabnzbd) sabError(s, text)?.let { e -> throw e }
             if (!it.isSuccessful) {
                 val detail = runCatching {
                     val el = AppJson.parseToJsonElement(text)
@@ -203,6 +208,28 @@ class ServiceClient(base: OkHttpClient) {
             }
             return text
         }
+    }
+
+    /** SABnzbd takes its key only as the `apikey` query parameter. The URL is never logged. */
+    private fun withQueryAuth(s: ServiceConfig, url: String): String {
+        if (s.serviceType != ServiceType.Sabnzbd) return url
+        val parsed = url.toHttpUrlOrNull() ?: return url
+        return parsed.newBuilder().setQueryParameter("apikey", s.apiKey.orEmpty()).build().toString()
+    }
+
+    /** SABnzbd 4.x answers 200 with `{"status": false, "error": "…"}` (or plain `error: …`) for a bad key or call. */
+    private fun sabError(s: ServiceConfig, text: String): ServiceException? {
+        val t = text.trim()
+        if (t.length > 2_000) return null
+        val msg = if (t.startsWith("error:", ignoreCase = true)) t.substringAfter(':').trim()
+        else if (t.startsWith("{")) runCatching {
+            val o = AppJson.parseToJsonElement(t) as? kotlinx.serialization.json.JsonObject
+            val status = (o?.get("status") as? kotlinx.serialization.json.JsonPrimitive)?.content
+            if (status == "false") (o.get("error") as? kotlinx.serialization.json.JsonPrimitive)?.content else null
+        }.getOrNull() else null
+        if (msg.isNullOrBlank()) return null
+        return if (msg.contains("API Key", ignoreCase = true)) ServiceException("${s.name} rejected the credentials", 401)
+        else ServiceException("${s.name}: ${msg.take(160)}", 400)
     }
 
     private suspend fun qbitLogin(s: ServiceConfig, base: String): String {
@@ -269,6 +296,10 @@ private val PROBES = mapOf(
     ServiceType.Jellyfin to Probe("/System/Info", { it.obj()?.get("Version").str() != null }, { it.obj()?.get("Version").str() }),
     // Needs x-api-token. Jellystat has no cheap version endpoint.
     ServiceType.Jellystat to Probe("/api/getLibraries", { it is kotlinx.serialization.json.JsonArray }),
+    // `queue` needs the API key (`version` doesn't), and its answer carries the version too.
+    ServiceType.Sabnzbd to Probe("/api?mode=queue&limit=1&output=json", { it.obj()?.get("queue")?.obj() != null }, { it.obj()?.get("queue")?.obj()?.get("version").str() }),
+    // JSON-RPC over GET (`version` is a "safe" method); basic auth is checked on every call.
+    ServiceType.Nzbget to Probe("/jsonrpc/version", { it.obj()?.get("result").str() != null }, { it.obj()?.get("result").str() }),
     ServiceType.Wizarr to Probe("/api/status", { (it.obj()?.get("users") as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() != null }),
 )
 

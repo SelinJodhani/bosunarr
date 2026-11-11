@@ -49,6 +49,8 @@ fun serviceLogo(type: ServiceType?): Int? = when (type) {
     ServiceType.Jellystat -> R.drawable.svc_jellystat
     ServiceType.Wizarr -> R.drawable.svc_wizarr
     ServiceType.Whisparr -> R.drawable.svc_whisparr
+    ServiceType.Sabnzbd -> R.drawable.svc_sabnzbd
+    ServiceType.Nzbget -> R.drawable.svc_nzbget
     ServiceType.Server, null -> null
 }
 
