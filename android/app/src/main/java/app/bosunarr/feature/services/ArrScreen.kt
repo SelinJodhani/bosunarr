@@ -1,5 +1,6 @@
 package app.bosunarr.feature.services
 
+import app.bosunarr.ui.common.MessageBox
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -345,7 +346,7 @@ private fun ArrOverviewTab(s: ServiceConfig, loader: app.bosunarr.ui.common.Load
                         }
                     }
                 }
-                TextButton(onClick = { nav.navigateTab(LibraryRoute) }, modifier = Modifier.padding(start = 8.dp)) {
+                if (s.serviceType != ServiceType.Whisparr) TextButton(onClick = { nav.navigateTab(LibraryRoute) }, modifier = Modifier.padding(start = 8.dp)) {
                     Icon(Icons.Rounded.VideoLibrary, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(if (sonarr) "Open series in Library" else "Open movies in Library")
@@ -481,7 +482,7 @@ private suspend fun loadHistory(s: ServiceConfig, filter: HistoryFilter): List<H
             quality = h.quality?.quality?.name,
             detail = historyDetail(h),
             at = instant(h.date),
-            poster = arrPoster(s, if (sonarr) h.series?.images else h.movie?.images, 250),
+            poster = arrPoster(s, if (sonarr) h.series?.images else h.movie?.images, 250, ownerId = (if (sonarr) seriesId else movieId) ?: 0),
             route = if (sonarr) seriesId?.takeIf { it > 0 }?.let { SeriesRoute(s.id, it) } else movieId?.takeIf { it > 0 }?.let { MovieRoute(s.id, it) },
         )
     }
@@ -504,7 +505,7 @@ private fun ArrHistoryTab(s: ServiceConfig, hub: RefreshHub, nav: NavController)
         when {
             rows != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
-                if (rows.isEmpty()) item("empty") { CardEmpty("No history yet") }
+                if (rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.History, "Nothing here yet", hint = if (filter == HistoryFilter.All) "Grabs, imports and failures show up here." else "No ${filter.label.lowercase()} events recently.") }
                 items(rows, key = { it.key }) { r -> HistoryItemRow(s, r, nav) }
             }
             st.error != null -> item("err") { InlineError(st.error, onRetry = { loader.refresh() }) }

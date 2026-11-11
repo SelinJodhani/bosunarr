@@ -1,5 +1,7 @@
 package app.bosunarr.feature.services
 
+import app.bosunarr.ui.common.MessageBox
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -290,7 +292,7 @@ private fun WantedTab(s: ServiceConfig, hub: RefreshHub, overview: Loader<Bazarr
         when {
             page != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
-                if (page.rows.isEmpty()) item("empty") { CardEmpty("No ${kind.label.lowercase()} are missing subtitles") }
+                if (page.rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.CheckCircle, "All caught up", hint = "No ${kind.label.lowercase()} are missing subtitles.") }
                 else item("count") {
                     Text(
                         if (page.total > page.rows.size) "Showing ${page.rows.size} of ${page.total}" else plural(page.total, kind.label.lowercase().removeSuffix("s")),
@@ -373,7 +375,7 @@ private fun BzHistoryTab(s: ServiceConfig, hub: RefreshHub) {
         when {
             rows != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
-                if (rows.isEmpty()) item("empty") { CardEmpty("No subtitle history yet") }
+                if (rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Subtitles, "No subtitle history yet", hint = "Downloaded and upgraded subtitles show up here.") }
                 items(rows, key = { it.key }) { r ->
                     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

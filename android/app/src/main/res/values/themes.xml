@@ -3,4 +3,12 @@
     <style name="Theme.Bosunarr" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/splash_background</item>
     </style>
+
+    <!-- Launch theme (androidx core-splashscreen): the sailboat on the surface colour, then Theme.Bosunarr. -->
+    <style name="Theme.Bosunarr.Starting" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/splash_icon_background</item>
+        <item name="postSplashScreenTheme">@style/Theme.Bosunarr</item>
+    </style>
 </resources>

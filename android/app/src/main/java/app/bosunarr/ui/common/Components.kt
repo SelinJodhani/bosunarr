@@ -163,6 +163,7 @@ fun <T> LoadContent(
         onRefresh = { loader.pullRefresh() },
         modifier = modifier.fillMaxSize(),
     ) {
+        Box(Modifier.fillMaxSize().expandTopBarFirst()) {
         when {
             s.value != null -> Column(Modifier.fillMaxSize()) {
                 if (s.error != null) ErrorBanner(s.error)
@@ -170,6 +171,7 @@ fun <T> LoadContent(
             }
             s.error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { ErrorBox(s.error, onRetry = { loader.refresh() }) }
             else -> LoadingBox()
+        }
         }
     }
 }

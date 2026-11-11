@@ -75,6 +75,8 @@ import app.bosunarr.ui.common.Loader
 import app.bosunarr.ui.common.LocalSnackbar
 import app.bosunarr.ui.common.back
 import app.bosunarr.ui.common.bytes
+import app.bosunarr.ui.common.expandTopBarFirst
+import app.bosunarr.ui.settings.ServiceBadge
 import app.bosunarr.ui.common.rememberLoader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -145,7 +147,9 @@ fun HubRefreshBox(hub: RefreshHub, modifier: Modifier = Modifier, content: @Comp
         withTimeoutOrNull(60_000) { snapshotFlow { hub.loading.values.any { it } }.first { !it } }
         hub.pulling = false
     }
-    PullToRefreshBox(isRefreshing = hub.pulling, onRefresh = { hub.refreshAll() }, modifier = modifier.fillMaxSize()) { content() }
+    PullToRefreshBox(isRefreshing = hub.pulling, onRefresh = { hub.refreshAll() }, modifier = modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().expandTopBarFirst()) { content() }
+    }
 }
 
 /* ================================================================ actions */
@@ -210,6 +214,7 @@ fun ServiceFrame(
             IconButton(onClick = { nav.navigate(ServiceEditRoute(id = service.id)) }) { Icon(Icons.Rounded.Edit, "Edit service") }
         },
         floatingActionButton = floatingActionButton,
+        titleIcon = { ServiceBadge(service.serviceType, size = 32.dp) },
         content = content,
     )
 }
@@ -241,6 +246,9 @@ fun StatusDot(color: Color, modifier: Modifier = Modifier, size: Dp = 8.dp) {
 
 /* ================================================================ cards */
 
+/** Corner radius of every section card (inner tiles use 16dp with 16dp gutters, so the curves nest). */
+val CardShape = RoundedCornerShape(24.dp)
+
 /** Filled M3 card with an icon + title header; tappable (chevron) when [onClick] is set. */
 @Composable
 fun SectionCard(
@@ -253,7 +261,7 @@ fun SectionCard(
 ) {
     val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     val body: @Composable ColumnScope.() -> Unit = {
-        Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(start = 16.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 16.dp, end = 8.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
                     Icon(icon, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
@@ -266,8 +274,8 @@ fun SectionCard(
         }
         Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) { content() }
     }
-    if (onClick != null) Card(onClick = onClick, modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = colors) { body() }
-    else Card(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = colors) { body() }
+    if (onClick != null) Card(onClick = onClick, modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = CardShape, colors = colors) { body() }
+    else Card(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = CardShape, colors = colors) { body() }
 }
 
 /** Body of a card driven by a [Loader]: skeleton first, inline error with retry, stale-refresh note above data. */
@@ -312,7 +320,7 @@ fun CardEmpty(text: String, modifier: Modifier = Modifier) {
         text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
     )
 }
 

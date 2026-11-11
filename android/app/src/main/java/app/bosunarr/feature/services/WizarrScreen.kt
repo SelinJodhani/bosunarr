@@ -1,5 +1,7 @@
 package app.bosunarr.feature.services
 
+import app.bosunarr.ui.common.MessageBox
+import androidx.compose.material.icons.rounded.Group
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -328,7 +330,7 @@ private fun InvitesTab(s: ServiceConfig, loader: Loader<WizarrOverview>) {
             o != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
                 if (o.warnings.isNotEmpty()) item("warn") { InlineError("Couldn't load ${o.warnings.joinToString(", ")}", compact = true) }
-                if (o.invitations.isEmpty()) item("empty") { CardEmpty("No invitations yet — create one to let someone join your server") }
+                if (o.invitations.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Share, "No invitations yet", hint = "Create one to let someone join your server.") }
                 items(o.invitations, key = { it.id }) { inv ->
                     InviteCard(
                         inv,
@@ -428,7 +430,7 @@ private fun UsersTab(loader: Loader<WizarrOverview>) {
         when {
             o != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
-                if (o.userList.isEmpty()) item("empty") { CardEmpty("Nobody has joined through Wizarr yet") }
+                if (o.userList.isEmpty()) item("empty") { MessageBox(Icons.Rounded.Group, "No users yet", hint = "People who join through a Wizarr invitation show up here.") }
                 items(o.userList, key = { it.id }) { u ->
                     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

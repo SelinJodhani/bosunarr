@@ -18,6 +18,8 @@
 
         <activity
             android:name=".MainActivity"
+            android:theme="@style/Theme.Bosunarr.Starting"
+            android:configChanges="uiMode"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

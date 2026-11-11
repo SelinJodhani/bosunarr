@@ -1,5 +1,7 @@
 package app.bosunarr.feature.services
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import app.bosunarr.feature.activity.QbittorrentServiceScreen
 import app.bosunarr.nav.DiscoverRoute
 import app.bosunarr.nav.RequestsRoute
 import app.bosunarr.ui.common.AppScaffold
+import app.bosunarr.ui.common.LocalTopBarState
 import app.bosunarr.ui.common.MessageBox
 import app.bosunarr.ui.common.back
 import kotlinx.serialization.Serializable
@@ -79,8 +82,15 @@ fun ServiceScreen(id: String, nav: NavController) {
 @Composable
 fun TabbedBody(tabs: List<String>, modifier: Modifier = Modifier, content: @Composable (Int) -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    // Tint with the top bar when content scrolls under them, so bar + tabs read as one header.
+    val scrolled = (LocalTopBarState.current?.overlappedFraction ?: 0f) > 0.01f
+    val container by animateColorAsState(
+        if (scrolled) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surface,
+        tween(300),
+        label = "tabs",
+    )
     Column(modifier.fillMaxSize()) {
-        PrimaryTabRow(selectedTabIndex = tab) {
+        PrimaryTabRow(selectedTabIndex = tab, containerColor = container) {
             tabs.forEachIndexed { i, t ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t, maxLines = 1, overflow = TextOverflow.Ellipsis) })
             }

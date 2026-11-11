@@ -118,16 +118,24 @@ data class ImageRef(val service: ServiceConfig, val path: String)
 private val TMDB_FILE = Regex("image\\.tmdb\\.org/t/p/\\w+(/[\\w.-]+)$")
 
 /**
- * The arr's cached poster; for items the arr hasn't cached art for yet (often upcoming ones) only a TMDb
- * `remoteUrl` exists, and TMDb may be blocked from the phone: fetch it through Jellyseerr/Overseerr's image proxy
- * when one is configured (as the web app does), else no image.
+ * The arr's cached poster. Some endpoints (history, calendar with `includeSeries`) return the series/movie
+ * without converting its images to the arr's local cache, so `url` is the remote TVDB/TMDb address, which may
+ * be blocked from the phone: with [ownerId] (series/movie id) use the arr's own cover cache
+ * (`/MediaCover/<id>/poster-<size>.jpg`) instead. For items the arr hasn't cached art for yet (often upcoming
+ * ones) only a TMDb `remoteUrl` exists: fetch it through Jellyseerr/Overseerr's image proxy when one is
+ * configured (as the web app does), else no image.
  */
-fun arrPoster(s: ServiceConfig, images: List<ArrImage>?, size: Int = 500): ImageRef? {
-    arrImagePath(s, images, "poster", size)?.let { return ImageRef(s, it) }
-    val remote = images?.firstOrNull { it.coverType == "poster" }?.remoteUrl ?: return null
-    val file = TMDB_FILE.find(remote)?.groupValues?.get(1) ?: return null
-    val seerr = app.servicesOf(ServiceType.Jellyseerr, ServiceType.Overseerr).firstOrNull() ?: return null
-    return ImageRef(seerr, "/imageproxy/tmdb/t/p/${if (size <= 250) "w185" else "w342"}$file")
+fun arrPoster(s: ServiceConfig, images: List<ArrImage>?, size: Int = 500, ownerId: Int = 0): ImageRef? {
+    val img = images?.firstOrNull { it.coverType == "poster" }
+    val url = img?.url?.takeIf { it.isNotBlank() }
+    val remoteOnly = url == null || url.startsWith("http://") || url.startsWith("https://")
+    if (!remoteOnly) arrImagePath(s, images, "poster", size)?.let { return ImageRef(s, it) }
+    if (url != null && ownerId > 0) return ImageRef(s, "/MediaCover/$ownerId/poster-$size.jpg")
+    val remote = img?.remoteUrl ?: url ?: return null
+    val file = TMDB_FILE.find(remote)?.groupValues?.get(1)
+    val seerr = app.servicesOf(ServiceType.Jellyseerr, ServiceType.Overseerr).firstOrNull()
+    if (file != null && seerr != null) return ImageRef(seerr, "/imageproxy/tmdb/t/p/${if (size <= 250) "w185" else "w342"}$file")
+    return if (url != null) ImageRef(s, url) else null
 }
 
 /** "S01E05" */

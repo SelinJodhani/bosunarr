@@ -1,4 +1,6 @@
 <resources>
+    <!-- Window / splash background: matches the Compose surface so nothing flashes between splash and first frame. -->
     <color name="splash_background">#FEF7FF</color>
-    <color name="launcher_background">#1D1B20</color>
+    <!-- Splash icon circle: the launcher icon's violet, so the splash reads as the app icon. -->
+    <color name="splash_icon_background">#3B2A7A</color>
 </resources>

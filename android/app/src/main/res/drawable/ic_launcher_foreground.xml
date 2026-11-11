@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sailboat mark (adaptive icon foreground, 108dp canvas, art inside the 66dp safe zone). -->
+<!--
+  Sailboat mark: adaptive-icon foreground on a 108dp canvas. All art sits inside the 66dp safe-zone circle
+  (radius 33 around 54,54) so no launcher mask crops it. Also used as the splash-screen icon.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#D0BCFF" android:pathData="M53,28 L53,62 L32,62 Z" />
-    <path android:fillColor="#EADDFF" android:pathData="M57,24 L57,62 L78,62 Z" />
-    <path android:fillColor="#D0BCFF" android:pathData="M30,66 L78,66 L72,76 Q70,79 66,79 L42,79 Q38,79 36,76 Z" />
-    <path android:fillColor="#CCC2DC" android:pathData="M28,84 Q34,80 40,84 Q46,88 52,84 Q58,80 64,84 Q70,88 76,84 L80,84 L80,87 L76,87 Q70,91 64,87 Q58,83 52,87 Q46,91 40,87 Q34,83 28,87 Z" />
+    <!-- Main sail (right of the mast), gently curved leading edge. -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M57.5,30 C65.5,38.5 72.5,50 75,62.5 Q75.3,64 73.8,64 L57.5,64 Z" />
+    <!-- Jib (left of the mast). -->
+    <path android:fillColor="#D9CCFF"
+        android:pathData="M53.5,37 L53.5,64 L37.6,64 Q36.2,64 36.9,62.8 C41.5,54.6 47.2,45.6 53.5,37 Z" />
+    <!-- Hull. -->
+    <path android:fillColor="#B9A3FF"
+        android:pathData="M34.5,68 L77.5,68 Q79,68 78.3,69.4 L74.6,76 Q73.4,78 71,78 L41,78 Q38.6,78 37.4,76 L33.7,69.4 Q33,68 34.5,68 Z" />
 </vector>

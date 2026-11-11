@@ -13,6 +13,8 @@ import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.net.ServiceException
 import app.bosunarr.net.fanOut
 import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.ServiceStatus
+import app.bosunarr.ui.common.ServiceStatuses
 import app.bosunarr.ui.common.parseInstant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -37,15 +39,8 @@ suspend fun <T> each(services: List<ServiceConfig>, block: suspend (ServiceConfi
 
 /* ================================================================ services */
 
-data class ServiceStatus(val ok: Boolean, val version: String?, val ms: Int?, val error: String?)
-
-suspend fun loadStatuses(services: List<ServiceConfig>): Map<String, ServiceStatus> =
-    fanOut(services) { app.client.test(it) }.associate { (s, r) ->
-        s.id to r.fold(
-            { ServiceStatus(true, it.version, it.ms, null) },
-            { ServiceStatus(false, null, null, it.userMessage()) },
-        )
-    }
+/** Reachability of every service (also stored in the app-wide [ServiceStatuses] cache Settings reads). */
+suspend fun loadStatuses(services: List<ServiceConfig>): Map<String, ServiceStatus> = ServiceStatuses.check(services)
 
 /* ================================================================ downloads */
 
@@ -157,6 +152,8 @@ data class UpNextItem(
     val service: ServiceConfig,
     val poster: ImageRef?,
     val route: Any,
+    /** Items with the same group (a series' episodes airing the same day) become one card. */
+    val group: String = key,
 )
 
 data class UpNext(val items: List<UpNextItem>, val errors: List<String>)
@@ -181,8 +178,9 @@ suspend fun loadUpNext(arrs: List<ServiceConfig>, days: Long = 14, limit: Int = 
                     allDay = false,
                     hasFile = e.hasFile,
                     service = s,
-                    poster = arrPoster(s, sr.images),
+                    poster = arrPoster(s, sr.images, ownerId = e.seriesId),
                     route = SeriesRoute(s.id, e.seriesId),
+                    group = (if (sr.tvdbId > 0) "s:${sr.tvdbId}" else "s:${s.id}:${e.seriesId}") + ":" + at.atZone(zone).toLocalDate(),
                 )
             }
         } else {
@@ -191,18 +189,21 @@ suspend fun loadUpNext(arrs: List<ServiceConfig>, days: Long = 14, limit: Int = 
             val qe = end.plusSeconds(86_400).toString()
             val movies = app.client.get<List<CalMovie>>(s, "/api/v3/calendar?start=${enc(qs)}&end=${enc(qe)}")
             movies.filter { it.monitored }.flatMap { m ->
-                listOf("In cinemas" to m.inCinemas, "Digital release" to m.digitalRelease, "Physical release" to m.physicalRelease).mapNotNull { (label, raw) ->
+                listOf(Release.Cinema to m.inCinemas, Release.Digital to m.digitalRelease, Release.Physical to m.physicalRelease).mapNotNull { (kind, raw) ->
                     val day = raw?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: return@mapNotNull null
                     if (day.isBefore(today) || !day.isBefore(today.plusDays(days))) return@mapNotNull null
+                    day to kind
+                }.groupBy({ it.first }, { it.second }).map { (day, kinds) ->
+                    // Several releases of one movie on the same day are one card ("Digital & physical").
                     UpNextItem(
-                        key = if (m.tmdbId > 0) "m:${m.tmdbId}:$label" else "m:${s.id}:${m.id}:$label",
+                        key = (if (m.tmdbId > 0) "m:${m.tmdbId}" else "m:${s.id}:${m.id}") + ":$day",
                         title = m.title,
-                        subtitle = label,
+                        subtitle = releaseLabel(kinds),
                         at = day.atStartOfDay(zone).toInstant(),
                         allDay = true,
                         hasFile = m.hasFile,
                         service = s,
-                        poster = arrPoster(s, m.images),
+                        poster = arrPoster(s, m.images, ownerId = m.id),
                         route = MovieRoute(s.id, m.id),
                     )
                 }
@@ -213,8 +214,27 @@ suspend fun loadUpNext(arrs: List<ServiceConfig>, days: Long = 14, limit: Int = 
         .filter { it.allDay || it.at >= start }
         .distinctBy { it.key }
         .sortedWith(compareBy({ it.at }, { it.title.lowercase() }))
+        .groupBy { it.group }.values
+        .map { g ->
+            // A season dropping at once: one card, "S02E01 + 7 more", downloaded only when all are.
+            if (g.size == 1) g[0]
+            else g[0].copy(subtitle = g[0].subtitle.substringBefore(" · ") + " + ${g.size - 1} more", hasFile = g.all { it.hasFile })
+        }
         .take(limit)
     return UpNext(items, p.errors)
+}
+
+private enum class Release { Cinema, Digital, Physical }
+
+private fun releaseLabel(kinds: List<Release>): String {
+    val k = kinds.toSet()
+    val home = when {
+        Release.Digital in k && Release.Physical in k -> "Digital & physical"
+        Release.Digital in k -> "Digital release"
+        Release.Physical in k -> "Physical release"
+        else -> null
+    }
+    return listOfNotNull(if (Release.Cinema in k) "In cinemas" else null, home).joinToString(" · ")
 }
 
 /* ================================================================ recently added */
@@ -275,7 +295,7 @@ suspend fun loadRecentFromArrs(arrs: List<ServiceConfig>, limit: Int = 16): Rece
                         subtitle = if (recs.size > 1) "${recs.size} episodes" else ep?.let { episodeCode(it.seasonNumber, it.episodeNumber) },
                         at = parseInstant(first.date),
                         service = s,
-                        poster = arrPoster(s, first.series.images),
+                        poster = arrPoster(s, first.series.images, ownerId = seriesId),
                         route = SeriesRoute(s.id, seriesId),
                     )
                 }
@@ -291,7 +311,7 @@ suspend fun loadRecentFromArrs(arrs: List<ServiceConfig>, limit: Int = 16): Rece
                         subtitle = m.year.takeIf { it > 0 }?.toString(),
                         at = parseInstant(h.date),
                         service = s,
-                        poster = arrPoster(s, m.images),
+                        poster = arrPoster(s, m.images, ownerId = id),
                         route = MovieRoute(s.id, id),
                     )
                 }

@@ -1,6 +1,6 @@
 package app.bosunarr.feature.dashboard
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,17 +8,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -28,23 +27,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Event
-import androidx.compose.material.icons.rounded.HealthAndSafety
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.WavingHand
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Button
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,13 +53,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import app.bosunarr.app
-import app.bosunarr.nav.OnboardingRoute
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.services.CardEmpty
@@ -75,7 +76,6 @@ import app.bosunarr.feature.services.SkeletonBox
 import app.bosunarr.feature.services.SkeletonRows
 import app.bosunarr.feature.services.StatRow
 import app.bosunarr.feature.services.StatTile
-import app.bosunarr.feature.services.StatusDot
 import app.bosunarr.feature.services.navigateTab
 import app.bosunarr.feature.services.okColor
 import app.bosunarr.feature.services.rememberHubLoader
@@ -84,17 +84,23 @@ import app.bosunarr.feature.services.warnColor
 import app.bosunarr.nav.ActivityRoute
 import app.bosunarr.nav.CalendarRoute
 import app.bosunarr.nav.LibraryRoute
+import app.bosunarr.nav.OnboardingRoute
 import app.bosunarr.nav.RequestsRoute
 import app.bosunarr.nav.ServiceRoute
 import app.bosunarr.nav.SettingsRoute
+import app.bosunarr.ui.common.AppMark
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.Poster
+import app.bosunarr.ui.common.ServiceStatus
+import app.bosunarr.ui.common.ServiceStatuses
 import app.bosunarr.ui.common.Tag
 import app.bosunarr.ui.common.plural
 import app.bosunarr.ui.common.relative
 import app.bosunarr.ui.common.speed
 import app.bosunarr.ui.settings.ServiceBadge
+import app.bosunarr.ui.settings.ServiceBadgeWithStatus
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -102,16 +108,28 @@ import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
+private fun greeting(): String = when (LocalTime.now().hour) {
+    in 5..11 -> "Good morning"
+    in 12..16 -> "Good afternoon"
+    else -> "Good evening"
+}
+
 @Composable
 fun DashboardScreen(nav: NavController) {
     val state by app.state.collectAsState()
-    AppScaffold("Bosunarr", actions = { IconButton(onClick = { nav.navigate(SettingsRoute) }) { Icon(Icons.Rounded.Settings, "Settings") } }) { p ->
+    val title = remember { greeting() }
+    AppScaffold(
+        title,
+        large = true,
+        actions = { IconButton(onClick = { nav.navigate(SettingsRoute) }) { Icon(Icons.Rounded.Settings, "Settings") } },
+    ) { p ->
         Box(Modifier.padding(p).fillMaxSize()) {
             val st = state ?: return@Box // still reading the encrypted store: show nothing rather than flash "welcome"
+            // Adult services (Whisparr) never appear on the shared home screen.
             val services = remember(st.services) {
-                st.services.sortedWith(compareBy({ it.serviceType?.ordinal ?: 99 }, { it.sort }, { it.name.lowercase() }))
+                st.services.filter { it.serviceType != ServiceType.Whisparr }.sortedWith(compareBy({ it.serviceType?.ordinal ?: 99 }, { it.sort }, { it.name.lowercase() }))
             }
-            if (services.isEmpty()) Welcome(nav) else Dashboard(services, nav)
+            if (st.services.isEmpty()) Welcome(nav) else Dashboard(services, nav)
         }
     }
 }
@@ -121,31 +139,28 @@ fun DashboardScreen(nav: NavController) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Welcome(nav: NavController) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 96.dp)) {
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(72.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.WavingHand, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(36.dp))
-                }
-                Spacer(Modifier.height(16.dp))
-                Text("Nothing connected yet", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Connect the services you run and your dashboard fills in: downloads, what's coming up, requests, health and disk space.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.height(16.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ServiceType.entries.forEach { t ->
-                        Tag(t.label, container = t.color.copy(alpha = 0.16f), content = MaterialTheme.colorScheme.onSurface)
-                    }
-                }
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = { nav.navigate(OnboardingRoute) }) { Text("Connect services") }
-            }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.height(16.dp))
+        AppMark(size = 88.dp)
+        Spacer(Modifier.height(24.dp))
+        Text("Connect your stack", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Add the services you run and this page fills in: downloads, what's coming up, recent imports, requests, health and disk space.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(24.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ServiceType.entries.filter { it != ServiceType.Whisparr }.forEach { t -> ServiceBadge(t, size = 36.dp) }
         }
+        Spacer(Modifier.height(32.dp))
+        Button(onClick = { nav.navigate(OnboardingRoute) }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Connect services") }
+        TextButton(onClick = { nav.navigate(SettingsRoute) }, modifier = Modifier.padding(top = 4.dp)) { Text("Open Settings") }
     }
 }
 
@@ -165,15 +180,14 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
 
     HubRefreshBox(hub) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 96.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ServicesCard(hub, services, nav)
+            if (services.isNotEmpty()) StatusCard(hub, services, healthServices, nav)
             if (qbits.isNotEmpty() || arrs.isNotEmpty()) DownloadsCard(hub, qbits, arrs, nav)
-            if (seerrs.isNotEmpty()) RequestsCard(hub, seerrs, nav)
-            if (healthServices.isNotEmpty()) HealthCard(hub, healthServices, nav)
             if (arrs.isNotEmpty()) UpNextCard(hub, arrs, nav)
             if (arrs.isNotEmpty() || jellyfins.isNotEmpty()) RecentCard(hub, arrs, jellyfins, nav)
+            if (seerrs.isNotEmpty()) RequestsCard(hub, seerrs, nav)
             if (arrs.isNotEmpty()) DiskCard(hub, arrs)
         }
     }
@@ -185,65 +199,124 @@ private fun PartialErrors(errors: List<String>) {
     if (errors.isNotEmpty()) InlineError(errors.distinct().joinToString(" · "), compact = true)
 }
 
-/* ---------------------------------------------------------------- services */
+/* ---------------------------------------------------------------- status: services + health */
 
+/** Small rounded summary in a card header ("9 of 9 online"). */
 @Composable
-private fun ServicesCard(hub: RefreshHub, services: List<ServiceConfig>, nav: NavController) {
-    val loader = rememberHubLoader(hub, "dash:status:${signature(services)}") { loadStatuses(services) }
-    val statuses = loader.value
-    val online = statuses?.values?.count { it.ok }
-    SectionCard(
-        "Services",
-        icon = Icons.Rounded.Dns,
-        trailing = {
-            if (online != null) Text(
-                "$online of ${services.size} online",
-                style = MaterialTheme.typography.labelLarge,
-                color = if (online == services.size) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(end = 8.dp),
-            )
-        },
-    ) {
-        // The tiles come from the saved list, so they never jump: only their status line fills in.
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            services.chunked(2).forEach { row ->
-                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { s ->
-                        ServiceTile(s, statuses?.get(s.id), loader.state.error != null && statuses == null, Modifier.weight(1f).fillMaxHeight()) {
-                            nav.navigate(ServiceRoute(s.id))
-                        }
-                    }
-                    if (row.size == 1) Spacer(Modifier.weight(1f))
-                }
+private fun HeaderPill(text: String, container: Color, content: Color, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+    Surface(color = container, contentColor = content, shape = CircleShape, modifier = Modifier.padding(end = 8.dp)) {
+        Row(Modifier.padding(start = if (icon != null) 8.dp else 10.dp, end = 10.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, null, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
             }
+            Text(text, style = MaterialTheme.typography.labelMedium, maxLines = 1)
         }
     }
 }
 
 @Composable
-private fun ServiceTile(s: ServiceConfig, status: ServiceStatus?, failed: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = modifier) {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            ServiceBadge(s.serviceType)
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(s.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val (dot, text, color) = when {
-                        status == null && failed -> Triple(MaterialTheme.colorScheme.outline, "Unknown", MaterialTheme.colorScheme.onSurfaceVariant)
-                        status == null -> Triple(MaterialTheme.colorScheme.outlineVariant, "Checking…", MaterialTheme.colorScheme.onSurfaceVariant)
-                        status.ok -> Triple(
-                            okColor(),
-                            listOfNotNull(status.version?.let { "v" + it.removePrefix("v") }, status.ms?.let { "$it ms" }).joinToString(" · ").ifEmpty { "Online" },
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        else -> Triple(MaterialTheme.colorScheme.error, status.error ?: "Offline", MaterialTheme.colorScheme.error)
-                    }
-                    StatusDot(dot)
-                    Spacer(Modifier.width(6.dp))
-                    Text(text, style = MaterialTheme.typography.bodySmall, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+private fun StatusCard(hub: RefreshHub, services: List<ServiceConfig>, healthServices: List<ServiceConfig>, nav: NavController) {
+    val loader = rememberHubLoader(hub, "dash:status:${signature(services)}") { loadStatuses(services) }
+    // Last known statuses (this or an earlier visit, or Settings) until the first check of this screen answers.
+    val statuses: Map<String, ServiceStatus> = loader.value ?: services.mapNotNull { s -> ServiceStatuses.get(s)?.let { s.id to it } }.toMap()
+    val known = services.count { it.id in statuses }
+    val offline = services.count { statuses[it.id]?.ok == false }
+    val checkFailed = loader.state.error != null && loader.value == null
+
+    // Offline services first, so they're never scrolled out of view; otherwise the saved order (no jumps).
+    val ordered = remember(services, statuses) {
+        services.withIndex().sortedWith(compareBy({ if (statuses[it.value.id]?.ok == false) 0 else 1 }, { it.index })).map { it.value }
+    }
+
+    SectionCard(
+        "Services",
+        icon = Icons.Rounded.Dns,
+        trailing = {
+            when {
+                offline > 0 -> HeaderPill("$offline offline", MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, Icons.Rounded.ErrorOutline)
+                known == services.size -> HeaderPill("All ${services.size} online", okColor().copy(alpha = 0.16f), MaterialTheme.colorScheme.onSurface, Icons.Rounded.Check)
+                checkFailed -> Unit
+                else -> Text("Checking…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 12.dp))
             }
+        },
+    ) {
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(ordered, key = { it.id }) { s ->
+                ServiceChip(s, statuses[s.id], Modifier.animateItem()) { nav.navigate(ServiceRoute(s.id)) }
+            }
+        }
+        if (checkFailed) InlineError(loader.state.error.orEmpty(), compact = true)
+        if (healthServices.isNotEmpty()) HealthSection(hub, healthServices, nav)
+    }
+}
+
+@Composable
+private fun ServiceChip(s: ServiceConfig, status: ServiceStatus?, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val down = status?.ok == false
+    val container = if (down) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHigh
+    val dot = when {
+        status == null -> MaterialTheme.colorScheme.outline
+        status.ok -> okColor()
+        else -> MaterialTheme.colorScheme.error
+    }
+    val state = when {
+        status == null -> "status unknown"
+        status.ok -> "online"
+        else -> "offline"
+    }
+    Surface(onClick = onClick, shape = RoundedCornerShape(16.dp), color = container, modifier = modifier.semantics { contentDescription = "${s.name}, $state" }) {
+        Row(Modifier.padding(start = 8.dp, end = 14.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            ServiceBadgeWithStatus(s.serviceType, dot, size = 32.dp, ring = container)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                s.name,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (down) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 140.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HealthSection(hub: RefreshHub, services: List<ServiceConfig>, nav: NavController) {
+    val loader = rememberHubLoader(hub, "dash:health:${signature(services)}", refreshMs = 60_000) { loadHealth(services) }
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp).animateContentSize()) {
+        CardLoad(loader, placeholder = { SkeletonBox(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).width(160.dp).height(18.dp)) }) { h ->
+            if (h.issues.isEmpty()) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.CheckCircle, null, tint = okColor(), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text("No health issues", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                val errors = h.issues.count { it.type == "error" }
+                val warnings = h.issues.count { it.type == "warning" }
+                Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (errors > 0) Icons.Rounded.ErrorOutline else Icons.Rounded.WarningAmber, null,
+                        tint = if (errors > 0) MaterialTheme.colorScheme.error else warnColor(), modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        listOfNotNull(
+                            errors.takeIf { it > 0 }?.let { plural(it, "error") },
+                            warnings.takeIf { it > 0 }?.let { plural(it, "warning") },
+                            (h.issues.size - errors - warnings).takeIf { it > 0 }?.let { plural(it, "notice") },
+                        ).joinToString(" · "),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+                val shown = h.issues.take(3)
+                shown.forEach { i ->
+                    HealthRow(i.type, i.message, source = "${i.service.name}${i.source?.let { " · $it" } ?: ""}", onClick = { nav.navigate(ServiceRoute(i.service.id)) })
+                }
+                if (h.issues.size > shown.size) CardEmpty("+${h.issues.size - shown.size} more on the service screens")
+            }
+            PartialErrors(h.errors)
         }
     }
 }
@@ -253,34 +326,46 @@ private fun ServiceTile(s: ServiceConfig, status: ServiceStatus?, failed: Boolea
 @Composable
 private fun DownloadsCard(hub: RefreshHub, qbits: List<ServiceConfig>, arrs: List<ServiceConfig>, nav: NavController) {
     val loader = rememberHubLoader(hub, "dash:downloads:${signature(qbits + arrs)}", refreshMs = 10_000) { loadDownloads(qbits, arrs) }
+    val arrNames = arrs.mapNotNull { it.serviceType?.label }.distinct().joinToString(" & ")
     SectionCard("Downloads", icon = Icons.Rounded.Download, onClick = { nav.navigateTab(ActivityRoute) }) {
         CardLoad(loader, placeholder = {
             StatRow {
                 SkeletonBox(Modifier.weight(1f).height(68.dp), RoundedCornerShape(16.dp))
                 SkeletonBox(Modifier.weight(1f).height(68.dp), RoundedCornerShape(16.dp))
             }
-            SkeletonBox(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).width(180.dp).height(24.dp))
         }) { d ->
             StatRow {
                 if (d.hasQbit) {
-                    StatTile("Downloading", speed(d.down), Modifier.weight(1f), icon = Icons.Rounded.ArrowDownward, tint = if (d.down > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                    StatTile("Uploading", speed(d.up), Modifier.weight(1f), icon = Icons.Rounded.ArrowUpward)
+                    StatTile(
+                        if (d.downloading > 0) plural(d.downloading, "downloading", "downloading") else "Download",
+                        speed(d.down), Modifier.weight(1f), icon = Icons.Rounded.ArrowDownward,
+                        tint = if (d.down > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                    StatTile(
+                        if (d.seeding > 0) plural(d.seeding, "seeding", "seeding") else "Upload",
+                        speed(d.up), Modifier.weight(1f), icon = Icons.Rounded.ArrowUpward,
+                    )
                 } else {
-                    StatTile("In arr queue", d.queue.toString(), Modifier.weight(1f))
+                    StatTile("In queue", d.queue.toString(), Modifier.weight(1f))
                     StatTile("Status", if (d.queueErrors) "Errors" else if (d.queueWarnings) "Warnings" else "OK", Modifier.weight(1f), tint = queueTint(d))
                 }
             }
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (d.hasQbit) {
-                    Tag(plural(d.downloading, "downloading", "downloading"))
-                    Tag(plural(d.seeding, "seeding", "seeding"))
-                }
-                if (d.hasArr && d.hasQbit) {
-                    Tag(
-                        "Queue ${d.queue}",
-                        container = if (d.queueErrors) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
-                        content = if (d.queueErrors) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+            if (d.hasArr && d.hasQbit) {
+                Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (d.queue == 0) "$arrNames queue is empty" else "${plural(d.queue, "item")} in the $arrNames queue",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
+                    if (d.queueErrors || d.queueWarnings) {
+                        Spacer(Modifier.width(8.dp))
+                        Tag(
+                            if (d.queueErrors) "Errors" else "Warnings",
+                            container = if (d.queueErrors) MaterialTheme.colorScheme.errorContainer else warnColor().copy(alpha = 0.18f),
+                            content = if (d.queueErrors) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
             }
             PartialErrors(d.errors)
@@ -310,31 +395,6 @@ private fun RequestsCard(hub: RefreshHub, seerrs: List<ServiceConfig>, nav: NavC
                 StatTile("Available", r.counts.available.toString(), Modifier.weight(1f))
             }
             PartialErrors(r.errors)
-        }
-    }
-}
-
-/* ---------------------------------------------------------------- health */
-
-@Composable
-private fun HealthCard(hub: RefreshHub, services: List<ServiceConfig>, nav: NavController) {
-    val loader = rememberHubLoader(hub, "dash:health:${signature(services)}", refreshMs = 60_000) { loadHealth(services) }
-    SectionCard("Health", icon = Icons.Rounded.HealthAndSafety) {
-        CardLoad(loader, placeholder = { SkeletonRows(1, rowHeight = 28.dp) }) { h ->
-            if (h.issues.isEmpty()) {
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.CheckCircle, null, tint = okColor(), modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text("No issues reported", style = MaterialTheme.typography.bodyMedium)
-                }
-            } else {
-                val shown = h.issues.take(5)
-                shown.forEach { i ->
-                    HealthRow(i.type, i.message, source = "${i.service.name}${i.source?.let { " · $it" } ?: ""}", onClick = { nav.navigate(ServiceRoute(i.service.id)) })
-                }
-                if (h.issues.size > shown.size) CardEmpty("+${h.issues.size - shown.size} more")
-            }
-            PartialErrors(h.errors)
         }
     }
 }
@@ -371,10 +431,10 @@ private fun RailItem(service: ServiceConfig, poster: ImageRef?, title: String, l
                 Box(
                     Modifier.align(Alignment.TopEnd).padding(6.dp).size(22.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Rounded.CheckCircle, "Downloaded", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp)) }
+                ) { Icon(Icons.Rounded.Check, "Downloaded", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp)) }
             }
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(8.dp))
         Text(title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(line2.orEmpty(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(line3.orEmpty(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -397,7 +457,6 @@ private fun whenLabel(item: UpNextItem): String {
     return if (item.allDay) day else "$day · ${at.format(TIME)}"
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun UpNextCard(hub: RefreshHub, arrs: List<ServiceConfig>, nav: NavController) {
     val loader = rememberHubLoader(hub, "dash:upnext:${signature(arrs)}", refreshMs = 5 * 60_000) { loadUpNext(arrs) }
