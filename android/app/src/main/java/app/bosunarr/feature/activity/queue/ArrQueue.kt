@@ -116,7 +116,7 @@ object ArrQueue {
     suspend fun load(s: ServiceConfig): List<QueueEntry> {
         val episode = s.serviceType == ServiceType.Sonarr
         val include = if (episode) "includeSeries=true&includeEpisode=true" else "includeMovie=true"
-        val page = app.client.get<ArrQueuePage>(s, "/api/v3/queue?page=1&pageSize=200&$include")
+        val page = app.client.get<ArrQueuePage>(s, "/api/v3/queue?page=1&pageSize=1000&$include")
         return page.records.map { q -> entry(s, q, episode) }
     }
 

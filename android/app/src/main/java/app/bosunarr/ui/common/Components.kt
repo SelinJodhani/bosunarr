@@ -51,6 +51,7 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /** App-wide snackbar for action feedback ("Search started", errors). */
 val LocalSnackbar = staticCompositionLocalOf { SnackbarHostState() }
@@ -86,7 +87,7 @@ fun ServiceImage(
     }
     val request = ImageRequest.Builder(ctx).data(url).apply {
         // Only send credentials to the service's own addresses, never to a third-party absolute URL.
-        if (service != null && listOfNotNull(service.url, service.altUrl, app.client.baseUrl(service)).any { it.isNotBlank() && url.startsWith(it) }) {
+        if (service != null && listOfNotNull(service.url, service.altUrl, app.client.baseUrl(service)).any { sameOrigin(it, url) }) {
             val h = NetworkHeaders.Builder()
             app.client.authHeaders(service).forEach { (k, v) -> h[k] = v }
             httpHeaders(h.build())
@@ -219,3 +220,12 @@ fun ConfirmDialog(
 
 /** Padding for scrolling content so the last item clears the bottom bar / FAB. */
 val ListPadding = PaddingValues(bottom = 96.dp)
+
+/** True when [url] is on the same scheme/host/port as [base] and under its path (so keys never leak to other hosts). */
+internal fun sameOrigin(base: String, url: String): Boolean {
+    val b = base.toHttpUrlOrNull() ?: return false
+    val u = url.toHttpUrlOrNull() ?: return false
+    if (b.scheme != u.scheme || b.host != u.host || b.port != u.port) return false
+    val prefix = b.encodedPath.trimEnd('/') + "/"
+    return u.encodedPath == b.encodedPath.trimEnd('/') || u.encodedPath.startsWith(prefix)
+}

@@ -255,6 +255,17 @@ object Qbit {
             }.build()
             app.client.multipart(s, "/api/v2/torrents/add", body)
         }
-        if (res.contains("fail", ignoreCase = true)) throw ServiceException("qBittorrent rejected the torrent", 400)
+        if (addFailed(res)) throw ServiceException("qBittorrent rejected the torrent", 400)
     }
+}
+
+/** qBittorrent ≤ 5.0 answers "Ok." / "Fails."; WebAPI 2.14+ answers JSON with success/failure counts. */
+internal fun addFailed(res: String): Boolean {
+    val t = res.trim()
+    if (t.startsWith("{")) {
+        val o = runCatching { AppJson.parseToJsonElement(t) as? kotlinx.serialization.json.JsonObject }.getOrNull() ?: return false
+        fun n(k: String) = (o[k] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() ?: 0
+        return n("failure_count") > 0 && n("success_count") == 0
+    }
+    return t.equals("Fails.", ignoreCase = true)
 }

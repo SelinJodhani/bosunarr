@@ -475,7 +475,7 @@ private fun CreateInviteSheet(s: ServiceConfig, o: WizarrOverview, onDismiss: ()
     var confirming by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { it != androidx.compose.material3.SheetValue.Hidden || !busy })
     val runner = rememberActionRunner()
 
     val libs = o.libraries.filter { it.enabled && (it.serverId == null || it.serverId in serverIds) }

@@ -76,6 +76,7 @@ import app.bosunarr.nav.SettingsRoute
 import app.bosunarr.net.userMessage
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ConfirmDialog
+import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.MessageBox
 import app.bosunarr.ui.common.SectionTitle
 import app.bosunarr.ui.common.back
@@ -177,7 +178,13 @@ private sealed interface TestState {
 
 @Composable
 fun ServiceEditScreen(nav: NavController, id: String?, typeId: String?) {
-    val existing = remember(id) { id?.let { app.service(it) } }
+    val loaded by app.state.collectAsState()
+    if (id != null && loaded == null) {
+        // Still reading the encrypted store (e.g. restored after process death): don't claim "not found".
+        AppScaffold("Service", onBack = { nav.back() }) { p -> LoadingBox(Modifier.padding(p)) }
+        return
+    }
+    val existing = remember(id, loaded) { id?.let { app.service(it) } }
     val type = existing?.serviceType ?: ServiceType.of(typeId.orEmpty())
     if (type == null) {
         AppScaffold("Service", onBack = { nav.back() }) { p -> MessageBox(Icons.Rounded.Error, "Service not found", Modifier.padding(p)) }
@@ -193,6 +200,7 @@ fun ServiceEditScreen(nav: NavController, id: String?, typeId: String?) {
     var showSecret by rememberSaveable { mutableStateOf(false) }
     var test by remember { mutableStateOf<TestState>(TestState.Idle) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var saving by remember { mutableStateOf(false) }
 
     fun current() = ServiceConfig(
         id = existing?.id ?: "test-${type.id}",
@@ -311,8 +319,10 @@ fun ServiceEditScreen(nav: NavController, id: String?, typeId: String?) {
                     modifier = Modifier.weight(1f),
                 ) { Text("Test") }
                 Button(
-                    enabled = valid,
+                    enabled = valid && !saving,
                     onClick = {
+                        if (saving) return@Button
+                        saving = true
                         scope.launch {
                             val cfg = current().let { if (existing == null) it.copy(id = "") else it }
                             app.saveService(cfg)

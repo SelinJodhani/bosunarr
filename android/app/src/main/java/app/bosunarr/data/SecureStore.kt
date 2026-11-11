@@ -25,13 +25,23 @@ import java.io.OutputStream
 class SecureStore(context: Context) {
     private val aead: Aead = run {
         AeadConfig.register()
-        AndroidKeysetManager.Builder()
+        fun build() = AndroidKeysetManager.Builder()
             .withSharedPref(context, "bosunarr_keyset", "bosunarr_keyset_prefs")
             .withKeyTemplate(KeyTemplates.get("AES256_GCM"))
             .withMasterKeyUri("android-keystore://bosunarr_master_key")
             .build()
             .keysetHandle
             .getPrimitive(RegistryConfiguration.get(), Aead::class.java)
+        try {
+            build()
+        } catch (e: Exception) {
+            // The Keystore key was lost or invalidated (happens on some devices after a lock-screen reset):
+            // the saved state can't be decrypted any more, so start fresh rather than crash on every launch.
+            context.getSharedPreferences("bosunarr_keyset_prefs", Context.MODE_PRIVATE).edit().clear().commit()
+            runCatching { java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry("bosunarr_master_key") }
+            File(context.filesDir, "datastore/state.enc").delete()
+            build()
+        }
     }
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }

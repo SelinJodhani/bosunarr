@@ -88,7 +88,9 @@ fun <T> rememberLoader(key: String, refreshMs: Long? = null, fetch: suspend () -
             if (refreshMs == null) return@repeatOnLifecycle
             while (true) {
                 delay(refreshMs)
-                loader.refresh()
+                // A slow service (e.g. falling back to a second address) must be allowed to finish:
+                // never cancel an in-flight load with the next poll.
+                if (!vm.state.value.loading) loader.refresh()
             }
         }
     }

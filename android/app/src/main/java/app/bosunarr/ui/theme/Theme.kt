@@ -1,6 +1,10 @@
 package app.bosunarr.ui.theme
 
+import android.app.Activity
 import android.os.Build
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -31,6 +35,15 @@ fun BosunarrTheme(mode: String = "system", content: @Composable () -> Unit) {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
         dark -> DarkFallback
         else -> LightFallback
+    }
+    // Status/navigation bar icons follow the app's own Light/Dark choice, not just the system's.
+    val view = LocalView.current
+    if (!view.isInEditMode) SideEffect {
+        val window = (view.context as? Activity)?.window ?: return@SideEffect
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !dark
+            isAppearanceLightNavigationBars = !dark
+        }
     }
     MaterialTheme(colorScheme = scheme, content = content)
 }

@@ -42,11 +42,21 @@ private suspend fun rawCallOnIo(s: ServiceConfig, path: String, method: String, 
         method == "GET" || method == "DELETE" -> null
         else -> ByteArray(0).toRequestBody(null)
     }
-    val b = Request.Builder().url(app.client.baseUrl(s) + path).method(method, body).header("Accept", "application/json")
-    app.client.authHeaders(s).forEach { (k, v) -> b.header(k, v) }
-    val res = try {
-        http.newCall(b.build()).await()
-    } catch (e: IOException) {
+    val bases = listOfNotNull(app.client.baseUrl(s), s.url, s.altUrl?.takeIf { it.isNotBlank() }).distinct()
+    var res: okhttp3.Response? = null
+    var failure: IOException? = null
+    for (base in bases) {
+        val b = Request.Builder().url(base + path).method(method, body).header("Accept", "application/json")
+        app.client.authHeaders(s).forEach { (k, v) -> b.header(k, v) }
+        try {
+            res = http.newCall(b.build()).await()
+            break
+        } catch (e: IOException) {
+            failure = e
+        }
+    }
+    if (res == null) {
+        val e = failure
         throw ServiceException(if (e is InterruptedIOException) "${s.name} timed out" else "${s.name} is unreachable", 504)
     }
     return res.use { it.code to it.body?.string().orEmpty() }

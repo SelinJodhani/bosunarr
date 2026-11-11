@@ -25,14 +25,26 @@ class AppContainer(context: Context) {
 
     private val baseHttp = OkHttpClient.Builder().retryOnConnectionFailure(true).build()
     val client = ServiceClient(baseHttp)
-    val imageHttp: OkHttpClient = baseHttp.newBuilder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
+    // No redirects: image requests carry API-key headers, which OkHttp would forward to another host.
+    val imageHttp: OkHttpClient = baseHttp.newBuilder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS)
+        .followRedirects(false).followSslRedirects(false).build()
 
     /** null until the encrypted store has been read once (so the UI can tell "loading" from "no services"). */
-    val state: StateFlow<AppState?> = store.state.stateIn(scope, SharingStarted.Eagerly, null)
+    private val _state = MutableStateFlow<AppState?>(null)
+    private val _services = MutableStateFlow<List<ServiceConfig>>(emptyList())
+    val state: StateFlow<AppState?> = _state
+    val services: StateFlow<List<ServiceConfig>> = _services
 
-    val services: StateFlow<List<ServiceConfig>> = store.state
-        .map { s -> s.services.sortedWith(compareBy({ it.serviceType?.ordinal ?: 99 }, { it.sort }, { it.name.lowercase() })) }
-        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+    init {
+        // One collector, services first: anything that sees `state != null` also sees the loaded services
+        // (no "no services yet" flash, and a magnet shared into a cold app isn't dropped).
+        scope.launch {
+            store.state.collect { s ->
+                _services.value = s.services.sortedWith(compareBy({ it.serviceType?.ordinal ?: 99 }, { it.sort }, { it.name.lowercase() }))
+                _state.value = s
+            }
+        }
+    }
 
     fun servicesOf(vararg types: ServiceType): List<ServiceConfig> = services.value.filter { it.serviceType in types }
     fun service(id: String): ServiceConfig? = services.value.firstOrNull { it.id == id }
