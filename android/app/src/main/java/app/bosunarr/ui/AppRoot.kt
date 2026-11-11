@@ -56,6 +56,11 @@ import app.bosunarr.nav.CalendarRoute
 import app.bosunarr.nav.DashboardRoute
 import app.bosunarr.nav.DiscoverRoute
 import app.bosunarr.nav.LibraryRoute
+import app.bosunarr.nav.OnboardingRoute
+import app.bosunarr.ui.onboarding.OnboardingScreen
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.bosunarr.nav.ServiceRoute
 import app.bosunarr.ui.common.LocalSnackbar
 import app.bosunarr.ui.settings.settingsGraph
@@ -88,6 +93,17 @@ fun AppRoot() {
                 launchSingleTop = true
                 restoreState = true
             }
+        }
+    }
+
+    // First run: open the setup flow once the store has loaded and there's nothing configured yet.
+    val appState by app.state.collectAsState()
+    var autoOnboarded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(appState) {
+        val st = appState ?: return@LaunchedEffect
+        if (!autoOnboarded && !st.onboarded && st.services.isEmpty()) {
+            autoOnboarded = true
+            nav.navigate(OnboardingRoute) { launchSingleTop = true }
         }
     }
 
@@ -131,6 +147,12 @@ fun AppRoot() {
                 popExitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(220)) { it / 12 } },
             ) {
                 composable<DashboardRoute> { DashboardScreen(nav) }
+                composable<OnboardingRoute>(
+                    enterTransition = { fadeIn(tween(300)) },
+                    exitTransition = { fadeOut(tween(250)) },
+                ) {
+                    OnboardingScreen(onFinish = { if (!nav.popBackStack(DashboardRoute, inclusive = false)) nav.navigate(DashboardRoute) })
+                }
                 libraryGraph(nav)
                 discoverGraph(nav)
                 composable<CalendarRoute> { CalendarScreen(nav) }

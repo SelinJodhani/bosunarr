@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import app.bosunarr.app
+import app.bosunarr.nav.OnboardingRoute
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.services.CardEmpty
@@ -127,10 +128,10 @@ private fun Welcome(nav: NavController) {
                     Icon(Icons.Rounded.WavingHand, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(36.dp))
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("Welcome to Bosunarr", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                Text("Nothing connected yet", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Manage your media stack from your phone. Bosunarr talks to each service directly — your addresses and keys stay on this device, encrypted.",
+                    "Connect the services you run and your dashboard fills in: downloads, what's coming up, requests, health and disk space.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -142,7 +143,7 @@ private fun Welcome(nav: NavController) {
                     }
                 }
                 Spacer(Modifier.height(24.dp))
-                Button(onClick = { nav.navigate(SettingsRoute) }) { Text("Add your first service") }
+                Button(onClick = { nav.navigate(OnboardingRoute) }) { Text("Connect services") }
             }
         }
     }

@@ -27,6 +27,8 @@ data class AppState(
     val services: List<ServiceConfig> = emptyList(),
     val dashboard: List<DashboardWidget>? = null,
     val themeMode: String = "system",
+    /** Set once the first-run setup has been finished or skipped. */
+    val onboarded: Boolean = false,
     val seedColor: Long? = null,
 )
 

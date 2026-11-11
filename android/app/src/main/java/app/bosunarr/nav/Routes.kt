@@ -26,3 +26,6 @@ import kotlinx.serialization.Serializable
 
 /** A service's own screen (dispatches by type: arr, prowlarr, bazarr, qbittorrent, jellyfin, jellystat, wizarr). */
 @Serializable data class ServiceRoute(val id: String)
+
+/** First-run setup: welcome → pick services → connect each → done. */
+@Serializable object OnboardingRoute
