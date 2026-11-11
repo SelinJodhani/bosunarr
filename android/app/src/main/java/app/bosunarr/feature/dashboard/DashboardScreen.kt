@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -247,14 +248,28 @@ private fun StatusCard(hub: RefreshHub, services: List<ServiceConfig>, healthSer
             }
         }
         if (checkFailed) InlineError(loader.state.error.orEmpty(), compact = true)
-        if (healthServices.isNotEmpty()) HealthSection(hub, healthServices, nav)
+        // Most or all unreachable at once is almost always the phone's network (VPN not up yet, mobile data), not
+        // the services: say so once instead of leaving the user with a wall of red.
+        if (offline >= 2 && offline * 2 >= services.size) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.Top) {
+                Icon(Icons.Rounded.WifiOff, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp).padding(top = 1.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    if (offline == services.size) "Can't reach any of your services. Check that you're on your home network, or that your VPN (like Tailscale) is connected."
+                    else "Can't reach $offline of your services. If you're away from home, check that your VPN is connected.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (healthServices.isNotEmpty() && offline < services.size) HealthSection(hub, healthServices, nav)
     }
 }
 
 @Composable
 private fun ServiceChip(s: ServiceConfig, status: ServiceStatus?, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val down = status?.ok == false
-    val container = if (down) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHigh
+    val container = MaterialTheme.colorScheme.surfaceContainerHigh
     val dot = when {
         status == null -> MaterialTheme.colorScheme.outline
         status.ok -> okColor()
@@ -272,7 +287,7 @@ private fun ServiceChip(s: ServiceConfig, status: ServiceStatus?, modifier: Modi
             Text(
                 s.name,
                 style = MaterialTheme.typography.labelLarge,
-                color = if (down) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface,
+                color = if (down) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 140.dp),
