@@ -158,8 +158,8 @@ fun <T> LoadContent(
 ) {
     val s = loader.state
     PullToRefreshBox(
-        isRefreshing = s.loading && s.value != null,
-        onRefresh = { loader.refresh() },
+        isRefreshing = s.userRefreshing && s.value != null,
+        onRefresh = { loader.pullRefresh() },
         modifier = modifier.fillMaxSize(),
     ) {
         when {

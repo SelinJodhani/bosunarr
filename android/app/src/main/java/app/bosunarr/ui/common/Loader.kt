@@ -24,6 +24,8 @@ data class Load<out T>(
     val value: T? = null,
     val error: String? = null,
     val loading: Boolean = true,
+    /** A refresh the user asked for (pull to refresh) — the only kind that shows the refresh spinner. */
+    val userRefreshing: Boolean = false,
 ) {
     val isInitialLoading get() = loading && value == null
 }
@@ -33,10 +35,10 @@ class LoaderViewModel : ViewModel() {
     private var job: Job? = null
     var lastFetch: (suspend () -> Any?)? = null
 
-    fun load(fetch: suspend () -> Any?) {
+    fun load(fetch: suspend () -> Any?, user: Boolean = false) {
         lastFetch = fetch
         job?.cancel()
-        state.value = state.value.copy(loading = true)
+        state.value = state.value.copy(loading = true, userRefreshing = user)
         job = viewModelScope.launch {
             state.value = try {
                 Load(fetch(), null, false)
@@ -44,7 +46,7 @@ class LoaderViewModel : ViewModel() {
                 throw e
             } catch (e: Exception) {
                 // Keep showing the last good data; surface the error alongside it.
-                state.value.copy(error = e.userMessage(), loading = false)
+                state.value.copy(error = e.userMessage(), loading = false, userRefreshing = false)
             }
         }
     }
@@ -61,7 +63,10 @@ class Loader<T>(private val vm: LoaderViewModel, private val stateRef: State<Loa
     @Suppress("UNCHECKED_CAST")
     val state: Load<T> get() = stateRef.value as Load<T>
     val value: T? get() = state.value
+    /** Reload quietly (after an action, or a poll): old data stays on screen, no spinner. */
     fun refresh() = vm.load(fetch())
+    /** Pull to refresh: same, but shows the refresh indicator. */
+    fun pullRefresh() = vm.load(fetch(), user = true)
     fun mutate(transform: (T) -> T) = vm.mutate(transform)
 }
 

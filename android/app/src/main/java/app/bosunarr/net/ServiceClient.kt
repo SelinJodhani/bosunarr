@@ -3,6 +3,8 @@ package app.bosunarr.net
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -87,7 +89,11 @@ class ServiceClient(base: OkHttpClient) {
     suspend fun text(s: ServiceConfig, path: String, method: String = "GET", body: RequestBody? = null): String =
         request(s, path, method, body)
 
-    suspend fun <T> get(s: ServiceConfig, path: String, de: DeserializationStrategy<T>): T = decode(s, request(s, path), de)
+    suspend fun <T> get(s: ServiceConfig, path: String, de: DeserializationStrategy<T>): T = decodeOffMain(s, request(s, path), de)
+
+    /** Decode on a background thread: large lists (libraries, torrents) would otherwise jank the UI. */
+    suspend fun <T> decodeOffMain(s: ServiceConfig, text: String, de: DeserializationStrategy<T>): T =
+        withContext(Dispatchers.Default) { decode(s, text, de) }
 
     suspend inline fun <reified T> get(s: ServiceConfig, path: String): T = get(s, path, serializer<T>())
 
@@ -99,7 +105,7 @@ class ServiceClient(base: OkHttpClient) {
 
     suspend inline fun <reified B, reified T> send(s: ServiceConfig, path: String, method: String, body: B): T {
         val text = request(s, path, method, AppJson.encodeToString(serializer<B>(), body).toRequestBody("application/json; charset=utf-8".toMediaType()))
-        return decode(s, text, serializer<T>())
+        return decodeOffMain(s, text, serializer<T>())
     }
 
     /** POST an `application/x-www-form-urlencoded` body (qBittorrent's API). */
@@ -140,7 +146,11 @@ class ServiceClient(base: OkHttpClient) {
 
     // ---------------------------------------------------------------- internals
 
-    suspend fun request(s: ServiceConfig, path: String, method: String = "GET", body: RequestBody? = null, retried: Boolean = false): String {
+    /** Network I/O (including reading the body) always runs on Dispatchers.IO, whatever thread calls it. */
+    suspend fun request(s: ServiceConfig, path: String, method: String = "GET", body: RequestBody? = null, retried: Boolean = false): String =
+        withContext(Dispatchers.IO) { requestOnIo(s, path, method, body, retried) }
+
+    private suspend fun requestOnIo(s: ServiceConfig, path: String, method: String, body: RequestBody?, retried: Boolean): String {
         val bases = listOfNotNull(baseUrl(s), s.url, s.altUrl?.takeIf { it.isNotBlank() }).distinct()
         var lastError: ServiceException? = null
         for (base in bases) {
