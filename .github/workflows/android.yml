@@ -61,7 +61,7 @@ jobs:
         run: |
           mkdir -p out
           cp app/build/outputs/apk/release/app-release.apk "out/bosunarr-${{ steps.v.outputs.name }}.apk"
-          sha256sum out/*.apk | tee out/SHA256SUMS.txt
+          (cd out && sha256sum *.apk | tee SHA256SUMS.txt)
 
       - uses: actions/upload-artifact@v4
         with:
