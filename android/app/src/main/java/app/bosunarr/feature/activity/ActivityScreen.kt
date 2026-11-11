@@ -68,6 +68,8 @@ import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.LocalSnackbar
 import app.bosunarr.ui.common.MessageBox
 import app.bosunarr.ui.common.OnTabReselected
+import app.bosunarr.feature.usenet.UsenetQueueList
+import app.bosunarr.feature.usenet.isUsenet
 import app.bosunarr.ui.common.rememberLoader
 import kotlinx.coroutines.launch
 
@@ -78,6 +80,7 @@ fun ActivityScreen(nav: NavController) {
     val services by app.services.collectAsState()
     val arrs = remember(services) { services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Whisparr } }
     val qbits = remember(services) { services.filter { it.serviceType == ServiceType.QBittorrent } }
+    val usenet = remember(services) { services.filter { isUsenet(it.serviceType) } }
     val snackbar = LocalSnackbar.current
     val scope = rememberCoroutineScope()
 
@@ -86,7 +89,10 @@ fun ActivityScreen(nav: NavController) {
     val torrents = rememberTorrentController { torrentLoader.refresh() }
     val queue = rememberQueueController { queueLoader.refresh() }
 
-    val pager = rememberPagerState { 2 }
+    // Queue and Torrents always; Usenet only when SABnzbd/NZBGet is configured.
+    val pageCount = if (usenet.isNotEmpty()) 3 else 2
+    val pager = rememberPagerState { pageCount }
+    val usenetList = rememberLazyListState()
     val queueList = rememberLazyListState()
     val torrentList = rememberLazyListState()
     val listState = rememberTorrentListState("activity")
@@ -113,7 +119,7 @@ fun ActivityScreen(nav: NavController) {
 
     val torrentData = torrentLoader.value
     val queueData = queueLoader.value
-    val noServices = appState != null && arrs.isEmpty() && qbits.isEmpty()
+    val noServices = appState != null && arrs.isEmpty() && qbits.isEmpty() && usenet.isEmpty()
 
     AppScaffold(
         title = "Activity",
@@ -157,7 +163,8 @@ fun ActivityScreen(nav: NavController) {
                 )
                 else -> Column(Modifier.fillMaxSize()) {
                     SecondaryTabRow(selectedTabIndex = pager.currentPage) {
-                        listOf("Queue" to queueData?.let { queue.apply(it.entries).size }, "Torrents" to torrentData?.let { torrents.apply(it.torrents).size })
+                        (listOf("Queue" to queueData?.let { queue.apply(it.entries).size }, "Torrents" to torrentData?.let { torrents.apply(it.torrents).size }) +
+                            (if (usenet.isNotEmpty()) listOf("Usenet" to null) else emptyList()))
                             .forEachIndexed { i, (label, count) ->
                                 Tab(
                                     selected = pager.currentPage == i,
@@ -176,6 +183,7 @@ fun ActivityScreen(nav: NavController) {
                     }
                     HorizontalPager(pager, Modifier.weight(1f), beyondViewportPageCount = 1, key = { it }) { page ->
                         if (page == 0) QueuePage(arrs, queueLoader, queue, queueList, nav)
+                        else if (page == 2) UsenetQueueList(usenet, Modifier.fillMaxSize())
                         else TorrentsPage(qbits, torrentLoader, torrents, listState, torrentList, nav, onAdd = { addInitial = null; showAdd = true })
                     }
                     // Re-tapping the Activity tab scrolls the visible page back to the top.

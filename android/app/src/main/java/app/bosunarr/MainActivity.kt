@@ -14,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import app.bosunarr.notify.NotifyLinks
 import app.bosunarr.ui.AppRoot
+import app.bosunarr.widget.DeepLink
 import app.bosunarr.ui.common.CrashReporter
 import app.bosunarr.update.Updater
 import app.bosunarr.ui.theme.BosunarrTheme
@@ -66,6 +67,8 @@ class MainActivity : ComponentActivity() {
 
     /** Magnet links (VIEW) and shared text containing a magnet/torrent URL (SEND) open the Add torrent sheet. */
     private fun handleIntent(intent: Intent?) {
+        // Widget / Quick Settings tile taps carry a target screen.
+        DeepLink.route(intent)?.let { NotifyLinks.pendingRoute.value = it; return }
         if (NotifyLinks.handle(intent)) return
         val link = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.dataString

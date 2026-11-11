@@ -13,6 +13,9 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import app.bosunarr.MainActivity
 import app.bosunarr.app
 import app.bosunarr.nav.ActivityRoute
+import app.bosunarr.nav.CalendarRoute
+import app.bosunarr.nav.DiscoverRoute
+import app.bosunarr.nav.LibraryRoute
 import app.bosunarr.nav.DashboardRoute
 import app.bosunarr.nav.MediaRoute
 import app.bosunarr.nav.MovieRoute
@@ -41,6 +44,8 @@ object NotifyLinks {
     fun service(serviceId: String) = "service/$serviceId"
 
     internal val pending = MutableStateFlow<String?>(null)
+    /** A ready-made route from a widget or Quick Settings tile tap (see widget/DeepLink). */
+    val pendingRoute = MutableStateFlow<Any?>(null)
 
     /** True if [intent] came from one of our notifications (and was taken care of). */
     fun handle(intent: Intent?): Boolean {
@@ -80,15 +85,21 @@ object NotifyLinks {
 @Composable
 fun NotificationLinkEffect(nav: NavController) {
     val link by NotifyLinks.pending.collectAsState()
+    val direct by NotifyLinks.pendingRoute.collectAsState()
     val loaded = app.state.collectAsState().value != null
-    LaunchedEffect(link, loaded) {
-        val l = link ?: return@LaunchedEffect
+    LaunchedEffect(link, direct, loaded) {
         if (!loaded) return@LaunchedEffect
-        NotifyLinks.pending.value = null
-        val route = NotifyLinks.route(l) ?: return@LaunchedEffect
+        val route = when {
+            direct != null -> direct.also { NotifyLinks.pendingRoute.value = null }
+            link != null -> NotifyLinks.route(link!!).also { NotifyLinks.pending.value = null }
+            else -> null
+        } ?: return@LaunchedEffect
         nav.currentBackStackEntryFlow.first() // the NavHost has set its graph
         runCatching {
-            if (route == ActivityRoute || route == DashboardRoute) {
+            // Tabs: same navigation as the bottom bar (keeps each tab's state). Everything else: push.
+            if (route == ActivityRoute || route == DashboardRoute || route == CalendarRoute ||
+                route == LibraryRoute || route == DiscoverRoute
+            ) {
                 nav.navigate(route) {
                     popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                     launchSingleTop = true
