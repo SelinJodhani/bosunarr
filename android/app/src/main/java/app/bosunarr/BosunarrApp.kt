@@ -1,6 +1,7 @@
 package app.bosunarr
 
 import android.app.Application
+import app.bosunarr.notify.NotifyScheduler
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -14,6 +15,7 @@ class BosunarrApp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        NotifyScheduler.sync(this)
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = ImageLoader.Builder(context)

@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import app.bosunarr.notify.NotifyLinks
 import app.bosunarr.ui.AppRoot
 import app.bosunarr.ui.common.CrashReporter
 import app.bosunarr.update.Updater
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
 
     /** Magnet links (VIEW) and shared text containing a magnet/torrent URL (SEND) open the Add torrent sheet. */
     private fun handleIntent(intent: Intent?) {
+        if (NotifyLinks.handle(intent)) return
         val link = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.dataString
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)

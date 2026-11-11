@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon for notifications: the sailboat mark, cropped from the launcher monochrome layer. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="56" android:viewportHeight="56">
+    <group android:translateX="-28" android:translateY="-26">
+        <path android:fillColor="#FFFFFF"
+            android:pathData="M57.5,30 C65.5,38.5 72.5,50 75,62.5 Q75.3,64 73.8,64 L57.5,64 Z M53.5,37 L53.5,64 L37.6,64 Q36.2,64 36.9,62.8 C41.5,54.6 47.2,45.6 53.5,37 Z M34.5,68 L77.5,68 Q79,68 78.3,69.4 L74.6,76 Q73.4,78 71,78 L41,78 Q38.6,78 37.4,76 L33.7,69.4 Q33,68 34.5,68 Z" />
+    </group>
+</vector>

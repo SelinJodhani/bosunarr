@@ -90,6 +90,9 @@ import app.bosunarr.nav.ServiceEditRoute
 import app.bosunarr.nav.ServiceRoute
 import app.bosunarr.nav.SettingsRoute
 import app.bosunarr.net.userMessage
+import app.bosunarr.notify.NotificationSettingsRoute
+import app.bosunarr.notify.NotificationsIcon
+import app.bosunarr.notify.NotificationsSettingsRow
 import app.bosunarr.ui.common.AppMark
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ConfirmDialog
@@ -195,6 +198,8 @@ fun SettingsScreen(nav: NavController) {
                     )
                 }
             }
+
+            item("notifications") { Column { GroupHeader("Notifications"); GroupRow(0, 1, onClick = { nav.navigate(NotificationSettingsRoute) }) { NotificationsSettingsRow(leading = { RowIcon(NotificationsIcon) }, colors = TransparentListItem) } } }
 
             item("h:appearance") { GroupHeader("Appearance") }
             item("theme") {

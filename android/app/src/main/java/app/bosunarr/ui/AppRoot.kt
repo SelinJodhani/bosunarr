@@ -82,6 +82,8 @@ import app.bosunarr.ui.onboarding.OnboardingScreen
 import app.bosunarr.ui.settings.settingsGraph
 import app.bosunarr.update.UpdatePrompt
 import app.bosunarr.update.Updater
+import app.bosunarr.notify.NotificationLinkEffect
+import app.bosunarr.notify.notificationsGraph
 import kotlin.reflect.KClass
 
 private data class Tab(val route: Any, val cls: KClass<*>, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
@@ -142,6 +144,8 @@ fun AppRoot() {
         }
     }
 
+    NotificationLinkEffect(nav)
+
     // Quiet update check once the store is loaded (at most every 12 h; release builds only).
     LaunchedEffect(appState != null) { if (appState != null) Updater.autoCheck() }
 
@@ -180,6 +184,7 @@ fun AppRoot() {
                 tab<CalendarRoute>(nav) { CalendarScreen(nav) }
                 tab<ActivityRoute>(nav) { ActivityScreen(nav) }
                 settingsGraph(nav)
+                notificationsGraph(nav)
                 composable<ServiceRoute> { ServiceScreen(it.toRoute<ServiceRoute>().id, nav) }
                 composable<LicencesRoute> { LicencesScreen(nav) }
             }
