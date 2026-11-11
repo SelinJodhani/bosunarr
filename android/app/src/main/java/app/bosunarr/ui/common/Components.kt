@@ -142,7 +142,7 @@ fun LoadingBox(modifier: Modifier = Modifier) {
 /**
  * Empty or info state: a small icon tile (or, when [scene] is set, a nautical [SeaArt] illustration instead), a
  * headline, a plain-language [hint] and an optional action. Fades and scales in when it appears (unless the system
- * has animations turned off). [artSize] defaults to 160dp, or 120dp on short screens; pass 120.dp inside cards/tabs.
+ * has animations turned off). [artSize] defaults to nearly the screen width (max 360dp); pass 120.dp inside cards/tabs.
  */
 @Composable
 fun MessageBox(
@@ -190,13 +190,17 @@ private fun MessageBoxImpl(
                 scaleX = s; scaleY = s
             }
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = if (scene != null) 32.dp else 48.dp),
+            .padding(horizontal = if (scene != null) 24.dp else 32.dp, vertical = if (scene != null) 16.dp else 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (scene != null) {
-            val short = LocalConfiguration.current.screenHeightDp < 640
-            SeaArt(scene, size = if (artSize != Dp.Unspecified) artSize else if (short) 120.dp else 160.dp)
+            // Hero-sized: nearly the full width of the screen (24dp margins), capped for tablets; smaller on short
+            // screens so the text and action still fit without scrolling.
+            val cfg = LocalConfiguration.current
+            val wide = (cfg.screenWidthDp - 48).coerceIn(200, 360)
+            val fit = if (cfg.screenHeightDp < 640) minOf(wide, 220) else wide
+            SeaArt(scene, size = if (artSize != Dp.Unspecified) artSize else fit.dp)
         } else if (icon != null) {
             Box(Modifier.size(72.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
                 Icon(icon, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(36.dp))
