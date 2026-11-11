@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -66,18 +67,52 @@ fun FixedWidthText(
     }
 }
 
-/** "↓ 12.4 MB/s" with a fixed width. */
+/** Widest string [speed] produces ("99.9 MB/s"; 100+ drops the decimal), in tabular figures. */
+private const val SPEED_TEMPLATE = "88.8 MB/s"
+
+/**
+ * "↓ 12.4 MB/s": the arrow stays next to its number, and the pair sits in a box as wide as the widest speed so a
+ * changing value never moves its neighbours. [align] places the pair in that box (end for list columns, start for
+ * a header readout).
+ */
 @Composable
-fun SpeedLabel(down: Boolean, bps: Long, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.labelLarge, color: Color = LocalContentColor.current, dim: Boolean = bps <= 0) {
+fun SpeedLabel(
+    down: Boolean,
+    bps: Long,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.labelLarge,
+    color: Color = LocalContentColor.current,
+    dim: Boolean = bps <= 0,
+    iconTint: Color? = null,
+    align: Alignment = Alignment.CenterEnd,
+) {
     val c = if (dim) color.copy(alpha = 0.55f) else color
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            if (down) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward,
-            contentDescription = if (down) "Download speed" else "Upload speed",
-            tint = c,
-            modifier = Modifier.size(14.dp),
-        )
-        FixedWidthText(speed(bps), "888.8 MB/s", style.tnum(), color = c)
+    val icon = if (down) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward
+    val iconSize = 14.dp
+    Box(modifier, contentAlignment = align) {
+        // Invisible template reserves the width.
+        Row(Modifier.alpha(0f).clearAndSetSemantics {}, verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(iconSize))
+            Text(SPEED_TEMPLATE, style = style.tnum(), maxLines = 1, modifier = Modifier.padding(start = 2.dp))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = if (down) "Download speed" else "Upload speed", tint = if (dim) c else (iconTint ?: c), modifier = Modifier.size(iconSize))
+            Text(speed(bps), style = style.tnum(), maxLines = 1, color = c, modifier = Modifier.padding(start = 2.dp))
+        }
+    }
+}
+
+/**
+ * Compact live transfer readout for a top bar: download over upload, each arrow tight to its figure, left-aligned
+ * in a fixed-width column so polling never makes it jitter.
+ */
+@Composable
+fun SpeedReadout(down: Long, up: Long, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    val style = MaterialTheme.typography.labelMedium
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        SpeedLabel(true, down, style = style, color = cs.onSurface, iconTint = cs.primary, align = Alignment.CenterStart)
+        SpeedLabel(false, up, style = style, color = cs.onSurface, iconTint = cs.tertiary, align = Alignment.CenterStart)
     }
 }
 

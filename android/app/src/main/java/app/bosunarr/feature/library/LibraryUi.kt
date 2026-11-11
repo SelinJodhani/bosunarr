@@ -2,11 +2,14 @@ package app.bosunarr.feature.library
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -26,6 +29,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.AlertDialog
@@ -60,6 +65,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
+import app.bosunarr.feature.discover.LightStatusBarIcons
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -108,31 +121,36 @@ fun runAction(
 
 /* ---------------------------------------------------------------- grid card */
 
-/** Small round status marker on a poster's corner. */
+/** Height of every marker on a poster corner (status dot, progress pill, 4K label), so they line up. */
+private val BadgeSize = 22.dp
+
+/** Dark glass behind white marks on a poster: readable on any artwork, in light and dark theme. */
+private val PosterScrim = Color.Black.copy(alpha = 0.6f)
+
+/**
+ * Small round status marker on a poster's corner. Good news (downloaded) and bad news (missing) get the theme's
+ * colours; neutral states (upcoming, unmonitored) sit on dark glass so they never fight the artwork.
+ */
 @Composable
 fun StatusBadge(item: LibItem, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
     val progress = item.progress
-    when {
-        item.status == LibStatus.Partial && progress != null -> Surface(
-            modifier = modifier, shape = RoundedCornerShape(50), color = cs.tertiaryContainer, contentColor = cs.onTertiaryContainer, shadowElevation = 2.dp,
-        ) {
-            Text("${(progress * 100).toInt().coerceIn(1, 99)}%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp), maxLines = 1)
-        }
-        else -> {
-            val (icon, bg, fg) = when (item.status) {
-                LibStatus.Downloaded -> Triple(Icons.Rounded.Check, cs.primary, cs.onPrimary)
-                LibStatus.Missing, LibStatus.Partial -> Triple(null, cs.error, cs.onError)
-                LibStatus.Upcoming -> Triple(Icons.Rounded.Schedule, cs.secondaryContainer, cs.onSecondaryContainer)
-                LibStatus.Unmonitored -> Triple(Icons.Rounded.BookmarkBorder, cs.surfaceContainerHighest, cs.onSurfaceVariant)
-            }
-            Surface(modifier = modifier.size(22.dp), shape = CircleShape, color = bg, contentColor = fg, shadowElevation = 2.dp) {
-                Box(contentAlignment = Alignment.Center) {
-                    if (icon != null) Icon(icon, item.status.label, Modifier.size(14.dp))
-                    else Text("!", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                }
+    if (item.status == LibStatus.Partial && progress != null) {
+        Surface(modifier = modifier.heightIn(min = BadgeSize), shape = CircleShape, color = cs.tertiaryContainer, contentColor = cs.onTertiaryContainer) {
+            Box(Modifier.padding(horizontal = 7.dp), contentAlignment = Alignment.Center) {
+                Text("${(progress * 100).toInt().coerceIn(1, 99)}%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
         }
+        return
+    }
+    val (icon, bg, fg) = when (item.status) {
+        LibStatus.Downloaded -> Triple(Icons.Rounded.Check, cs.primary, cs.onPrimary)
+        LibStatus.Missing, LibStatus.Partial -> Triple(Icons.Rounded.PriorityHigh, cs.error, cs.onError)
+        LibStatus.Upcoming -> Triple(Icons.Rounded.Schedule, PosterScrim, Color.White)
+        LibStatus.Unmonitored -> Triple(Icons.Rounded.BookmarkBorder, PosterScrim, Color.White)
+    }
+    Surface(modifier = modifier.size(BadgeSize), shape = CircleShape, color = bg, contentColor = fg) {
+        Box(contentAlignment = Alignment.Center) { Icon(icon, item.status.label, Modifier.size(14.dp)) }
     }
 }
 
@@ -143,8 +161,10 @@ fun PosterCard(item: LibItem, service: ServiceConfig?, onClick: () -> Unit, modi
             Poster(service, item.poster, Modifier.fillMaxWidth().alpha(if (item.monitored) 1f else 0.55f), title = item.title)
             StatusBadge(item, Modifier.align(Alignment.TopEnd).padding(6.dp))
             if (item.is4k) {
-                Surface(Modifier.align(Alignment.TopStart).padding(6.dp), shape = RoundedCornerShape(6.dp), color = Color.Black.copy(alpha = 0.6f), contentColor = Color.White) {
-                    Text("4K", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp))
+                Surface(Modifier.align(Alignment.TopStart).padding(6.dp).heightIn(min = BadgeSize), shape = RoundedCornerShape(6.dp), color = PosterScrim, contentColor = Color.White) {
+                    Box(Modifier.padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
+                        Text("4K", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
                 }
             }
             val p = item.progress
@@ -188,7 +208,10 @@ val HeaderHeight = 236.dp
 
 /**
  * Detail frame: the top bar floats transparent over the backdrop and turns solid (showing the title) once the
- * header scrolls away. Content draws edge to edge; [content] gets the bottom padding to apply.
+ * header scrolls away. Over the backdrop the bar buttons sit on small dark discs and the status-bar icons are
+ * forced light, so both stay readable on bright fanart. [menu] fills the ⋮ overflow menu (secondary and
+ * destructive actions); it gets a `close` callback. Content draws edge to edge; [content] gets the bottom
+ * padding to apply.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,7 +219,7 @@ fun DetailScaffold(
     title: String,
     listState: LazyListState,
     onBack: () -> Unit,
-    actions: @Composable RowScope.(tint: Color) -> Unit = {},
+    menu: (@Composable ColumnScope.(close: () -> Unit) -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -204,13 +227,24 @@ fun DetailScaffold(
     val solid by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > threshold } }
     val container by animateColorAsState(if (solid) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent, label = "bar")
     val tint by animateColorAsState(if (solid) MaterialTheme.colorScheme.onSurface else Color.White, label = "tint")
+    val disc by animateColorAsState(if (solid) Color.Transparent else Color.Black.copy(alpha = 0.35f), label = "disc")
     val titleAlpha by animateFloatAsState(if (solid) 1f else 0f, label = "title")
+    LightStatusBarIcons(!solid)
+    val buttonColors = IconButtonDefaults.iconButtonColors(containerColor = disc, contentColor = tint)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.alpha(titleAlpha)) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = tint) } },
-                actions = { actions(tint) },
+                navigationIcon = { IconButton(onClick = onBack, colors = buttonColors) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") } },
+                actions = {
+                    if (menu != null) {
+                        var open by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { open = true }, colors = buttonColors) { Icon(Icons.Rounded.MoreVert, "More options") }
+                            DropdownMenu(open, onDismissRequest = { open = false }) { menu { open = false } }
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = container, scrolledContainerColor = container, titleContentColor = MaterialTheme.colorScheme.onSurface),
             )
         },
@@ -235,8 +269,15 @@ fun DetailHeader(
     Box(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height(HeaderHeight)) {
             ServiceImage(service, fanart, Modifier.fillMaxSize(), placeholderIcon = Icons.Rounded.Tv)
-            // Scrim at the top for the bar icons, fade into the page at the bottom.
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 0.35f to Color.Transparent)))
+            // Scrim at the top for the status bar and bar icons (eased so it has no visible edge), fade into the
+            // page at the bottom.
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.6f), 0.2f to Color.Black.copy(alpha = 0.32f), 0.42f to Color.Transparent,
+                    ),
+                ),
+            )
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to surface)))
         }
         Row(
@@ -391,3 +432,31 @@ fun <T> PickerField(
         }
     }
 }
+
+/* ---------------------------------------------------------------- shared bits */
+
+/**
+ * Fades the start/end of a horizontally scrolling row (chips) where more content is hidden, so a cut-off chip
+ * reads as "scroll for more" instead of a layout bug. Put it before `horizontalScroll(scroll)`.
+ */
+fun Modifier.horizontalFadingEdges(scroll: ScrollState, width: Dp = 24.dp): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        val w = width.toPx().coerceAtMost(size.width / 2)
+        if (w <= 0f) return@drawWithContent
+        // Ease the fade in over the first few pixels of scroll so it never pops.
+        val start = (scroll.value / w).coerceIn(0f, 1f)
+        val end = ((scroll.maxValue - scroll.value) / w).coerceIn(0f, 1f)
+        if (start > 0f) drawRect(
+            Brush.horizontalGradient(0f to Color.Black.copy(alpha = 1f - start), 1f to Color.Black, startX = 0f, endX = w),
+            size = Size(w, size.height),
+            blendMode = BlendMode.DstIn,
+        )
+        if (end > 0f) drawRect(
+            Brush.horizontalGradient(0f to Color.Black, 1f to Color.Black.copy(alpha = 1f - end), startX = size.width - w, endX = size.width),
+            topLeft = Offset(size.width - w, 0f),
+            size = Size(w, size.height),
+            blendMode = BlendMode.DstIn,
+        )
+    }

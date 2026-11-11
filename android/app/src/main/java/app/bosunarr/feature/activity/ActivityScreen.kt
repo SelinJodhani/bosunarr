@@ -1,5 +1,8 @@
 package app.bosunarr.feature.activity
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -116,11 +119,8 @@ fun ActivityScreen(nav: NavController) {
     AppScaffold(
         title = "Activity",
         actions = {
-            if (torrentData != null && qbits.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp)) {
-                    SpeedLabel(true, torrentData.down, dim = false)
-                    SpeedLabel(false, torrentData.up, dim = false)
-                }
+            AnimatedVisibility(torrentData != null && qbits.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
+                SpeedReadout(torrentData?.down ?: 0, torrentData?.up ?: 0, Modifier.padding(start = 12.dp, end = 4.dp))
             }
             if (!noServices) OverflowMenu(
                 qbits = qbits,
@@ -263,7 +263,12 @@ private fun QueuePage(
                     onAction = { loader.refresh() },
                 )
             } else if (list.isEmpty()) item("empty") {
-                MessageBox(Icons.Rounded.DownloadDone, "Nothing downloading", hint = "The Sonarr and Radarr queues are empty.")
+                MessageBox(
+                    Icons.Rounded.DownloadDone,
+                    "Nothing downloading",
+                    hint = "New grabs from ${arrNames(arrs)} will show up here.",
+                    modifier = Modifier.animateItem(),
+                )
             }
             queueRows(
                 list = list,
@@ -349,7 +354,8 @@ fun TorrentListBody(
             if (error != null) item("error") { ErrorBanner(error, Modifier.padding(top = 8.dp)) }
             header()
             val unreachable = all.isEmpty() && data.clients.isEmpty() && data.errors.isNotEmpty()
-            if (!unreachable) item("toolbar") { TorrentToolbar(state, searched, Modifier.padding(vertical = 4.dp), leadingChips) }
+            // Search and status chips only mean something once there are torrents to narrow down.
+            if (!unreachable && all.isNotEmpty()) item("toolbar") { TorrentToolbar(state, searched, Modifier.padding(vertical = 4.dp).animateItem(), leadingChips) }
             when {
                 unreachable -> item("unreachable") {
                     MessageBox(
@@ -360,13 +366,13 @@ fun TorrentListBody(
                         onAction = onRetry,
                     )
                 }
+                // The screen's FAB is the one way to add: no second button in the empty state.
                 all.isEmpty() -> item("empty") {
                     MessageBox(
                         Icons.Rounded.Download,
                         "No torrents",
-                        hint = if (onAdd != null) "Add one with a magnet link or a .torrent file." else null,
-                        action = if (onAdd != null) "Add torrent" else null,
-                        onAction = onAdd,
+                        hint = if (onAdd != null) "Tap Add torrent to paste a magnet link or pick a .torrent file." else "This client has no torrents.",
+                        modifier = Modifier.animateItem(),
                     )
                 }
                 visible.isEmpty() -> item("nomatch") {
@@ -393,5 +399,16 @@ fun TorrentListBody(
 
     if (open != null) {
         TorrentDetailSheet(open, data.categoriesOf(open.serviceId), controller, onDismiss = { openKey = null })
+    }
+}
+
+/** "Sonarr and Radarr", "Sonarr", or the configured names when there are several of a kind. */
+private fun arrNames(arrs: List<ServiceConfig>): String {
+    val kinds = arrs.mapNotNull { it.serviceType }.distinct()
+    val names = if (kinds.size == arrs.size) kinds.map { it.label } else arrs.map { it.name }
+    return when (names.size) {
+        0 -> "Sonarr and Radarr"
+        1 -> names[0]
+        else -> names.dropLast(1).joinToString(", ") + " and " + names.last()
     }
 }

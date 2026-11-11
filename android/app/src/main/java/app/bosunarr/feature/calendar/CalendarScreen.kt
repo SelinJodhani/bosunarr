@@ -1,6 +1,20 @@
 package app.bosunarr.feature.calendar
 
 import android.text.format.DateFormat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.material.icons.rounded.EventAvailable
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.derivedStateOf
+import app.bosunarr.ui.common.plural
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,7 +46,6 @@ import androidx.compose.material.icons.rounded.Today
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -99,7 +112,7 @@ fun CalendarScreen(nav: NavController) {
 
 /** Flattened rows of the agenda. */
 private sealed interface Agenda {
-    data class Header(val day: LocalDate, val count: Int) : Agenda
+    data class Header(val day: LocalDate, val count: String?) : Agenda
     data class Item(val entry: CalEntry) : Agenda
     data class Nothing(val day: LocalDate) : Agenda
 }
@@ -113,12 +126,26 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
     val state = loader.state
     val data = state.value
 
-    // Toggling the past week refetches in place (the current list stays until the new one arrives).
+    val list = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // Toggling the past week refetches in place (the current list stays until the new one arrives, with a thin
+    // progress bar meanwhile); once it lands, showing the past scrolls up so the new days are actually seen.
     var fetchedPast by rememberSaveable { mutableStateOf(showPast) }
+    var pendingFrom by remember { mutableStateOf<Any?>(null) }
     LaunchedEffect(showPast) {
         if (showPast != fetchedPast) {
             fetchedPast = showPast
+            pendingFrom = data ?: Unit
             loader.refresh()
+        }
+    }
+    LaunchedEffect(data, state.error) {
+        val from = pendingFrom ?: return@LaunchedEffect
+        val arrived = data != null && data !== from
+        if (arrived || (state.error != null && !state.loading)) {
+            pendingFrom = null
+            if (arrived && showPast) list.animateScrollToItem(0)
         }
     }
 
@@ -130,7 +157,7 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
             val days = (byDay.keys + today).filter { !it.isBefore(data.start) || it == today }.toSortedSet()
             for (day in days) {
                 val list = byDay[day].orEmpty()
-                out += Agenda.Header(day, list.size)
+                out += Agenda.Header(day, countLabel(list))
                 if (list.isEmpty()) out += Agenda.Nothing(day) else list.forEach { out += Agenda.Item(it) }
             }
         }
@@ -138,8 +165,6 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
     }
     val todayIndex = rows.indexOfFirst { it is Agenda.Header && it.day == today }.coerceAtLeast(0)
 
-    val list = rememberLazyListState()
-    val scope = rememberCoroutineScope()
     var scrolledToToday by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(data != null) {
         if (data != null && !scrolledToToday) {
@@ -155,20 +180,34 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
             if (n == 0) "Nothing in the next 4 weeks" else "$n coming up in the next 4 weeks"
         },
         actions = {
-            IconButton(onClick = { scope.launch { list.animateScrollToItem(todayIndex) } }, enabled = data != null) {
-                Icon(Icons.Rounded.Today, "Jump to today")
+            // "Today" only appears once today's section has scrolled out of view.
+            val todayKey = "d$today"
+            val todayVisible by remember(todayKey) { derivedStateOf { list.layoutInfo.visibleItemsInfo.any { it.key == todayKey } } }
+            AnimatedVisibility(
+                visible = data != null && data.entries.isNotEmpty() && !todayVisible,
+                enter = fadeIn() + scaleIn(initialScale = 0.85f),
+                exit = fadeOut() + scaleOut(targetScale = 0.85f),
+            ) {
+                FilledTonalButton(
+                    onClick = { scope.launch { list.animateScrollToItem(todayIndex) } },
+                    contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
+                    modifier = Modifier.height(36.dp),
+                ) {
+                    Icon(Icons.Rounded.Today, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Today", maxLines = 1)
+                }
             }
-            IconToggleButton(checked = showPast, onCheckedChange = { showPast = it }) {
-                Icon(Icons.Rounded.History, if (showPast) "Hide past week" else "Show past week", tint = if (showPast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            CalendarMenu(showPast, onShowPast = { showPast = it })
         },
     ) { p ->
         Column(Modifier.padding(p).fillMaxSize()) {
             data?.errors?.takeIf { it.isNotEmpty() }?.let { errs -> ErrorBanner(errs.joinToString("\n") { it.message }) }
             if (data != null && state.error != null) ErrorBanner(state.error)
             PullToRefreshBox(
-                isRefreshing = state.loading && data != null,
-                onRefresh = { loader.refresh() },
+                // Only for the user's pull: background polls and the past-week toggle stay quiet.
+                isRefreshing = state.userRefreshing && data != null,
+                onRefresh = { loader.pullRefresh() },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
                 when {
@@ -186,22 +225,63 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
                         rows.forEach { r ->
                             when (r) {
                                 is Agenda.Header -> stickyHeader(key = "d${r.day}", contentType = "header") { DayHeader(r.day, r.count) }
-                                is Agenda.Nothing -> item(key = "n${r.day}", contentType = "nothing") {
-                                    Text(
-                                        "Nothing today",
-                                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                    )
-                                }
+                                is Agenda.Nothing -> item(key = "n${r.day}", contentType = "nothing") { EmptyDay(Modifier.animateItem()) }
                                 is Agenda.Item -> item(key = r.entry.id, contentType = "entry") {
-                                    EntryRow(r.entry) { nav.navigate(r.entry.primary.route) }
+                                    EntryRow(r.entry, Modifier.animateItem()) { nav.navigate(r.entry.primary.route) }
                                 }
                             }
                         }
                     }
                 }
+                if (pendingFrom != null && data != null) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter))
+                }
             }
         }
+    }
+}
+
+/** "3 episodes", "1 movie", "4 releases" (a mix) for a day's header. */
+private fun countLabel(list: List<CalEntry>): String? = when {
+    list.isEmpty() -> null
+    list.all { it.episodeLabel != null } -> plural(list.size, "episode")
+    list.none { it.episodeLabel != null } -> plural(list.size, "movie")
+    else -> plural(list.size, "release")
+}
+
+/** Overflow menu: the past-week switch, labelled. */
+@Composable
+private fun CalendarMenu(showPast: Boolean, onShowPast: (Boolean) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreVert, "More options") }
+        DropdownMenu(open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("Show past week") },
+                leadingIcon = { Icon(Icons.Rounded.History, null) },
+                trailingIcon = { Checkbox(checked = showPast, onCheckedChange = null) },
+                onClick = { open = false; onShowPast(!showPast) },
+            )
+        }
+    }
+}
+
+/** A quiet "nothing today" line under today's header, so the day still reads as part of the agenda. */
+@Composable
+private fun EmptyDay(modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(cs.surfaceContainerLow)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.EventAvailable, null, tint = cs.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(12.dp))
+        Text("Nothing scheduled today", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
     }
 }
 
@@ -217,37 +297,43 @@ private fun dayLabel(day: LocalDate, today: LocalDate): Pair<String, String?> {
 }
 
 @Composable
-private fun DayHeader(day: LocalDate, count: Int?) {
+private fun DayHeader(day: LocalDate, count: String?, modifier: Modifier = Modifier) {
     val today = LocalDate.now()
     val (label, secondary) = dayLabel(day, today)
     val cs = MaterialTheme.colorScheme
-    Surface(color = cs.surface, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
-                color = when {
-                    day == today -> cs.primary
-                    day.isBefore(today) -> cs.onSurfaceVariant
-                    else -> cs.onSurface
-                },
-            )
-            if (secondary != null) {
-                Text("  $secondary", style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1)
+    Surface(color = cs.surface, modifier = modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                    color = when {
+                        day == today -> cs.primary
+                        day.isBefore(today) -> cs.onSurfaceVariant
+                        else -> cs.onSurface
+                    },
+                )
+                if (secondary != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(secondary, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant, maxLines = 1)
+                }
             }
-            Spacer(Modifier.weight(1f))
-            if (count != null && count > 0) Text("$count", style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
+            if (count != null) {
+                Spacer(Modifier.width(12.dp))
+                Text(count, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 1)
+            }
         }
     }
 }
 
 @Composable
-private fun EntryRow(e: CalEntry, onClick: () -> Unit) {
+private fun EntryRow(e: CalEntry, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val ctx = LocalContext.current
     val timeFormat = remember(ctx) { DateFormat.getTimeFormat(ctx) }
     val status = e.status
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp).alpha(if (e.monitored) 1f else 0.6f),
+        modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp).alpha(if (e.monitored) 1f else 0.6f),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {

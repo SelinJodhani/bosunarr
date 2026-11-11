@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.qbit.TorrentGroup
 import app.bosunarr.feature.activity.qbit.categoryLabel
+import app.bosunarr.feature.library.horizontalFadingEdges
 import app.bosunarr.ui.common.bytes
 import app.bosunarr.ui.common.eta
 import java.util.Locale
@@ -143,8 +144,9 @@ fun TorrentToolbar(
             SearchPill(state.query, { state.query = it }, "Search torrents", Modifier.weight(1f))
             SortButton(state)
         }
+        val chipScroll = rememberScrollState()
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+            Modifier.fillMaxWidth().horizontalFadingEdges(chipScroll).horizontalScroll(chipScroll).padding(horizontal = 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

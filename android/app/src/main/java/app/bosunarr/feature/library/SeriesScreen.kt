@@ -31,6 +31,9 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -151,16 +154,36 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
         }) { LibraryApi.setEpisodesMonitored(service, listOf(e.id), to) }
     }
 
-    DetailScaffold(title, list, onBack = { nav.back() }) { p ->
+    val uri = LocalUriHandler.current
+    DetailScaffold(
+        title, list, onBack = { nav.back() },
+        menu = if (x == null) null else { close ->
+            x.titleSlug?.takeIf { it.isNotBlank() }?.let { slug ->
+                DropdownMenuItem(
+                    text = { Text("Open in ${service.name}") },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
+                    onClick = { close(); runCatching { uri.openUri("${app.client.baseUrl(service).trimEnd('/')}/series/$slug") } },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Delete series…", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                enabled = busy["delete"] != true,
+                onClick = { close(); confirmDelete = true },
+            )
+        },
+    ) { p ->
         val pull = rememberPullToRefreshState()
         val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        // The spinner is for the user's pull only; refetches after an action happen quietly.
+        val refreshing = state.userRefreshing && d != null
         PullToRefreshBox(
-            isRefreshing = state.loading && d != null,
-            onRefresh = { loader.refresh() },
+            isRefreshing = refreshing,
+            onRefresh = { loader.pullRefresh() },
             state = pull,
             modifier = Modifier.fillMaxSize(),
             indicator = {
-                PullToRefreshDefaults.Indicator(state = pull, isRefreshing = state.loading && d != null, modifier = Modifier.align(Alignment.TopCenter).padding(top = top + 64.dp))
+                PullToRefreshDefaults.Indicator(state = pull, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter).padding(top = top + 64.dp))
             },
         ) {
             LazyColumn(state = list, contentPadding = PaddingValues(bottom = p.calculateBottomPadding() + 32.dp), modifier = Modifier.fillMaxSize()) {
@@ -190,7 +213,6 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                                         app.scope.launch(Dispatchers.Main) { delay(5000); loader.refresh() }
                                     }
                                 }, busy = busy["refresh"] == true)
-                                DetailAction(Icons.Rounded.Delete, "Delete", { confirmDelete = true }, busy = busy["delete"] == true, destructive = true)
                             }
                         }
                         item("facts") {
@@ -232,7 +254,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                         }
                         val seasons = x.seasons.sortedWith(compareBy<ArrSeason> { it.seasonNumber == 0 }.thenByDescending { it.seasonNumber })
                         val bySeason = d.episodes.groupBy { it.seasonNumber }
-                        if (seasons.isNotEmpty()) item("seasons-title") { SectionTitle("Seasons") }
+                        if (seasons.isNotEmpty()) item("seasons-title") { SectionTitle("Seasons", Modifier.padding(top = 8.dp)) }
                         seasons.forEach { season ->
                             val n = season.seasonNumber
                             val eps = bySeason[n].orEmpty().sortedBy { it.episodeNumber }
@@ -240,6 +262,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                             item("s$n") {
                                 SeasonRow(
                                     season, eps, open,
+                                    modifier = Modifier.animateItem(),
                                     onToggleOpen = { expanded = if (open) expanded - n else expanded + n },
                                     onToggleMonitored = { toggleSeason(n, !season.monitored) },
                                     searching = busy["season-$n"] == true,
@@ -248,11 +271,12 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                             }
                             if (open) {
                                 if (eps.isEmpty()) item("s$n-empty") {
-                                    Text("No episodes yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 72.dp, top = 4.dp, bottom = 12.dp))
+                                    Text("No episodes yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.animateItem().padding(start = 72.dp, top = 4.dp, bottom = 12.dp))
                                 }
                                 items(eps, key = { "e${it.id}" }, contentType = { "episode" }) { e ->
                                     EpisodeRow(
                                         e, d.files[e.episodeFileId],
+                                        modifier = Modifier.animateItem(),
                                         seasonMonitored = season.monitored,
                                         showOverview = e.id in openEpisodes,
                                         onClick = { openEpisodes = if (e.id in openEpisodes) openEpisodes - e.id else openEpisodes + e.id },
@@ -261,7 +285,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                                         onSearch = { busyAction("ep-${e.id}", "Searching S${pad(e.seasonNumber)}E${pad(e.episodeNumber)}") { LibraryApi.searchEpisodes(service, listOf(e.id)) } },
                                     )
                                 }
-                                item("s$n-end") { HorizontalDivider(Modifier.padding(start = 16.dp, top = 4.dp)) }
+                                item("s$n-end") { HorizontalDivider(Modifier.animateItem().padding(start = 16.dp, top = 4.dp)) }
                             }
                         }
                     }
@@ -297,6 +321,7 @@ private fun SeasonRow(
     season: ArrSeason,
     episodes: List<ArrEpisode>,
     open: Boolean,
+    modifier: Modifier = Modifier,
     onToggleOpen: () -> Unit,
     onToggleMonitored: () -> Unit,
     searching: Boolean,
@@ -311,7 +336,7 @@ private fun SeasonRow(
     val rotation by animateFloatAsState(if (open) 180f else 0f, label = "chevron")
     val cs = MaterialTheme.colorScheme
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onToggleOpen).padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        modifier.fillMaxWidth().clickable(onClick = onToggleOpen).padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
@@ -352,6 +377,7 @@ private fun SeasonRow(
 private fun EpisodeRow(
     e: ArrEpisode,
     file: ArrEpisodeFile?,
+    modifier: Modifier = Modifier,
     seasonMonitored: Boolean,
     showOverview: Boolean,
     onClick: () -> Unit,
@@ -374,7 +400,7 @@ private fun EpisodeRow(
         else -> "${date(e.airDateUtc)} (${relative(air)})"
     }
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Surface(

@@ -303,7 +303,7 @@ private fun MediaContent(nav: NavController, s: ServiceConfig, type: String, id:
 private var statusBarOwner: Any? = null
 
 @Composable
-private fun LightStatusBarIcons(enabled: Boolean) {
+internal fun LightStatusBarIcons(enabled: Boolean) {
     val view = LocalView.current
     val lightTheme = MaterialTheme.colorScheme.surface.luminance() > 0.5f
     val token = remember { Any() }

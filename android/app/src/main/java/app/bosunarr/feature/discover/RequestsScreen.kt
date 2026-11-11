@@ -301,6 +301,8 @@ private fun RequestsContent(nav: NavController, all: List<ServiceConfig>, s: Ser
                                         if (action == Seerr.Action.Decline || action == Seerr.Action.Delete) confirm = Triple(r, title, action)
                                         else vm.act(s, r, title, action, notify)
                                     },
+                                    // Approved/declined rows slide out of a filtered list instead of vanishing.
+                                    modifier = Modifier.animateItem(),
                                 )
                             }
                             if (st.hasMore) item(key = "more") {
@@ -382,12 +384,13 @@ private fun RequestRow(
     busy: Boolean,
     onOpen: () -> Unit,
     onAction: (String, Seerr.Action) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val tmdbId = r.media?.tmdbId ?: 0
     val info = rememberTitle(s, r.mediaType, tmdbId)
     val title = info?.let { it.title ?: it.name } ?: "TMDb $tmdbId"
     val year = yearOf(info?.releaseDate ?: info?.firstAirDate)
-    ElevatedCard(Modifier.fillMaxWidth()) {
+    ElevatedCard(modifier.fillMaxWidth()) {
         Row(Modifier.clickable(onClick = onOpen).padding(12.dp)) {
             Poster(s, tmdbImage(info?.posterPath, "w185"), width = 64.dp, title = title)
             Column(Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

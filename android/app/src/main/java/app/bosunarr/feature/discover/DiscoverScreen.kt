@@ -26,6 +26,13 @@ import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -105,10 +112,20 @@ private fun DiscoverContent(nav: NavController, list: List<ServiceConfig>, s: Se
         subtitle = if (list.size > 1) s.name else null,
         actions = {
             SeerrPicker(list, s)
+            // A labelled tonal button (not a bare inbox icon), with the pending count as a badge.
             val n = pending.value ?: 0
-            IconButton(onClick = { nav.navigate(RequestsRoute) }) {
-                BadgedBox(badge = { if (n > 0) Badge { Text(if (n > 99) "99+" else "$n") } }) {
-                    Icon(Icons.Rounded.Inbox, if (n > 0) "Requests, $n pending" else "Requests")
+            BadgedBox(
+                badge = { if (n > 0) Badge { Text(if (n > 99) "99+" else "$n") } },
+                modifier = Modifier.padding(end = 8.dp),
+            ) {
+                FilledTonalButton(
+                    onClick = { nav.navigate(RequestsRoute) },
+                    contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
+                    modifier = Modifier.height(36.dp).semantics { contentDescription = if (n > 0) "Requests, $n pending" else "Requests" },
+                ) {
+                    Icon(Icons.Rounded.Inbox, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Requests", maxLines = 1)
                 }
             }
         },
@@ -138,7 +155,7 @@ private fun DiscoverContent(nav: NavController, list: List<ServiceConfig>, s: Se
             )
             Box(Modifier.weight(1f)) {
                 if (vm.text.isNotBlank() || vm.state.query.isNotEmpty()) SearchResults(nav, s, vm)
-                else Home(nav, s, home, onRefresh = { home.refresh(); pending.refresh() })
+                else Home(nav, s, home, onRefresh = { home.pullRefresh(); pending.refresh() })
             }
         }
     }
@@ -148,14 +165,15 @@ private fun DiscoverContent(nav: NavController, list: List<ServiceConfig>, s: Se
 @Composable
 private fun Home(nav: NavController, s: ServiceConfig, home: app.bosunarr.ui.common.Loader<List<Seerr.HomeRow>>, onRefresh: () -> Unit) {
     val st = home.state
-    PullToRefreshBox(isRefreshing = st.loading && st.value != null, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+    // The spinner is for the user's pull only (not for the quiet reload after a request elsewhere).
+    PullToRefreshBox(isRefreshing = st.userRefreshing && st.value != null, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = ListPadding) {
             val rows = st.value
             when {
                 rows != null -> {
                     if (st.error != null) item(key = "error") { ErrorBanner(st.error) }
                     if (rows.isEmpty()) item(key = "empty") { MessageBox(Icons.Rounded.SearchOff, "Nothing to discover", hint = "${s.name} returned no titles.") }
-                    items(rows, key = { it.id }) { row -> MediaCarousel(row.title, s, row.items, nav) }
+                    items(rows, key = { it.id }) { row -> MediaCarousel(row.title, s, row.items, nav, Modifier.animateItem()) }
                 }
                 st.error != null -> item(key = "error") { ErrorBox(st.error, onRetry = { home.refresh() }) }
                 else -> items(5, key = { "sk$it" }) { CarouselSkeleton() }
@@ -192,7 +210,7 @@ private fun SearchResults(nav: NavController, s: ServiceConfig, vm: SearchVm) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(st.items, key = { it.key }) { item ->
-            MediaCard(s, item, onClick = { nav.navigate(MediaRoute(item.mediaType, item.tmdbId)) }, width = null)
+            MediaCard(s, item, onClick = { nav.navigate(MediaRoute(item.mediaType, item.tmdbId)) }, Modifier.animateItem(), width = null)
         }
         if (st.loading || (waiting && st.error == null)) item(key = "loading", span = { GridItemSpan(maxLineSpan) }) {
             Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }

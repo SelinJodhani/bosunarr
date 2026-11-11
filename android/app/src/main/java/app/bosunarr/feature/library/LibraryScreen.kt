@@ -49,6 +49,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -199,9 +200,11 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
             }
         },
         floatingActionButton = {
+            // Labelled at the top, a compact icon FAB as soon as the grid scrolls (so it covers less artwork).
+            val atTop by remember { derivedStateOf { grid.firstVisibleItemIndex == 0 && grid.firstVisibleItemScrollOffset < 48 } }
             ExtendedFloatingActionButton(
                 onClick = { nav.navigate(LibraryAddRoute(addKind)) },
-                expanded = grid.firstVisibleItemIndex == 0,
+                expanded = atTop,
                 icon = { Icon(Icons.Rounded.Add, null) },
                 text = { Text("Add") },
             )
@@ -229,8 +232,9 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                 keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
             )
+            val chipScroll = rememberScrollState()
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                Modifier.fillMaxWidth().horizontalFadingEdges(chipScroll).horizontalScroll(chipScroll).padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -259,8 +263,9 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
             if (data != null && state.error != null) ErrorBanner(state.error, Modifier.padding(top = 4.dp))
 
             PullToRefreshBox(
-                isRefreshing = state.loading && data != null,
-                onRefresh = { loader.refresh() },
+                // Only for the user's pull: refetches after an add elsewhere happen quietly.
+                isRefreshing = state.userRefreshing && data != null,
+                onRefresh = { loader.pullRefresh() },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
                 when {
@@ -303,7 +308,7 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                     else -> LazyVerticalGrid(
                         columns = GridCells.Adaptive(100.dp),
                         state = grid,
-                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 96.dp),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 104.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxSize(),

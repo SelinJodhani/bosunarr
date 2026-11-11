@@ -20,6 +20,10 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -89,16 +93,36 @@ fun MovieScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceCo
         }) { LibraryApi.setMovieMonitored(service, id, to) }
     }
 
-    DetailScaffold(title, list, onBack = { nav.back() }) { p ->
+    val uri = LocalUriHandler.current
+    DetailScaffold(
+        title, list, onBack = { nav.back() },
+        menu = if (m == null) null else { close ->
+            m.titleSlug?.takeIf { it.isNotBlank() }?.let { slug ->
+                DropdownMenuItem(
+                    text = { Text("Open in ${service.name}") },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
+                    onClick = { close(); runCatching { uri.openUri("${app.client.baseUrl(service).trimEnd('/')}/movie/$slug") } },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Delete movie…", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                enabled = busy["delete"] != true,
+                onClick = { close(); confirmDelete = true },
+            )
+        },
+    ) { p ->
         val pull = rememberPullToRefreshState()
         val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        // The spinner is for the user's pull only; refetches after an action happen quietly.
+        val refreshing = state.userRefreshing && d != null
         PullToRefreshBox(
-            isRefreshing = state.loading && d != null,
-            onRefresh = { loader.refresh() },
+            isRefreshing = refreshing,
+            onRefresh = { loader.pullRefresh() },
             state = pull,
             modifier = Modifier.fillMaxSize(),
             indicator = {
-                PullToRefreshDefaults.Indicator(state = pull, isRefreshing = state.loading && d != null, modifier = Modifier.align(Alignment.TopCenter).padding(top = top + 64.dp))
+                PullToRefreshDefaults.Indicator(state = pull, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter).padding(top = top + 64.dp))
             },
         ) {
             LazyColumn(state = list, contentPadding = PaddingValues(bottom = p.calculateBottomPadding() + 32.dp), modifier = Modifier.fillMaxSize()) {
@@ -128,7 +152,6 @@ fun MovieScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceCo
                                         app.scope.launch(Dispatchers.Main) { delay(5000); loader.refresh() }
                                     }
                                 }, busy = busy["refresh"] == true)
-                                DetailAction(Icons.Rounded.Delete, "Delete", { confirmDelete = true }, busy = busy["delete"] == true, destructive = true)
                             }
                         }
                         item("facts") {
@@ -168,7 +191,7 @@ fun MovieScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceCo
                             )
                         }
                         m.movieFile?.let { f ->
-                            item("file-title") { SectionTitle("File") }
+                            item("file-title") { SectionTitle("File", Modifier.padding(top = 8.dp)) }
                             item("file") {
                                 val mi = f.mediaInfo
                                 val channels = mi?.audioChannels?.takeIf { it > 0 }?.let { String.format(Locale.US, "%.1f", it) }

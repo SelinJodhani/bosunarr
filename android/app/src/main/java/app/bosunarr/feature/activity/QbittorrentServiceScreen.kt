@@ -64,6 +64,7 @@ import app.bosunarr.feature.activity.qbit.Qbit
 import app.bosunarr.feature.activity.qbit.QbitServer
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.qbit.categoryLabel
+import app.bosunarr.feature.library.horizontalFadingEdges
 import app.bosunarr.nav.ServiceEditRoute
 import app.bosunarr.net.userMessage
 import app.bosunarr.ui.common.AppScaffold
@@ -194,8 +195,9 @@ fun QbittorrentServiceScreen(service: ServiceConfig, nav: NavController) {
                         if (cats.isNotEmpty() || counts.containsKey(UNCATEGORIZED)) {
                             item("cats-title") { SectionTitle("Categories") }
                             item("cats") {
+                                val catScroll = rememberScrollState()
                                 Row(
-                                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                                    Modifier.fillMaxWidth().horizontalFadingEdges(catScroll).horizontalScroll(catScroll).padding(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     CountChip("All", torrents.size, category == null) { category = null }
