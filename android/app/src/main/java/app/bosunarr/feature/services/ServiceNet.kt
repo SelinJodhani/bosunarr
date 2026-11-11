@@ -6,6 +6,8 @@ import app.bosunarr.data.ServiceType
 import app.bosunarr.net.AppJson
 import app.bosunarr.net.ServiceException
 import app.bosunarr.net.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -27,7 +29,10 @@ private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
  * "test all", Bazarr's subtitle search (answers only when the provider search is done). Returns status + body
  * without throwing on HTTP errors so callers can read validation payloads.
  */
-internal suspend fun rawCall(s: ServiceConfig, path: String, method: String = "GET", json: String? = null, timeoutSec: Long = 90): Pair<Int, String> {
+internal suspend fun rawCall(s: ServiceConfig, path: String, method: String = "GET", json: String? = null, timeoutSec: Long = 90): Pair<Int, String> =
+    withContext(Dispatchers.IO) { rawCallOnIo(s, path, method, json, timeoutSec) }
+
+private suspend fun rawCallOnIo(s: ServiceConfig, path: String, method: String, json: String?, timeoutSec: Long): Pair<Int, String> {
     val http = app.client.http.newBuilder()
         .readTimeout(timeoutSec, TimeUnit.SECONDS)
         .callTimeout(timeoutSec + 10, TimeUnit.SECONDS)
