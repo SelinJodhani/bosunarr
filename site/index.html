@@ -2,38 +2,68 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bosunarr — your *arr stack, in your pocket</title>
-  <meta name="description" content="Bosunarr is a free, open-source Material You app for Android that manages Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, qBittorrent, Jellyfin, Jellystat and Wizarr straight from your phone. No server, no account, no tracking.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bosunarr · your *arr stack, in your pocket</title>
+  <meta name="description" content="Bosunarr is a native Material You app for Android that runs Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, qBittorrent, Jellyfin and more straight from your phone. No account, no cloud: your keys stay encrypted on your device.">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#FEF7FF" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#141218" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#fcf8ff">
   <link rel="canonical" href="https://selinjodhani.github.io/bosunarr/">
 
   <!-- Open Graph / social cards (og:image must be an absolute URL) -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Bosunarr">
-  <meta property="og:title" content="Bosunarr — your *arr stack, in your pocket">
-  <meta property="og:description" content="A free, open-source Material You app for Android to run Sonarr, Radarr, qBittorrent, Jellyfin and more. No server, no account — your keys stay on your phone.">
+  <meta property="og:title" content="Bosunarr · your *arr stack, in your pocket">
+  <meta property="og:description" content="A native Material You app for Android to run Sonarr, Radarr, qBittorrent, Jellyfin and more. No account, no cloud: your keys stay on your phone.">
   <meta property="og:url" content="https://selinjodhani.github.io/bosunarr/">
   <meta property="og:image" content="https://selinjodhani.github.io/bosunarr/assets/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Bosunarr sailboat logo next to the text: your *arr stack, in your pocket.">
+  <meta property="og:image:alt" content="The Bosunarr sailboat logo with the headline: your *arr stack, in your pocket, above the logos of the supported services.">
   <meta name="twitter:card" content="summary_large_image">
 
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 
+  <!-- Applies the saved theme and colour before first paint (no flash). -->
+  <script>
+    (function () {
+      var d = document.documentElement;
+      d.classList.add('js');
+      try {
+        var t = localStorage.getItem('bosunarr-theme');
+        if (t === 'light' || t === 'dark') d.setAttribute('data-theme', t);
+        var s = JSON.parse(localStorage.getItem('bosunarr-seed') || 'null');
+        if (s && isFinite(s.h) && isFinite(s.c)) {
+          d.style.setProperty('--h', s.h);
+          d.style.setProperty('--c', s.c);
+        }
+      } catch (e) {}
+      // Start fetching the hero screenshot for the active theme straight away.
+      var dark = d.getAttribute('data-theme') ? d.getAttribute('data-theme') === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+      var l = document.createElement('link');
+      l.rel = 'preload'; l.as = 'image'; l.setAttribute('fetchpriority', 'high');
+      l.href = 'assets/screens/dashboard-' + (dark ? 'dark' : 'light') + '.png';
+      document.head.appendChild(l);
+    })();
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,400..700&display=swap">
-  <!-- Icon font is subset with icon_names (must stay alphabetically sorted). Add a name here when you use a new icon. -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&icon_names=add,add_link,android,calendar_month,check_circle,code,dark_mode,dashboard,download,downloading,encrypted,expand_more,explore,forward_to_inbox,monitoring,movie,no_accounts,palette,person_add,play_circle,search,smartphone,star,storage,subtitles,travel_explore,tune,tv,video_library&display=block">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wdth,wght,ROND@6..144,25..151,1..1000,0..100&display=swap">
+  <!-- Icon font subset: icon_names must stay alphabetically sorted. Add a name here when you use a new icon. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&icon_names=arrow_forward,brightness_auto,calendar_month,check,cloud_off,colors,dark_mode,dashboard,dns,download,downloading,encrypted,expand_more,explore,key,light_mode,lock,movie,no_accounts,palette,pause,play_arrow,policy,router,sailing,smartphone,star,swipe,terminal,tv,update,verified_user,video_library,vpn_lock,wifi&display=block">
   <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Material 3 Expressive shapes, reused as decoration. -->
+  <svg width="0" height="0" class="sr-only" aria-hidden="true" focusable="false">
+    <symbol id="shape-cookie" viewBox="0 0 200 200"><path d="M200.0 100.0 L199.6 103.5 L198.5 106.9 L196.8 110.2 L194.6 113.3 L192.0 116.2 L189.4 119.0 L187.0 121.7 L184.7 124.3 L183.0 127.0 L181.7 129.7 L180.9 132.7 L180.5 135.9 L180.5 139.3 L180.7 142.9 L180.9 146.7 L181.0 150.6 L180.7 154.4 L179.9 158.0 L178.5 161.4 L176.6 164.3 L174.1 166.7 L171.0 168.6 L167.6 170.0 L163.9 171.0 L160.1 171.6 L156.3 172.1 L152.7 172.5 L149.3 173.1 L146.2 174.0 L143.5 175.3 L141.0 177.0 L138.6 179.2 L136.4 181.9 L134.3 184.8 L132.0 187.8 L129.5 190.8 L126.8 193.5 L123.9 195.8 L120.7 197.5 L117.4 198.5 L113.9 198.7 L110.3 198.2 L106.8 197.1 L103.3 195.4 L100.0 193.5 L96.8 191.4 L93.7 189.4 L90.8 187.7 L87.9 186.4 L84.9 185.6 L81.9 185.3 L78.7 185.5 L75.3 186.1 L71.7 187.0 L68.0 187.8 L64.2 188.5 L60.4 188.9 L56.7 188.8 L53.2 188.0 L50.0 186.6 L47.2 184.5 L44.8 181.9 L42.8 178.7 L41.2 175.2 L39.9 171.6 L38.8 168.0 L37.7 164.5 L36.6 161.2 L35.2 158.4 L33.4 155.9 L31.3 153.7 L28.7 151.8 L25.7 150.1 L22.5 148.5 L19.1 146.7 L15.7 144.8 L12.5 142.7 L9.8 140.2 L7.6 137.3 L6.0 134.2 L5.2 130.8 L5.1 127.2 L5.6 123.5 L6.6 119.9 L8.0 116.2 L9.5 112.7 L10.9 109.4 L12.0 106.2 L12.8 103.0 L13.1 100.0 L12.8 97.0 L12.0 93.8 L10.9 90.6 L9.5 87.3 L8.0 83.8 L6.6 80.1 L5.6 76.5 L5.1 72.8 L5.2 69.2 L6.0 65.8 L7.6 62.7 L9.8 59.8 L12.5 57.3 L15.7 55.2 L19.1 53.3 L22.5 51.5 L25.7 49.9 L28.7 48.2 L31.3 46.3 L33.4 44.1 L35.2 41.6 L36.6 38.8 L37.7 35.5 L38.8 32.0 L39.9 28.4 L41.2 24.8 L42.8 21.3 L44.8 18.1 L47.2 15.5 L50.0 13.4 L53.2 12.0 L56.7 11.2 L60.4 11.1 L64.2 11.5 L68.0 12.2 L71.7 13.0 L75.3 13.9 L78.7 14.5 L81.9 14.7 L84.9 14.4 L87.9 13.6 L90.8 12.3 L93.7 10.6 L96.8 8.6 L100.0 6.5 L103.3 4.6 L106.8 2.9 L110.3 1.8 L113.9 1.3 L117.4 1.5 L120.7 2.5 L123.9 4.2 L126.8 6.5 L129.5 9.2 L132.0 12.2 L134.3 15.2 L136.4 18.1 L138.6 20.8 L141.0 23.0 L143.5 24.7 L146.2 26.0 L149.3 26.9 L152.7 27.5 L156.3 27.9 L160.1 28.4 L163.9 29.0 L167.6 30.0 L171.0 31.4 L174.1 33.3 L176.6 35.7 L178.5 38.6 L179.9 42.0 L180.7 45.6 L181.0 49.4 L180.9 53.3 L180.7 57.1 L180.5 60.7 L180.5 64.1 L180.9 67.3 L181.7 70.3 L183.0 73.0 L184.7 75.7 L187.0 78.3 L189.4 81.0 L192.0 83.8 L194.6 86.7 L196.8 89.8 L198.5 93.1 L199.6 96.5Z"/></symbol>
+    <symbol id="shape-clover" viewBox="0 0 200 200"><path d="M200.0 100.0 L199.5 105.2 L198.1 110.3 L195.9 115.2 L192.9 119.7 L189.2 123.9 L185.1 127.6 L180.6 130.9 L176.0 133.8 L171.3 136.3 L166.8 138.6 L162.5 140.6 L158.6 142.6 L155.0 144.6 L151.9 146.7 L149.1 149.1 L146.7 151.9 L144.6 155.0 L142.6 158.6 L140.6 162.5 L138.6 166.8 L136.3 171.3 L133.8 176.0 L130.9 180.6 L127.6 185.1 L123.9 189.2 L119.7 192.9 L115.2 195.9 L110.3 198.1 L105.2 199.5 L100.0 200.0 L94.8 199.5 L89.7 198.1 L84.8 195.9 L80.3 192.9 L76.1 189.2 L72.4 185.1 L69.1 180.6 L66.2 176.0 L63.7 171.3 L61.4 166.8 L59.4 162.5 L57.4 158.6 L55.4 155.0 L53.3 151.9 L50.9 149.1 L48.1 146.7 L45.0 144.6 L41.4 142.6 L37.5 140.6 L33.2 138.6 L28.7 136.3 L24.0 133.8 L19.4 130.9 L14.9 127.6 L10.8 123.9 L7.1 119.7 L4.1 115.2 L1.9 110.3 L0.5 105.2 L0.0 100.0 L0.5 94.8 L1.9 89.7 L4.1 84.8 L7.1 80.3 L10.8 76.1 L14.9 72.4 L19.4 69.1 L24.0 66.2 L28.7 63.7 L33.2 61.4 L37.5 59.4 L41.4 57.4 L45.0 55.4 L48.1 53.3 L50.9 50.9 L53.3 48.1 L55.4 45.0 L57.4 41.4 L59.4 37.5 L61.4 33.2 L63.7 28.7 L66.2 24.0 L69.1 19.4 L72.4 14.9 L76.1 10.8 L80.3 7.1 L84.8 4.1 L89.7 1.9 L94.8 0.5 L100.0 0.0 L105.2 0.5 L110.3 1.9 L115.2 4.1 L119.7 7.1 L123.9 10.8 L127.6 14.9 L130.9 19.4 L133.8 24.0 L136.3 28.7 L138.6 33.2 L140.6 37.5 L142.6 41.4 L144.6 45.0 L146.7 48.1 L149.1 50.9 L151.9 53.3 L155.0 55.4 L158.6 57.4 L162.5 59.4 L166.8 61.4 L171.3 63.7 L176.0 66.2 L180.6 69.1 L185.1 72.4 L189.2 76.1 L192.9 80.3 L195.9 84.8 L198.1 89.7 L199.5 94.8Z"/></symbol>
+    <symbol id="shape-sunny" viewBox="0 0 200 200"><path d="M200.0 100.0 L199.5 103.5 L198.2 106.9 L196.2 110.1 L193.8 113.2 L191.4 116.1 L189.4 119.0 L187.9 121.9 L187.1 125.0 L186.9 128.2 L187.3 131.8 L187.8 135.5 L188.3 139.3 L188.5 143.1 L187.9 146.8 L186.6 150.0 L184.5 152.8 L181.6 155.0 L178.2 156.8 L174.7 158.3 L171.1 159.7 L167.9 161.1 L165.2 162.9 L162.9 165.2 L161.1 167.9 L159.7 171.1 L158.3 174.7 L156.8 178.2 L155.0 181.6 L152.8 184.5 L150.0 186.6 L146.8 187.9 L143.1 188.5 L139.3 188.3 L135.5 187.8 L131.8 187.3 L128.2 186.9 L125.0 187.1 L121.9 187.9 L119.0 189.4 L116.1 191.4 L113.2 193.8 L110.1 196.2 L106.9 198.2 L103.5 199.5 L100.0 200.0 L96.5 199.5 L93.1 198.2 L89.9 196.2 L86.8 193.8 L83.9 191.4 L81.0 189.4 L78.1 187.9 L75.0 187.1 L71.8 186.9 L68.2 187.3 L64.5 187.8 L60.7 188.3 L56.9 188.5 L53.2 187.9 L50.0 186.6 L47.2 184.5 L45.0 181.6 L43.2 178.2 L41.7 174.7 L40.3 171.1 L38.9 167.9 L37.1 165.2 L34.8 162.9 L32.1 161.1 L28.9 159.7 L25.3 158.3 L21.8 156.8 L18.4 155.0 L15.5 152.8 L13.4 150.0 L12.1 146.8 L11.5 143.1 L11.7 139.3 L12.2 135.5 L12.7 131.8 L13.1 128.2 L12.9 125.0 L12.1 121.9 L10.6 119.0 L8.6 116.1 L6.2 113.2 L3.8 110.1 L1.8 106.9 L0.5 103.5 L0.0 100.0 L0.5 96.5 L1.8 93.1 L3.8 89.9 L6.2 86.8 L8.6 83.9 L10.6 81.0 L12.1 78.1 L12.9 75.0 L13.1 71.8 L12.7 68.2 L12.2 64.5 L11.7 60.7 L11.5 56.9 L12.1 53.2 L13.4 50.0 L15.5 47.2 L18.4 45.0 L21.8 43.2 L25.3 41.7 L28.9 40.3 L32.1 38.9 L34.8 37.1 L37.1 34.8 L38.9 32.1 L40.3 28.9 L41.7 25.3 L43.2 21.8 L45.0 18.4 L47.2 15.5 L50.0 13.4 L53.2 12.1 L56.9 11.5 L60.7 11.7 L64.5 12.2 L68.2 12.7 L71.8 13.1 L75.0 12.9 L78.1 12.1 L81.0 10.6 L83.9 8.6 L86.8 6.2 L89.9 3.8 L93.1 1.8 L96.5 0.5 L100.0 0.0 L103.5 0.5 L106.9 1.8 L110.1 3.8 L113.2 6.2 L116.1 8.6 L119.0 10.6 L121.9 12.1 L125.0 12.9 L128.2 13.1 L131.8 12.7 L135.5 12.2 L139.3 11.7 L143.1 11.5 L146.8 12.1 L150.0 13.4 L152.8 15.5 L155.0 18.4 L156.8 21.8 L158.3 25.3 L159.7 28.9 L161.1 32.1 L162.9 34.8 L165.2 37.1 L167.9 38.9 L171.1 40.3 L174.7 41.7 L178.2 43.2 L181.6 45.0 L184.5 47.2 L186.6 50.0 L187.9 53.2 L188.5 56.9 L188.3 60.7 L187.8 64.5 L187.3 68.2 L186.9 71.8 L187.1 75.0 L187.9 78.1 L189.4 81.0 L191.4 83.9 L193.8 86.8 L196.2 89.9 L198.2 93.1 L199.5 96.5Z"/></symbol>
+  </svg>
 
   <header class="top-bar">
     <div class="top-bar__inner">
@@ -42,75 +72,297 @@
         <span>Bosunarr</span>
       </a>
       <nav class="top-nav" aria-label="Sections">
-        <a href="#features">Features</a>
+        <a href="#tour">Tour</a>
+        <a href="#colour">Material You</a>
         <a href="#services">Services</a>
-        <a href="#screenshots">Screenshots</a>
+        <a href="#how">How it works</a>
         <a href="#faq">FAQ</a>
       </nav>
-      <a class="icon-button" href="https://github.com/SelinJodhani/bosunarr" aria-label="Bosunarr on GitHub">
-        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
-      </a>
+      <div class="top-bar__actions">
+        <button class="icon-btn" type="button" popovertarget="palette-pop" aria-label="Choose a colour">
+          <span class="ms" aria-hidden="true">palette</span>
+        </button>
+        <button class="icon-btn" type="button" id="theme-toggle" aria-label="Theme: follow system">
+          <span class="ms" aria-hidden="true">brightness_auto</span>
+        </button>
+        <a class="icon-btn icon-btn--gh" href="https://github.com/SelinJodhani/bosunarr" aria-label="Bosunarr on GitHub">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        </a>
+        <a class="btn btn--filled btn--sm top-bar__cta" href="#download">
+          <span class="ms" aria-hidden="true">download</span> Get the app
+        </a>
+      </div>
     </div>
   </header>
 
+  <!-- Quick colour picker (top bar). Same radios as the Material You section; kept in sync by app.js. -->
+  <div id="palette-pop" class="palette-pop" popover>
+    <p class="palette-pop__title">Wallpaper colour</p>
+    <div class="swatch-row swatch-row--compact">
+      <div class="swatches" role="radiogroup" aria-label="Wallpaper colour" data-swatches></div>
+    </div>
+  </div>
+
   <main id="main">
     <!-- ============ HERO ============ -->
-    <section class="hero" aria-labelledby="hero-title">
+    <section class="hero" aria-labelledby="hero-title" data-tilt-zone>
+      <div class="hero__bg" aria-hidden="true">
+        <svg class="hero__shape hero__shape--a"><use href="#shape-cookie"/></svg>
+        <svg class="hero__shape hero__shape--b"><use href="#shape-clover"/></svg>
+      </div>
       <div class="container hero__grid">
         <div class="hero__copy">
-          <p class="chip"><span class="ms" aria-hidden="true">android</span> Free &amp; open source · Android 10+</p>
-          <h1 id="hero-title">Your <span class="nowrap">*arr</span> stack, in&nbsp;your&nbsp;pocket.</h1>
-          <p class="lead">Bosunarr is a Material You app for Android that runs your whole media crew — Sonarr, Radarr, qBittorrent, Jellyfin and friends — straight from your phone. No server to host, no account to make, nothing tracking you.</p>
-          <div class="actions">
-            <a class="btn btn--filled" href="https://github.com/SelinJodhani/bosunarr/releases/latest">
-              <span class="ms" aria-hidden="true">download</span> Download APK
+          <p class="chip chip--tonal"><span class="ms" aria-hidden="true">sailing</span> Early access · Free for Android</p>
+          <h1 id="hero-title">Your <span class="hl">*arr stack</span>, in&nbsp;your&nbsp;pocket.</h1>
+          <p class="lead">Bosunarr is a native Material You app for running your self-hosted media crew, from Sonarr and Radarr to qBittorrent and Jellyfin, straight from your phone. No account. No cloud. Just you and your server.</p>
+          <div class="actions" id="hero-actions">
+            <a class="btn btn--filled btn--lg" href="https://github.com/SelinJodhani/bosunarr/releases/latest" data-apk>
+              <span class="ms" aria-hidden="true">download</span>
+              <span class="btn__stack"><span>Download APK</span><small data-release-meta>Latest release on GitHub</small></span>
             </a>
-            <a class="btn btn--tonal" href="https://github.com/SelinJodhani/bosunarr">
-              <span class="ms" aria-hidden="true">code</span> View on GitHub
-            </a>
+            <a class="btn btn--tonal btn--lg" href="#tour">Take the tour <span class="ms" aria-hidden="true">arrow_forward</span></a>
           </div>
-          <p class="fine">APK on GitHub Releases · Requires Android 10 or newer</p>
+          <ul class="hero__facts" role="list">
+            <li><span class="ms" aria-hidden="true">smartphone</span> Android 10+</li>
+            <li><span class="ms" aria-hidden="true">no_accounts</span> No sign-up</li>
+            <li><span class="ms" aria-hidden="true">lock</span> Open source, AGPL-3.0</li>
+          </ul>
         </div>
 
         <div class="hero__visual">
-          <!-- Hero mockup: Dashboard. To use a real screenshot, replace the .phone__screen contents
-               with <img src="screenshots/dashboard.png" alt=""> (see the note in the Screenshots section). -->
-          <div class="phone phone--hero" role="img" aria-label="Illustration of the Bosunarr dashboard: service health, active downloads, upcoming episodes and disk space.">
-            <div class="phone__screen">
-              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
-              <div class="ui-appbar"><span class="ui-title">Dashboard</span><span class="ms">tune</span></div>
-              <div class="ui-body">
-                <div class="ui-card">
-                  <div class="ui-card__head"><span class="ms ms--sm">check_circle</span> Service health</div>
-                  <div class="ui-health">
-                    <i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="warn"></i><i class="ok"></i>
-                  </div>
-                  <div class="ui-sub">8 of 9 services healthy</div>
+          <div class="orbit" aria-hidden="true">
+            <img class="orbit__logo" style="--x:-46%;--y:-30%;--d:1.6" src="assets/logos/sonarr.webp" alt="" width="64" height="64">
+            <img class="orbit__logo" style="--x:44%;--y:-36%;--d:1.2" src="assets/logos/radarr.webp" alt="" width="64" height="64">
+            <img class="orbit__logo" style="--x:52%;--y:6%;--d:2" src="assets/logos/qbittorrent.webp" alt="" width="64" height="64">
+            <img class="orbit__logo" style="--x:-54%;--y:14%;--d:1.4" src="assets/logos/jellyfin.webp" alt="" width="64" height="64">
+            <img class="orbit__logo" style="--x:-40%;--y:44%;--d:1.8" src="assets/logos/jellyseerr.webp" alt="" width="64" height="64">
+            <img class="orbit__logo" style="--x:42%;--y:40%;--d:1.1" src="assets/logos/prowlarr.webp" alt="" width="64" height="64">
+          </div>
+          <div class="device-wrap device-wrap--hero" data-tilt>
+            <div class="device" role="img" aria-label="Bosunarr app screenshot: Dashboard" data-screen-view="hero" data-screen="dashboard">
+              <div class="device__screen"></div>
+              <span class="device__cam" aria-hidden="true"></span>
+              <span class="device__glare" aria-hidden="true"></span>
+            </div>
+          </div>
+          <div class="hero__dots" role="group" aria-label="Choose a screen">
+            <button type="button" class="dot" data-show="dashboard" aria-pressed="true">Home</button>
+            <button type="button" class="dot" data-show="library" aria-pressed="false">Library</button>
+            <button type="button" class="dot" data-show="discover" aria-pressed="false">Discover</button>
+            <button type="button" class="dot" data-show="calendar" aria-pressed="false">Calendar</button>
+            <button type="button" class="dot" data-show="activity" aria-pressed="false">Activity</button>
+            <button type="button" class="dot dot--play" id="hero-play" aria-label="Pause slideshow">
+              <span class="ms" aria-hidden="true">pause</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROOF BAR ============ -->
+    <section class="proof" aria-label="At a glance">
+      <ul class="container proof__list" role="list">
+        <li><span class="ms" aria-hidden="true">no_accounts</span><span><strong>No account</strong> Nothing to sign up for</span></li>
+        <li><span class="ms" aria-hidden="true">cloud_off</span><span><strong>No cloud relay</strong> Phone talks to your server</span></li>
+        <li><span class="ms" aria-hidden="true">encrypted</span><span><strong>Encrypted keys</strong> Sealed by Android Keystore</span></li>
+        <li><span class="ms" aria-hidden="true">verified_user</span><span><strong>No analytics</strong> No ads, no trackers</span></li>
+      </ul>
+    </section>
+
+    <!-- ============ FEATURE TOUR ============ -->
+    <section id="tour" class="section" aria-labelledby="tour-title">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Take the tour</p>
+          <h2 id="tour-title">Everything you check on, without the browser tabs.</h2>
+          <p class="section-lead">Pick a screen. Everything you see is the real app, running in demo mode.</p>
+        </div>
+
+        <div class="tour reveal">
+          <div class="tour__tabs" role="tablist" aria-label="App screens" aria-orientation="horizontal">
+            <button role="tab" type="button" id="tab-dashboard" aria-controls="panel-dashboard" aria-selected="true" data-screen="dashboard"><span class="ms" aria-hidden="true">dashboard</span>Dashboard</button>
+            <button role="tab" type="button" id="tab-library" aria-controls="panel-library" aria-selected="false" tabindex="-1" data-screen="library"><span class="ms" aria-hidden="true">video_library</span>Library</button>
+            <button role="tab" type="button" id="tab-detail" aria-controls="panel-detail" aria-selected="false" tabindex="-1" data-screen="detail"><span class="ms" aria-hidden="true">tv</span>Series &amp; movies</button>
+            <button role="tab" type="button" id="tab-discover" aria-controls="panel-discover" aria-selected="false" tabindex="-1" data-screen="discover"><span class="ms" aria-hidden="true">explore</span>Discover</button>
+            <button role="tab" type="button" id="tab-media" aria-controls="panel-media" aria-selected="false" tabindex="-1" data-screen="media"><span class="ms" aria-hidden="true">movie</span>Requests</button>
+            <button role="tab" type="button" id="tab-calendar" aria-controls="panel-calendar" aria-selected="false" tabindex="-1" data-screen="calendar"><span class="ms" aria-hidden="true">calendar_month</span>Calendar</button>
+            <button role="tab" type="button" id="tab-activity" aria-controls="panel-activity" aria-selected="false" tabindex="-1" data-screen="activity"><span class="ms" aria-hidden="true">downloading</span>Activity</button>
+            <button role="tab" type="button" id="tab-torrents" aria-controls="panel-torrents" aria-selected="false" tabindex="-1" data-screen="torrents"><span class="ms" aria-hidden="true">download</span>Torrents</button>
+            <button role="tab" type="button" id="tab-service" aria-controls="panel-service" aria-selected="false" tabindex="-1" data-screen="service-sonarr"><span class="ms" aria-hidden="true">dns</span>Service screens</button>
+            <button role="tab" type="button" id="tab-onboarding" aria-controls="panel-onboarding" aria-selected="false" tabindex="-1" data-screen="onboarding-welcome" data-screens="onboarding-welcome onboarding-pick"><span class="ms" aria-hidden="true">sailing</span>Guided setup</button>
+            <button role="tab" type="button" id="tab-server" aria-controls="panel-server" aria-selected="false" tabindex="-1" data-screen="server"><span class="ms" aria-hidden="true">terminal</span>Server <span class="badge">Soon</span></button>
+          </div>
+
+          <div class="tour__stage">
+            <div class="tour__phone">
+              <svg class="tour__shape" aria-hidden="true"><use href="#shape-sunny"/></svg>
+              <div class="device-wrap device-wrap--tour">
+                <div class="device" role="img" aria-label="Bosunarr app screenshot: Dashboard" data-screen-view="tour" data-screen="dashboard">
+                  <div class="device__screen"></div>
+                  <span class="device__cam" aria-hidden="true"></span>
+                  <span class="device__glare" aria-hidden="true"></span>
                 </div>
-                <div class="ui-card">
-                  <div class="ui-card__head"><span class="ms ms--sm">downloading</span> Downloads <span class="ui-pill">12.4 MB/s</span></div>
-                  <div class="ui-dl"><span>Harbor Lights S02E05</span><div class="ui-bar"><b style="--p:72%"></b></div></div>
-                  <div class="ui-dl"><span>The Long Voyage</span><div class="ui-bar"><b style="--p:38%"></b></div></div>
-                </div>
-                <div class="ui-card">
-                  <div class="ui-card__head"><span class="ms ms--sm">calendar_month</span> Up next</div>
-                  <div class="ui-row"><span class="ui-poster p2"></span><span class="ui-lines"><b>Tidewater</b><small>S04E01 · Tonight</small></span></div>
-                  <div class="ui-row"><span class="ui-poster p5"></span><span class="ui-lines"><b>North Light</b><small>Release · Friday</small></span></div>
-                </div>
-                <div class="ui-card">
-                  <div class="ui-card__head"><span class="ms ms--sm">storage</span> Disk space</div>
-                  <div class="ui-bar ui-bar--thick"><b style="--p:61%"></b></div>
-                  <div class="ui-sub">6.1 TB of 10 TB used</div>
-                </div>
-              </div>
-              <div class="ui-nav">
-                <span class="is-active"><span class="ms">dashboard</span></span>
-                <span><span class="ms">video_library</span></span>
-                <span><span class="ms">explore</span></span>
-                <span><span class="ms">calendar_month</span></span>
-                <span><span class="ms">downloading</span></span>
               </div>
             </div>
+
+            <div class="tour__panels">
+              <div class="tour__panel" role="tabpanel" id="panel-dashboard" aria-labelledby="tab-dashboard" tabindex="0">
+                <h3>Your whole stack at a glance</h3>
+                <p>Open the app and it's all there: which services are healthy, what's downloading, what's airing next, how full your disks are and who's watching right now.</p>
+                <ul class="ticks" role="list">
+                  <li>Health checks for every connected service</li>
+                  <li>Live downloads, queue and pending requests</li>
+                  <li>Upcoming episodes, disk space and now playing</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-library" aria-labelledby="tab-library" tabindex="0" hidden>
+                <h3>One library for every instance</h3>
+                <p>Series and movies from Sonarr and Radarr in a single poster grid, with filters for what's missing, monitored or still to come. Search for something new and add it in a couple of taps.</p>
+                <ul class="ticks" role="list">
+                  <li>Series, movies and Whisparr behind its own chip</li>
+                  <li>Filter, sort and search instantly</li>
+                  <li>Search &amp; add with quality profiles</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-detail" aria-labelledby="tab-detail" tabindex="0" hidden>
+                <h3>Every season, every file</h3>
+                <p>See what's on disk and what isn't, season by season. Monitor an episode or a whole season, kick off a search for what's missing, or jump into the service's own web UI.</p>
+                <ul class="ticks" role="list">
+                  <li>Monitor episodes and seasons</li>
+                  <li>Missing and cutoff-unmet searches</li>
+                  <li>File and quality details at a glance</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-discover" aria-labelledby="tab-discover" tabindex="0" hidden>
+                <h3>Find the next thing to watch</h3>
+                <p>Trending, popular and upcoming picks from Jellyseerr or Overseerr, with the request status right on every poster so you never ask twice.</p>
+                <ul class="ticks" role="list">
+                  <li>Trending, popular series and movies</li>
+                  <li>Request status on every title</li>
+                  <li>Search across everything</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-media" aria-labelledby="tab-media" tabindex="0" hidden>
+                <h3>Request in a tap, approve in another</h3>
+                <p>Ratings, cast and seasons on one page. Request HD or 4K, pick the seasons you want, and approve or decline requests from friends without opening a laptop.</p>
+                <ul class="ticks" role="list">
+                  <li>Request HD or 4K, per season</li>
+                  <li>Approve and decline pending requests</li>
+                  <li>Cast, ratings and availability</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" tabindex="0" hidden>
+                <h3>What's coming, in order</h3>
+                <p>Upcoming episodes and movie releases from all your Sonarr and Radarr instances on one timeline, with today front and centre.</p>
+                <ul class="ticks" role="list">
+                  <li>Episodes and releases together</li>
+                  <li>Jump to today, peek at last week</li>
+                  <li>Tap through to the title</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-activity" aria-labelledby="tab-activity" tabindex="0" hidden>
+                <h3>Everything in flight, in one list</h3>
+                <p>Sonarr, Radarr and Whisparr queues side by side with live progress, so you can see what's stuck and why.</p>
+                <ul class="ticks" role="list">
+                  <li>Combined queue across services</li>
+                  <li>Progress, ETA and status messages</li>
+                  <li>Remove or retry from your phone</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-torrents" aria-labelledby="tab-torrents" tabindex="0" hidden>
+                <h3>A proper qBittorrent remote</h3>
+                <p>Live torrents with speeds and ETAs. Pause, resume, recheck or delete one or many, set categories and speed limits, and share magnet links into Bosunarr from any app.</p>
+                <ul class="ticks" role="list">
+                  <li>Pause, resume and recheck in bulk</li>
+                  <li>Categories and speed limits</li>
+                  <li>Magnet links from the share sheet</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-service" aria-labelledby="tab-service" tabindex="0" hidden>
+                <h3>A real home for every service</h3>
+                <p>Each service gets its own screen: Sonarr and Radarr health and disks, Prowlarr indexers, Bazarr subtitles, Jellyfin sessions, Jellystat stats and Wizarr invites.</p>
+                <ul class="ticks" role="list">
+                  <li>Indexers, subtitles, sessions, stats</li>
+                  <li>Create and share Wizarr invites</li>
+                  <li>One tap to the service's web UI</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-onboarding" aria-labelledby="tab-onboarding" tabindex="0" hidden>
+                <h3>Set up in about a minute</h3>
+                <p>A guided first run: pick the services you run, paste a URL and key (or let your password manager fill them), and Bosunarr tests each connection before you continue.</p>
+                <ul class="ticks" role="list">
+                  <li>Pick only the services you use</li>
+                  <li>Connection test for each one</li>
+                  <li>Password-manager autofill for keys</li>
+                </ul>
+              </div>
+              <div class="tour__panel" role="tabpanel" id="panel-server" aria-labelledby="tab-server" tabindex="0" hidden>
+                <h3>The box itself <span class="badge">Coming soon</span></h3>
+                <p>Connect over SSH to see CPU, memory, disks and uptime for the machine your stack runs on, and start, stop or restart Docker containers when something needs a nudge.</p>
+                <ul class="ticks" role="list">
+                  <li>Server stats over SSH</li>
+                  <li>Docker container controls</li>
+                  <li>Same on-device key storage</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MATERIAL YOU ============ -->
+    <section id="colour" class="section section--tinted" aria-labelledby="colour-title">
+      <div class="container colour">
+        <div class="colour__copy reveal">
+          <p class="eyebrow">Material You</p>
+          <h2 id="colour-title">It wears your colours.</h2>
+          <p class="section-lead">On Android 12 and newer, Bosunarr takes its palette from your wallpaper, in light or dark. Try it: pick a wallpaper and watch this whole page re-theme itself.</p>
+
+          <div class="swatch-row">
+            <div class="swatches" role="radiogroup" aria-label="Wallpaper colour" data-swatches></div>
+          </div>
+
+          <div class="board" aria-hidden="true">
+            <div class="board__row">
+              <span class="m-btn m-btn--filled">Request</span>
+              <span class="m-btn m-btn--tonal">Monitor</span>
+              <span class="m-btn m-btn--outlined">Search</span>
+            </div>
+            <div class="board__row">
+              <span class="m-chip m-chip--on"><span class="ms">check</span>Series</span>
+              <span class="m-chip">Movies</span>
+              <span class="m-chip">Missing</span>
+              <span class="m-switch"><span></span></span>
+            </div>
+            <div class="board__row board__row--progress">
+              <span class="m-progress"><span></span></span>
+              <span class="m-fab"><span class="ms">download</span></span>
+            </div>
+            <div class="board__tokens">
+              <span style="--t:var(--primary)">Primary</span>
+              <span style="--t:var(--primary-container)">Container</span>
+              <span style="--t:var(--secondary-container)">Tonal</span>
+              <span style="--t:var(--tertiary-container)">Tertiary</span>
+              <span style="--t:var(--surface-container-high)">Surface</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="colour__visual reveal">
+          <div class="compare" data-compare>
+            <div class="device-wrap device-wrap--compare">
+              <div class="device">
+                <div class="device__screen" role="img" aria-label="Bosunarr Library screen, light theme on the left and dark theme on the right">
+                  <div class="layer is-active force-dark" data-fixed="library-dark"></div>
+                  <div class="layer is-active force-light compare__light" data-fixed="library-light"></div>
+                </div>
+                <span class="device__cam" aria-hidden="true"></span>
+                <input class="compare__range" type="range" min="0" max="100" value="50" step="1" aria-label="Compare light and dark theme: drag to move the divider">
+                <span class="compare__handle" aria-hidden="true"><span class="ms">swipe</span></span>
+              </div>
+            </div>
+            <div class="compare__legend" aria-hidden="true"><span><span class="ms">light_mode</span>Light</span><span>Dark<span class="ms">dark_mode</span></span></div>
           </div>
         </div>
       </div>
@@ -119,318 +371,285 @@
     <!-- ============ SERVICES ============ -->
     <section id="services" class="section" aria-labelledby="services-title">
       <div class="container">
-        <p class="eyebrow">Supported services</p>
-        <h2 id="services-title">One app for the whole crew</h2>
-        <p class="section-lead">Connect as many of these as you run. Each gets its own screen, and the useful bits surface on your dashboard.</p>
-        <ul class="service-grid" role="list">
-          <li class="service"><span class="service__icon ms" aria-hidden="true">tv</span><span><strong>Sonarr</strong><small>Series, episodes, queue</small></span></li>
-          <li class="service"><span class="service__icon ms" aria-hidden="true">movie</span><span><strong>Radarr</strong><small>Movies, releases, queue</small></span></li>
-          <li class="service"><span class="service__icon ms" aria-hidden="true">travel_explore</span><span><strong>Prowlarr</strong><small>Indexers and health</small></span></li>
-          <li class="service"><span class="service__icon ms" aria-hidden="true">subtitles</span><span><strong>Bazarr</strong><small>Missing and wanted subtitles</small></span></li>
-          <li class="service"><span class="service__icon ms" aria-hidden="true">person_add</span><span><strong>Jellyseerr / Overseerr</strong><small>Discover and requests</small></span></li>
-          <li class="service"><span class="service__icon ms" aria-hidden="true">download</span><span><strong>qBittorrent</strong><small>Torrents and magnet links</small></span></li>
-          <li class="service"><span class="service__icon ms" aria-hidden="true">play_circle</span><span><strong>Jellyfin</strong><small>Who's watching what</small></span></li>
-          <li class="service"><span class="service__icon ms" aria-hidden="true">monitoring</span><span><strong>Jellystat</strong><small>Playback statistics</small></span></li>
-          <li class="service"><span class="service__icon ms" aria-hidden="true">forward_to_inbox</span><span><strong>Wizarr</strong><small>Invites for friends</small></span></li>
+        <div class="section-head reveal">
+          <p class="eyebrow">Supported services</p>
+          <h2 id="services-title">One app for the whole crew.</h2>
+          <p class="section-lead">Connect as many as you run. Each one gets its own screen, and the useful bits surface on your dashboard.</p>
+        </div>
+        <ul class="services reveal-stagger" role="list">
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/sonarr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Sonarr</h3><p class="svc__kind">TV series</p>
+            <ul class="svc__caps" role="list"><li>Library &amp; seasons</li><li>Calendar &amp; queue</li><li>Missing searches</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/radarr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Radarr</h3><p class="svc__kind">Movies</p>
+            <ul class="svc__caps" role="list"><li>Library &amp; releases</li><li>Calendar &amp; queue</li><li>Cutoff-unmet searches</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/whisparr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Whisparr</h3><p class="svc__kind">Adult (v3)</p>
+            <ul class="svc__caps" role="list"><li>Kept behind its own chip</li><li>Never mixed into Movies</li><li>Add &amp; queue</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/prowlarr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Prowlarr</h3><p class="svc__kind">Indexers</p>
+            <ul class="svc__caps" role="list"><li>Indexer list &amp; status</li><li>Health warnings</li><li>Usage stats</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/bazarr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Bazarr</h3><p class="svc__kind">Subtitles</p>
+            <ul class="svc__caps" role="list"><li>Wanted subtitles</li><li>Series &amp; movies</li><li>Health</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/jellyseerr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Jellyseerr</h3><p class="svc__kind">Discover &amp; requests</p>
+            <ul class="svc__caps" role="list"><li>Trending &amp; popular</li><li>Request HD or 4K</li><li>Approve or decline</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/overseerr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Overseerr</h3><p class="svc__kind">Discover &amp; requests</p>
+            <ul class="svc__caps" role="list"><li>Trending &amp; popular</li><li>Request HD or 4K</li><li>Approve or decline</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/qbittorrent.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>qBittorrent</h3><p class="svc__kind">Downloads</p>
+            <ul class="svc__caps" role="list"><li>Live torrents</li><li>Pause, resume, recheck</li><li>Magnets from any app</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/jellyfin.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Jellyfin</h3><p class="svc__kind">Media server</p>
+            <ul class="svc__caps" role="list"><li>Who's watching now</li><li>Direct play or transcode</li><li>Libraries</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/jellystat.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Jellystat</h3><p class="svc__kind">Statistics</p>
+            <ul class="svc__caps" role="list"><li>Plays &amp; watch time</li><li>Top users &amp; titles</li><li>Recent activity</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/wizarr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Wizarr</h3><p class="svc__kind">Invites</p>
+            <ul class="svc__caps" role="list"><li>Create invites</li><li>Share invite links</li><li>Manage users</li></ul>
+          </li>
+          <li class="svc svc--soon" tabindex="0">
+            <span class="svc__icon" aria-hidden="true"><span class="ms">terminal</span></span>
+            <h3>SSH &amp; Docker</h3><p class="svc__kind">Coming soon</p>
+            <ul class="svc__caps" role="list"><li>CPU, memory &amp; disks</li><li>Container start / stop</li><li>Uptime at a glance</li></ul>
+          </li>
         </ul>
       </div>
     </section>
 
-    <!-- ============ FEATURES ============ -->
-    <section id="features" class="section section--tinted" aria-labelledby="features-title">
+    <!-- ============ HOW IT WORKS ============ -->
+    <section id="how" class="section section--tinted" aria-labelledby="how-title">
       <div class="container">
-        <p class="eyebrow">Features</p>
-        <h2 id="features-title">Everything you check on, without the browser tabs</h2>
-        <div class="feature-grid">
-          <article class="feature">
-            <span class="feature__icon ms" aria-hidden="true">dashboard</span>
-            <h3>Dashboard at a glance</h3>
-            <p>Health, downloads, what's airing next and how full your disks are — on one screen the moment you open the app.</p>
-          </article>
-          <article class="feature">
-            <span class="feature__icon ms" aria-hidden="true">video_library</span>
-            <h3>Your library</h3>
-            <p>Browse series and movies, open the details, see what's missing, and search for something new to add.</p>
-          </article>
-          <article class="feature">
-            <span class="feature__icon ms" aria-hidden="true">explore</span>
-            <h3>Discover &amp; request</h3>
-            <p>Trending and upcoming picks from Jellyseerr or Overseerr, with request status right on each title.</p>
-          </article>
-          <article class="feature">
-            <span class="feature__icon ms" aria-hidden="true">calendar_month</span>
-            <h3>Release calendar</h3>
-            <p>Upcoming episodes and movie releases from all your Sonarr and Radarr instances, in one timeline.</p>
-          </article>
-          <article class="feature">
-            <span class="feature__icon ms" aria-hidden="true">downloading</span>
-            <h3>Activity</h3>
-            <p>Sonarr and Radarr queues side by side with live qBittorrent torrents: everything in flight, in one list.</p>
-          </article>
-          <article class="feature">
-            <span class="feature__icon ms" aria-hidden="true">add_link</span>
-            <h3>Magnets &amp; share-to-app</h3>
-            <p>Paste a magnet link, or share one from any app straight into Bosunarr to send it to qBittorrent.</p>
-          </article>
-          <article class="feature">
-            <span class="feature__icon ms" aria-hidden="true">tune</span>
-            <h3>Per-service screens</h3>
-            <p>Prowlarr indexers, Bazarr subtitles, Jellyfin sessions, Jellystat stats and Wizarr invites each get a proper home.</p>
-          </article>
-          <article class="feature">
-            <span class="feature__icon ms" aria-hidden="true">palette</span>
-            <h3>Material You</h3>
-            <p>Dynamic colour picks up your wallpaper, with light and dark themes that follow your system.</p>
-          </article>
+        <div class="section-head reveal">
+          <p class="eyebrow">How it works</p>
+          <h2 id="how-title">Straight from your phone to your server.</h2>
+          <p class="section-lead">There's no Bosunarr cloud in the middle. The app talks to each service's own API, the same way its web UI does, over whatever route you already use.</p>
         </div>
+
+        <figure class="flow reveal" aria-labelledby="flow-caption">
+          <div class="flow__node flow__node--phone">
+            <span class="flow__icon"><img src="assets/logo.svg" alt="" width="40" height="40"></span>
+            <strong>Bosunarr</strong>
+            <small>on your phone</small>
+          </div>
+
+          <div class="flow__routes">
+            <div class="flow__route">
+              <span class="flow__line" aria-hidden="true"><i></i></span>
+              <span class="flow__tag"><span class="ms" aria-hidden="true">wifi</span>Home Wi-Fi <code>192.168.1.20</code></span>
+            </div>
+            <div class="flow__route">
+              <span class="flow__line" aria-hidden="true"><i></i></span>
+              <span class="flow__tag"><span class="ms" aria-hidden="true">vpn_lock</span>Tailscale or WireGuard</span>
+            </div>
+            <div class="flow__route">
+              <span class="flow__line" aria-hidden="true"><i></i></span>
+              <span class="flow__tag"><span class="ms" aria-hidden="true">router</span>Your reverse proxy <code>https://</code></span>
+            </div>
+          </div>
+
+          <div class="flow__node flow__node--server">
+            <span class="flow__icon"><span class="ms" aria-hidden="true">dns</span></span>
+            <strong>Your server</strong>
+            <span class="flow__logos" aria-hidden="true">
+              <img src="assets/logos/sonarr.webp" alt="" width="28" height="28" loading="lazy">
+              <img src="assets/logos/radarr.webp" alt="" width="28" height="28" loading="lazy">
+              <img src="assets/logos/qbittorrent.webp" alt="" width="28" height="28" loading="lazy">
+              <img src="assets/logos/jellyfin.webp" alt="" width="28" height="28" loading="lazy">
+              <img src="assets/logos/jellyseerr.webp" alt="" width="28" height="28" loading="lazy">
+              <img src="assets/logos/prowlarr.webp" alt="" width="28" height="28" loading="lazy">
+            </span>
+          </div>
+
+          <div class="flow__nocloud">
+            <span class="ms" aria-hidden="true">cloud_off</span>
+            <span><strong>No Bosunarr servers.</strong> Nothing relays, stores or sees your traffic.</span>
+          </div>
+          <figcaption id="flow-caption" class="sr-only">Diagram: the Bosunarr app on your phone connects directly to the services on your server, over your home Wi-Fi, a VPN such as Tailscale or WireGuard, or your own reverse proxy. There is no Bosunarr cloud in between.</figcaption>
+        </figure>
+
+        <ol class="steps reveal-stagger" role="list">
+          <li class="step">
+            <span class="step__num" aria-hidden="true">1</span>
+            <h3>Install</h3>
+            <p>Download the APK from GitHub. After that, updates arrive in the app itself.</p>
+          </li>
+          <li class="step">
+            <span class="step__num" aria-hidden="true">2</span>
+            <h3>Connect</h3>
+            <p>Pick your services, paste a URL and API key, and watch each connection test go green.</p>
+          </li>
+          <li class="step">
+            <span class="step__num" aria-hidden="true">3</span>
+            <h3>Sail</h3>
+            <p>Your dashboard fills in straight away. Prefer a test drive? A demo mode is on the way.</p>
+          </li>
+        </ol>
       </div>
     </section>
 
     <!-- ============ PRIVACY ============ -->
     <section id="privacy" class="section" aria-labelledby="privacy-title">
       <div class="container privacy">
-        <div class="privacy__copy">
+        <div class="privacy__copy reveal">
+          <svg class="privacy__shape" aria-hidden="true"><use href="#shape-cookie"/></svg>
+          <span class="privacy__lock" aria-hidden="true"><span class="ms">key</span></span>
           <p class="eyebrow">Privacy</p>
-          <h2 id="privacy-title">Your keys never leave your phone</h2>
-          <p class="section-lead">Bosunarr has no backend. The app talks to your services directly, the same way their own web UIs do, so there's nobody in the middle to trust.</p>
+          <h2 id="privacy-title">Your keys never leave your phone.</h2>
+          <p class="section-lead">Bosunarr has no backend and no account system, so there's nobody in the middle to trust, and nothing to breach.</p>
+          <a class="link-arrow" href="privacy.html">Read the privacy policy <span class="ms" aria-hidden="true">arrow_forward</span></a>
         </div>
-        <ul class="privacy__list" role="list">
-          <li><span class="ms" aria-hidden="true">smartphone</span><div><strong>Direct connections</strong><p>Requests go from your phone to your server — over your LAN, a VPN or your own reverse proxy.</p></div></li>
-          <li><span class="ms" aria-hidden="true">encrypted</span><div><strong>Encrypted on device</strong><p>API keys and passwords are sealed with AES-256-GCM using a key held in the Android Keystore.</p></div></li>
-          <li><span class="ms" aria-hidden="true">no_accounts</span><div><strong>No account, no tracking</strong><p>No sign-up, no analytics, no ads. The app doesn't phone home.</p></div></li>
-          <li><span class="ms" aria-hidden="true">code</span><div><strong>Open source</strong><p>Every line is on GitHub under the AGPL-3.0 licence. Read it, build it, improve it.</p></div></li>
+        <ul class="privacy__list reveal-stagger" role="list">
+          <li><span class="ms" aria-hidden="true">smartphone</span><div><h3>Direct connections</h3><p>Requests go from your phone to your server, over your LAN, a VPN or your own reverse proxy.</p></div></li>
+          <li><span class="ms" aria-hidden="true">encrypted</span><div><h3>Encrypted on device</h3><p>API keys and passwords are sealed with AES-256-GCM using a key held in the Android Keystore.</p></div></li>
+          <li><span class="ms" aria-hidden="true">no_accounts</span><div><h3>No account, no tracking</h3><p>No sign-up, no analytics, no ads. The only other call it makes is an update check to GitHub.</p></div></li>
+          <li><span class="ms" aria-hidden="true">policy</span><div><h3>Open source</h3><p>Every line is on GitHub under the AGPL-3.0. Read it, build it yourself, improve it.</p></div></li>
         </ul>
       </div>
     </section>
 
-    <!-- ============ SCREENSHOTS ============ -->
-    <section id="screenshots" class="section section--tinted" aria-labelledby="screenshots-title">
-      <div class="container">
-        <p class="eyebrow">Screenshots</p>
-        <h2 id="screenshots-title">A tour of the deck</h2>
-        <p class="section-lead">Illustrations of the main screens. Titles and artwork are placeholders.</p>
-      </div>
-      <!--
-        HOW TO USE REAL SCREENSHOTS
-        1. Put PNG/WebP screenshots (portrait, ~1080×2340) in site/screenshots/,
-           e.g. dashboard.png, library.png, discover.png, calendar.png, activity.png.
-        2. In each <figure class="shot"> below, replace the whole <div class="phone__screen">…</div>
-           with:  <img class="phone__img" src="screenshots/library.png" alt="" loading="lazy">
-           (keep alt="" — the .phone wrapper already has role="img" and an aria-label; update that label).
-        3. Use relative paths only (the site is served from /bosunarr/). No posters or user data you
-           don't have rights to share.
-      -->
-      <div class="shots" tabindex="0" aria-label="Screenshots, scroll horizontally">
-        <figure class="shot">
-          <div class="phone" role="img" aria-label="Library screen: a grid of series posters with a Series and Movies switch.">
-            <div class="phone__screen">
-              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
-              <div class="ui-appbar"><span class="ui-title">Library</span><span class="ms">search</span></div>
-              <div class="ui-segment"><span class="is-active">Series</span><span>Movies</span></div>
-              <div class="ui-posters">
-                <span class="ui-poster p1"></span><span class="ui-poster p2"></span><span class="ui-poster p3"></span>
-                <span class="ui-poster p4"></span><span class="ui-poster p5"></span><span class="ui-poster p6"></span>
-                <span class="ui-poster p7"></span><span class="ui-poster p8"></span><span class="ui-poster p9"></span>
-                <span class="ui-poster p3"></span><span class="ui-poster p1"></span><span class="ui-poster p6"></span>
-              </div>
-              <div class="ui-fab"><span class="ms">add</span></div>
-              <div class="ui-nav">
-                <span><span class="ms">dashboard</span></span>
-                <span class="is-active"><span class="ms">video_library</span></span>
-                <span><span class="ms">explore</span></span>
-                <span><span class="ms">calendar_month</span></span>
-                <span><span class="ms">downloading</span></span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Library</strong> Series and movies, with details and search &amp; add.</figcaption>
-        </figure>
-
-        <figure class="shot">
-          <div class="phone" role="img" aria-label="Discover screen: trending titles with request buttons and request status chips.">
-            <div class="phone__screen">
-              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
-              <div class="ui-appbar"><span class="ui-title">Discover</span><span class="ms">search</span></div>
-              <div class="ui-body">
-                <div class="ui-label">Trending</div>
-                <div class="ui-strip"><span class="ui-poster p7"></span><span class="ui-poster p4"></span><span class="ui-poster p9"></span></div>
-                <div class="ui-label">Requests</div>
-                <div class="ui-row"><span class="ui-poster p8"></span><span class="ui-lines"><b>Saltmarsh</b><small>Requested by you</small></span><span class="ui-chip ui-chip--ok">Available</span></div>
-                <div class="ui-row"><span class="ui-poster p1"></span><span class="ui-lines"><b>The Quiet Reef</b><small>Season 1</small></span><span class="ui-chip">Pending</span></div>
-                <div class="ui-row"><span class="ui-poster p6"></span><span class="ui-lines"><b>Lanterns</b><small>Movie · 4K</small></span><span class="ui-chip">Processing</span></div>
-              </div>
-              <div class="ui-nav">
-                <span><span class="ms">dashboard</span></span>
-                <span><span class="ms">video_library</span></span>
-                <span class="is-active"><span class="ms">explore</span></span>
-                <span><span class="ms">calendar_month</span></span>
-                <span><span class="ms">downloading</span></span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Discover</strong> Find something new and request it in a tap.</figcaption>
-        </figure>
-
-        <figure class="shot">
-          <div class="phone" role="img" aria-label="Calendar screen: a week strip with days that have releases marked, and a list of upcoming episodes.">
-            <div class="phone__screen">
-              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
-              <div class="ui-appbar"><span class="ui-title">Calendar</span><span class="ms">calendar_month</span></div>
-              <div class="ui-week">
-                <span><small>M</small>10</span><span class="has"><small>T</small>11</span><span class="is-active has"><small>W</small>12</span><span><small>T</small>13</span><span class="has"><small>F</small>14</span><span><small>S</small>15</span><span class="has"><small>S</small>16</span>
-              </div>
-              <div class="ui-body">
-                <div class="ui-label">Today</div>
-                <div class="ui-row"><span class="ui-poster p2"></span><span class="ui-lines"><b>Tidewater</b><small>S04E01 · 21:00</small></span></div>
-                <div class="ui-row"><span class="ui-poster p9"></span><span class="ui-lines"><b>Signal Fires</b><small>S01E07 · 22:30</small></span></div>
-                <div class="ui-label">Friday</div>
-                <div class="ui-row"><span class="ui-poster p5"></span><span class="ui-lines"><b>North Light</b><small>Digital release</small></span></div>
-              </div>
-              <div class="ui-nav">
-                <span><span class="ms">dashboard</span></span>
-                <span><span class="ms">video_library</span></span>
-                <span><span class="ms">explore</span></span>
-                <span class="is-active"><span class="ms">calendar_month</span></span>
-                <span><span class="ms">downloading</span></span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Calendar</strong> Every upcoming episode and release, in order.</figcaption>
-        </figure>
-
-        <figure class="shot">
-          <div class="phone" role="img" aria-label="Activity screen: download queue with progress bars, speeds, and a button to add a magnet link.">
-            <div class="phone__screen">
-              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
-              <div class="ui-appbar"><span class="ui-title">Activity</span><span class="ms">tune</span></div>
-              <div class="ui-segment"><span class="is-active">Torrents</span><span>Queue</span></div>
-              <div class="ui-body">
-                <div class="ui-dl ui-dl--card"><span>Harbor Lights S02E05</span><div class="ui-bar"><b style="--p:72%"></b></div><small>8.2 MB/s · 3 min left</small></div>
-                <div class="ui-dl ui-dl--card"><span>The Long Voyage</span><div class="ui-bar"><b style="--p:38%"></b></div><small>4.1 MB/s · 11 min left</small></div>
-                <div class="ui-dl ui-dl--card"><span>Saltmarsh S01</span><div class="ui-bar"><b style="--p:100%"></b></div><small>Seeding paused</small></div>
-              </div>
-              <div class="ui-fab ui-fab--wide"><span class="ms">add_link</span> Magnet</div>
-              <div class="ui-nav">
-                <span><span class="ms">dashboard</span></span>
-                <span><span class="ms">video_library</span></span>
-                <span><span class="ms">explore</span></span>
-                <span><span class="ms">calendar_month</span></span>
-                <span class="is-active"><span class="ms">downloading</span></span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Activity</strong> Queues and torrents together; add magnets anytime.</figcaption>
-        </figure>
-
-        <figure class="shot">
-          <div class="phone phone--dark" role="img" aria-label="Jellyfin sessions screen in dark theme: two people currently streaming, with playback progress.">
-            <div class="phone__screen">
-              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
-              <div class="ui-appbar"><span class="ui-title">Jellyfin</span><span class="ms">dark_mode</span></div>
-              <div class="ui-body">
-                <div class="ui-label">Now playing</div>
-                <div class="ui-card">
-                  <div class="ui-row"><span class="ui-poster p4"></span><span class="ui-lines"><b>Tidewater</b><small>Living room TV · Direct play</small></span></div>
-                  <div class="ui-bar"><b style="--p:55%"></b></div>
-                </div>
-                <div class="ui-card">
-                  <div class="ui-row"><span class="ui-poster p7"></span><span class="ui-lines"><b>Lanterns</b><small>Phone · Transcoding</small></span></div>
-                  <div class="ui-bar"><b style="--p:20%"></b></div>
-                </div>
-                <div class="ui-label">This week</div>
-                <div class="ui-stats"><span><b>42</b><small>plays</small></span><span><b>31h</b><small>watched</small></span><span><b>5</b><small>users</small></span></div>
-              </div>
-              <div class="ui-nav">
-                <span class="is-active"><span class="ms">dashboard</span></span>
-                <span><span class="ms">video_library</span></span>
-                <span><span class="ms">explore</span></span>
-                <span><span class="ms">calendar_month</span></span>
-                <span><span class="ms">downloading</span></span>
-              </div>
-            </div>
-          </div>
-          <figcaption><strong>Service screens</strong> Jellyfin sessions, stats and more — in light or dark.</figcaption>
-        </figure>
-      </div>
-    </section>
-
     <!-- ============ FAQ ============ -->
-    <section id="faq" class="section" aria-labelledby="faq-title">
+    <section id="faq" class="section section--tinted" aria-labelledby="faq-title">
       <div class="container container--narrow">
-        <p class="eyebrow">FAQ</p>
-        <h2 id="faq-title">Questions, answered</h2>
-        <div class="faq">
-          <details>
-            <summary>Which Android versions are supported? <span class="ms" aria-hidden="true">expand_more</span></summary>
-            <p>Android 10 or newer. Dynamic (wallpaper-based) colour needs Android 12+; on older versions Bosunarr uses its own purple theme.</p>
+        <div class="section-head section-head--center reveal">
+          <p class="eyebrow">FAQ</p>
+          <h2 id="faq-title">Questions, answered.</h2>
+        </div>
+        <div class="faq reveal">
+          <details name="faq" open>
+            <summary>Which Android versions are supported?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Android 10 or newer. Wallpaper-based colour needs Android 12+; on older versions Bosunarr uses its own purple theme.</p></div>
           </details>
-          <details>
-            <summary>Is it free? <span class="ms" aria-hidden="true">expand_more</span></summary>
-            <p>Yes — completely free, with no ads, subscriptions or paywalled features. It's open source under the AGPL-3.0 licence.</p>
+          <details name="faq">
+            <summary>Is it free?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Bosunarr is free while it's in early access, with no ads. A Pro tier is planned to support development; details will be shared on GitHub when it's ready. The source code is open under the AGPL-3.0.</p></div>
           </details>
-          <details>
-            <summary>How do I install it? <span class="ms" aria-hidden="true">expand_more</span></summary>
-            <p>Download the latest APK from <a href="https://github.com/SelinJodhani/bosunarr/releases/latest">GitHub Releases</a> on your phone and open it. Android will ask you to allow installs from your browser or file manager the first time.</p>
+          <details name="faq">
+            <summary>How do I install it?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Download the APK on your phone and open it. Android will ask you to allow installs from your browser or file manager the first time. After that, Bosunarr checks GitHub Releases for new versions and can update itself.</p></div>
           </details>
-          <details>
-            <summary>How does it reach my services? <span class="ms" aria-hidden="true">expand_more</span></summary>
-            <p>Your phone connects to each service directly using the URL and API key (or username and password, for qBittorrent) that you enter. That works on your home Wi-Fi with a LAN address like <code>http://192.168.1.20:8989</code>, or from anywhere through a VPN such as Tailscale or WireGuard using the server's VPN address. If you already expose services through your own reverse proxy with HTTPS, use those URLs instead.</p>
+          <details name="faq">
+            <summary>How does it reach my services?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Your phone connects to each service directly, using the URL and API key (or username and password, for qBittorrent) that you enter. On home Wi-Fi that's a LAN address like <code>http://192.168.1.20:8989</code>; from anywhere else, use a VPN such as Tailscale or WireGuard, or your own reverse proxy with HTTPS.</p></div>
           </details>
-          <details>
-            <summary>Do I need to run a server for Bosunarr? <span class="ms" aria-hidden="true">expand_more</span></summary>
-            <p>No. There's nothing extra to host — the app is the whole thing. (There is also an older self-hosted web version, published as a Docker image, if you'd rather use a browser; the Android app is the main focus now.)</p>
+          <details name="faq">
+            <summary>Do I need to host anything extra?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>No. There's no companion server or cloud account. The app is the whole thing.</p></div>
           </details>
-          <details>
-            <summary>Where are my API keys stored? <span class="ms" aria-hidden="true">expand_more</span></summary>
-            <p>Only on your phone, encrypted with AES-256-GCM using a key kept in the Android Keystore. They're never sent anywhere except to the service they belong to.</p>
+          <details name="faq">
+            <summary>Where are my API keys stored?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Only on your phone, encrypted with AES-256-GCM using a key kept in the Android Keystore. They're only ever sent to the service they belong to.</p></div>
           </details>
-          <details>
-            <summary>Is there an iOS version? <span class="ms" aria-hidden="true">expand_more</span></summary>
-            <p>No. Bosunarr is a native Android app built with Kotlin and Jetpack Compose. There is no iPhone or iPad version.</p>
+          <details name="faq">
+            <summary>Can I try it without a server?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Soon. A demo mode with sample content is on the way, so you can explore every screen before connecting anything.</p></div>
           </details>
-          <details>
-            <summary>Something's broken or missing — where do I report it? <span class="ms" aria-hidden="true">expand_more</span></summary>
-            <p>Open an issue on <a href="https://github.com/SelinJodhani/bosunarr/issues">GitHub</a>. Pull requests are welcome too.</p>
+          <details name="faq">
+            <summary>Is there an iPhone version?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>No. Bosunarr is a native Android app built with Kotlin and Jetpack Compose.</p></div>
+          </details>
+          <details name="faq">
+            <summary>Something's broken or missing. Where do I report it?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Open an issue on <a href="https://github.com/SelinJodhani/bosunarr/issues">GitHub</a>. Feature ideas are welcome too.</p></div>
           </details>
         </div>
       </div>
     </section>
 
-    <!-- ============ CTA ============ -->
-    <section class="section" aria-labelledby="cta-title">
+    <!-- ============ DOWNLOAD ============ -->
+    <section id="download" class="section" aria-labelledby="download-title">
       <div class="container">
-        <div class="cta">
-          <img src="assets/logo.svg" alt="" width="72" height="72">
-          <h2 id="cta-title">Ready to take the helm?</h2>
-          <p>Grab the APK, add your first service, and you're sailing in about a minute.</p>
-          <div class="actions actions--center">
-            <a class="btn btn--filled btn--on-container" href="https://github.com/SelinJodhani/bosunarr/releases/latest">
-              <span class="ms" aria-hidden="true">download</span> Download APK
-            </a>
-            <a class="btn btn--outlined" href="https://github.com/SelinJodhani/bosunarr">
-              <span class="ms" aria-hidden="true">star</span> Star on GitHub
-            </a>
+        <div class="cta reveal">
+          <svg class="cta__shape cta__shape--a" aria-hidden="true"><use href="#shape-sunny"/></svg>
+          <svg class="cta__shape cta__shape--b" aria-hidden="true"><use href="#shape-clover"/></svg>
+          <div class="cta__inner">
+            <img class="cta__logo" src="assets/logo.svg" alt="" width="88" height="88">
+            <h2 id="download-title">Ready to take the helm?</h2>
+            <p>Grab the APK, connect your first service, and you're sailing in about a minute.</p>
+            <div class="actions actions--center">
+              <a class="btn btn--filled btn--lg btn--on-cta" href="https://github.com/SelinJodhani/bosunarr/releases/latest" data-apk>
+                <span class="ms" aria-hidden="true">download</span>
+                <span class="btn__stack"><span>Download APK</span><small data-release-meta>Latest release on GitHub</small></span>
+              </a>
+              <a class="btn btn--outlined btn--lg" href="https://github.com/SelinJodhani/bosunarr">
+                <span class="ms" aria-hidden="true">star</span> Star on GitHub
+              </a>
+            </div>
+            <p class="cta__fine">
+              Android 10+ ·
+              <a href="https://github.com/SelinJodhani/bosunarr/releases/latest" data-release-page>All releases &amp; SHA&#8209;256 checksums</a>
+            </p>
+            <div class="early">
+              <span class="early__badge"><span class="ms" aria-hidden="true">update</span> Early access</span>
+              <p><strong>Free during early access.</strong> Bosunarr Pro is coming soon to support development. Watch the repo for news.</p>
+            </div>
           </div>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- Sticky download bar (phones only, shown once the hero button scrolls away). -->
+  <div class="dock" id="dock" aria-hidden="true">
+    <img src="assets/logo.svg" alt="" width="36" height="36">
+    <span class="dock__text"><strong>Bosunarr</strong><small data-release-meta>Free for Android</small></span>
+    <a class="btn btn--filled btn--sm" href="https://github.com/SelinJodhani/bosunarr/releases/latest" data-apk tabindex="-1">
+      <span class="ms" aria-hidden="true">download</span> Download
+    </a>
+  </div>
+
   <footer class="footer">
-    <div class="container footer__inner">
+    <div class="container footer__grid">
       <div class="footer__brand">
-        <img src="assets/logo.svg" alt="" width="32" height="32">
-        <span>Bosunarr</span>
+        <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="32" height="32"><span>Bosunarr</span></a>
+        <p>The bosun runs the deck crew. Bosunarr runs your *arr crew.</p>
       </div>
-      <nav aria-label="Footer">
-        <ul role="list" class="footer__links">
-          <li><a href="https://github.com/SelinJodhani/bosunarr">GitHub</a></li>
-          <li><a href="https://github.com/SelinJodhani/bosunarr/releases/latest">Releases</a></li>
-          <li><a href="https://github.com/SelinJodhani/bosunarr/issues">Issues</a></li>
-          <li><a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">License</a></li>
+      <nav aria-label="Product">
+        <h2 class="footer__h">Product</h2>
+        <ul role="list">
+          <li><a href="#tour">Tour</a></li>
+          <li><a href="#services">Services</a></li>
+          <li><a href="#download">Download</a></li>
+          <li><a href="privacy.html">Privacy policy</a></li>
         </ul>
       </nav>
-      <p class="footer__note">Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Jellyfin, Jellystat or Wizarr. Android is a trademark of Google LLC.</p>
+      <nav aria-label="Project">
+        <h2 class="footer__h">Project</h2>
+        <ul role="list">
+          <li><a href="https://github.com/SelinJodhani/bosunarr">GitHub</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/releases">Releases</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/issues">Issues</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">Licence</a></li>
+        </ul>
+      </nav>
+      <div class="footer__legal">
+        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Whisparr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Jellyfin, Jellystat or Wizarr.</p>
+        <p>Service logos from <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> by homarr-labs; logos are trademarks of their respective projects. Android is a trademark of Google LLC.</p>
+      </div>
     </div>
   </footer>
 </body>

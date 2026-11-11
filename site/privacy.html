@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy policy · Bosunarr</title>
+  <meta name="description" content="Bosunarr collects no personal data: no accounts, no analytics, no ads. Your service settings and keys stay encrypted on your phone, and the app only talks to your own servers and GitHub.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#fcf8ff">
+  <link rel="canonical" href="https://selinjodhani.github.io/bosunarr/privacy.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Bosunarr">
+  <meta property="og:title" content="Bosunarr privacy policy">
+  <meta property="og:description" content="No accounts, no analytics, no ads. Your keys stay encrypted on your phone.">
+  <meta property="og:url" content="https://selinjodhani.github.io/bosunarr/privacy.html">
+  <meta property="og:image" content="https://selinjodhani.github.io/bosunarr/assets/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <script>
+    (function () {
+      var d = document.documentElement;
+      d.classList.add('js');
+      try {
+        var t = localStorage.getItem('bosunarr-theme');
+        if (t === 'light' || t === 'dark') d.setAttribute('data-theme', t);
+        var s = JSON.parse(localStorage.getItem('bosunarr-seed') || 'null');
+        if (s && isFinite(s.h) && isFinite(s.c)) { d.style.setProperty('--h', s.h); d.style.setProperty('--c', s.c); }
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wdth,wght,ROND@6..144,25..151,1..1000,0..100&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&icon_names=brightness_auto,dark_mode,download,light_mode&display=block">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="top-bar">
+    <div class="top-bar__inner">
+      <a class="brand" href="./" aria-label="Bosunarr home">
+        <img src="assets/logo.svg" alt="" width="36" height="36">
+        <span>Bosunarr</span>
+      </a>
+      <div class="top-bar__actions">
+        <button class="icon-btn" type="button" id="theme-toggle" aria-label="Theme: follow system">
+          <span class="ms" aria-hidden="true">brightness_auto</span>
+        </button>
+        <a class="btn btn--filled btn--sm top-bar__cta" href="./#download">
+          <span class="ms" aria-hidden="true">download</span> Get the app
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="doc">
+    <article class="container container--narrow">
+      <p class="eyebrow">Legal</p>
+      <h1>Privacy policy</h1>
+      <p class="updated">Effective 11 November 2026 · Applies to the Bosunarr Android app and this website.</p>
+
+      <div class="doc__summary">
+        <h2>The short version</h2>
+        <ul>
+          <li>Bosunarr collects no personal data. There are no accounts, no analytics, no ads and no tracking SDKs.</li>
+          <li>Everything you enter stays on your phone. Service keys and passwords are stored encrypted.</li>
+          <li>The app only connects to the servers you add, to GitHub to check for updates, and to image servers your own services link to.</li>
+          <li>Crash reports are only shared if you choose to send them.</li>
+        </ul>
+      </div>
+
+      <section aria-labelledby="who">
+        <h2 id="who">Who we are</h2>
+        <p>Bosunarr is an independent, open-source app developed by Selin Jodhani. In this policy, “we” means the Bosunarr developer. The full source code is published on <a href="https://github.com/SelinJodhani/bosunarr">GitHub</a> under the GNU AGPL-3.0, so anyone can check what the app does.</p>
+      </section>
+
+      <section aria-labelledby="collect">
+        <h2 id="collect">Information we collect</h2>
+        <p><strong>None.</strong> Bosunarr has no backend server and no user accounts. We do not collect, receive, store, sell or share any personal data, usage data, device identifiers or location. The app contains no analytics, advertising or tracking libraries.</p>
+      </section>
+
+      <section aria-labelledby="device">
+        <h2 id="device">Information stored on your device</h2>
+        <p>To work, the app keeps the following on your phone only:</p>
+        <ul>
+          <li><strong>Service connections:</strong> the names, URLs, API keys, usernames and passwords you enter for your own services. Secrets are encrypted with AES-256-GCM using a key held in the Android Keystore.</li>
+          <li><strong>Preferences:</strong> settings such as your theme, layout choices and when the app last checked for updates.</li>
+          <li><strong>Cache:</strong> temporary copies of data and artwork fetched from your services, so screens load quickly.</li>
+        </ul>
+        <p>This data is excluded from Android cloud backups. It is removed when you clear the app's storage or uninstall it.</p>
+      </section>
+
+      <section aria-labelledby="network">
+        <h2 id="network">Network connections</h2>
+        <p>Bosunarr makes network requests directly from your phone, only to:</p>
+        <ul>
+          <li><strong>Your own servers</strong>, at the addresses you configure (for example Sonarr, Radarr, qBittorrent or Jellyfin), to show and manage your media. Your credentials are only ever sent to the service they belong to.</li>
+          <li><strong>GitHub</strong>, to check for new versions of the app and, if you choose to install one, to download it. Release builds check automatically at most every 12 hours; you can also check by hand in Settings. These requests don't include any of your data.</li>
+          <li><strong>Image servers your services link to</strong>, to show posters and artwork. For example, Jellyseerr and Overseerr return poster addresses on TMDB's image CDN.</li>
+        </ul>
+        <p>As with any internet request, the servers you connect to can see your IP address and basic request details. Those servers are run by you or by the third parties above, under their own privacy policies (see <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>).</p>
+      </section>
+
+      <section aria-labelledby="crash">
+        <h2 id="crash">Crash reports</h2>
+        <p>Bosunarr does not send crash reports or diagnostics automatically. If you choose to share a crash report or log with us, for example by attaching it to a GitHub issue, it is shared only with the people you send it to. Please check it for anything you'd rather keep private, such as server addresses, before you share it.</p>
+      </section>
+
+      <section aria-labelledby="permissions">
+        <h2 id="permissions">Permissions</h2>
+        <ul>
+          <li><strong>Internet and network state:</strong> to reach your services and check whether you're online.</li>
+          <li><strong>Install packages:</strong> only used when you choose to install an update downloaded from GitHub. Android asks you to confirm every install.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="children">
+        <h2 id="children">Children</h2>
+        <p>Bosunarr is a tool for managing self-hosted media servers and is not directed at children. Since we collect no personal data, we do not knowingly collect data from children.</p>
+      </section>
+
+      <section aria-labelledby="website">
+        <h2 id="website">This website</h2>
+        <p>This site is hosted on GitHub Pages, which may log basic request information as described in GitHub's privacy statement. It loads fonts from Google Fonts and asks the GitHub API for the latest release number. Your theme and colour choices are saved in your browser's local storage and never leave your device. There are no cookies, analytics or ads.</p>
+      </section>
+
+      <section aria-labelledby="changes">
+        <h2 id="changes">Changes to this policy</h2>
+        <p>If this policy changes, the new version will be published on this page with a new effective date, and the history is visible in the project's GitHub repository.</p>
+      </section>
+
+      <section aria-labelledby="contact">
+        <h2 id="contact">Contact</h2>
+        <p>Questions about privacy? Open an issue on <a href="https://github.com/SelinJodhani/bosunarr/issues">GitHub</a>.</p>
+      </section>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__grid">
+      <div class="footer__brand">
+        <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="32" height="32"><span>Bosunarr</span></a>
+        <p>The bosun runs the deck crew. Bosunarr runs your *arr crew.</p>
+      </div>
+      <nav aria-label="Product">
+        <h2 class="footer__h">Product</h2>
+        <ul role="list">
+          <li><a href="./#tour">Tour</a></li>
+          <li><a href="./#services">Services</a></li>
+          <li><a href="./#download">Download</a></li>
+          <li><a href="privacy.html" aria-current="page">Privacy policy</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Project">
+        <h2 class="footer__h">Project</h2>
+        <ul role="list">
+          <li><a href="https://github.com/SelinJodhani/bosunarr">GitHub</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/releases">Releases</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/issues">Issues</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">Licence</a></li>
+        </ul>
+      </nav>
+      <div class="footer__legal">
+        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Whisparr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Jellyfin, Jellystat or Wizarr.</p>
+        <p>Service logos from <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> by homarr-labs; logos are trademarks of their respective projects. Android is a trademark of Google LLC.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
