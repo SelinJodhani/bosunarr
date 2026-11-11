@@ -517,11 +517,11 @@ const REPO = 'SelinJodhani/bosunarr';
 
 async function initRelease() {
   if (!$('[data-apk], [data-release-meta]')) return;
-  const KEY = 'bosunarr-release-v1';
+  const KEY = 'bosunarr-release-v2';
   let data = null;
   try {
     const cached = JSON.parse(sessionStorage.getItem(KEY) || 'null');
-    if (cached && Date.now() - cached.t < 30 * 60 * 1000) data = cached.d;
+    if (cached && Date.now() - cached.t < 5 * 60 * 1000) data = cached.d; // short: new releases show up fast
   } catch { /* ignore */ }
 
   if (!data) {
@@ -537,6 +537,7 @@ async function initRelease() {
         page: json.html_url,
         apk: asset?.browser_download_url,
         size: asset?.size,
+        notes: String(json.body || '').slice(0, 6000),
       };
       try { sessionStorage.setItem(KEY, JSON.stringify({ t: Date.now(), d: data })); } catch { /* ignore */ }
     } catch { return; }
@@ -555,6 +556,38 @@ async function initRelease() {
   if (typeof data.page === 'string' && data.page.startsWith(prefix)) {
     $$('[data-release-page]').forEach((a) => { a.href = data.page; });
   }
+  renderWhatsNew(version, data.notes);
+}
+
+/** "What's new": the latest release's top-level bullets (`- **Title** — text`), rendered as plain text. */
+function renderWhatsNew(version, notes) {
+  const box = $('[data-whatsnew]');
+  const list = $('[data-whatsnew-list]');
+  if (!box || !list || typeof notes !== 'string') return;
+  const strip = (t) => t.replace(/\*\*|__|`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
+  const items = notes.split('\n')
+    .map((l) => l.trim())
+    .filter((l) => /^[-*] /.test(l))
+    .map((l) => {
+      const m = l.slice(2).match(/^\*\*(.+?)\*\*\s*[—–:-]?\s*(.*)$/);
+      return m ? { title: strip(m[1]), text: strip(m[2]) } : { title: '', text: strip(l.slice(2)) };
+    })
+    .filter((i) => i.title || i.text)
+    .slice(0, 6);
+  if (!items.length) return;
+  list.replaceChildren(...items.map(({ title, text }) => {
+    const li = document.createElement('li');
+    if (title) {
+      const b = document.createElement('strong');
+      b.textContent = title;
+      li.append(b, ' ');
+    }
+    const cut = text.length > 140 ? text.slice(0, 137).replace(/\s+\S*$/, '') + '…' : text;
+    li.append(cut);
+    return li;
+  }));
+  $$('[data-whatsnew-version]').forEach((el) => { el.textContent = `v${version}`; });
+  box.hidden = false;
 }
 
 /* ------------------------------------------------------------------ */
