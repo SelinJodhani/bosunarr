@@ -19,8 +19,9 @@ const store = {
 /* Screens                                                             */
 /* ------------------------------------------------------------------ */
 
-// Real screenshots live at assets/screens/<name>-<light|dark>.png (1280×2856).
-// Until a file exists, a labelled placeholder shows in its place.
+// Real screenshots (demo mode, free-licensed content) live at assets/screens/<name>-<light|dark>.webp.
+// Until a file exists, a labelled placeholder shows in its place. Screens marked `illo` have no screenshot
+// (demo mode has no server to show) and render a drawn illustration instead, so no image is requested.
 const SCREENS = {
   dashboard: { label: 'Dashboard', icon: 'dashboard' },
   library: { label: 'Library', icon: 'video_library' },
@@ -33,9 +34,28 @@ const SCREENS = {
   'service-sonarr': { label: 'Sonarr service screen', icon: 'dns' },
   'onboarding-welcome': { label: 'Welcome', icon: 'sailing' },
   'onboarding-pick': { label: 'Pick your services', icon: 'sailing' },
-  server: { label: 'Server stats', icon: 'terminal' },
+  server: { label: 'Server (illustration)', icon: 'terminal', illo: serverIllo },
 };
-const screenFile = (name, theme) => `${name}-${theme}.png`;
+/** A drawn, schematic Server screen (CSS-only, follows the page colours). */
+function serverIllo() {
+  const stats = [['CPU', '18%', 0.18], ['Memory', '6.2 GB', 0.39], ['Disk', '71%', 0.71], ['Temp', '47°C', 0.47]];
+  const groups = [
+    ['media', [['sonarr', 'Up 23 days'], ['radarr', 'Up 23 days'], ['qbittorrent', 'Up 4 days'], ['sabnzbd', 'Up 4 days'], ['jellyfin', 'Up 23 days']]],
+    ['tools', [['prowlarr', 'Up 23 days'], ['bazarr', 'Exited', true]]],
+  ];
+  return `<div class="illo">
+    <div class="illo__bar"><span class="illo__title">Server</span><span class="illo__pill"><i class="illo__dot"></i>Connected</span></div>
+    <div class="illo__host"><span class="ms">dns</span><span><b>homelab</b><small>Ubuntu · up 23 days</small></span></div>
+    <div class="illo__fp"><span class="ms">fingerprint</span>Host key verified</div>
+    <div class="illo__stats">${stats.map(([k, v, f]) => `<div class="illo__stat"><small>${k}</small><b>${v}</b><i style="--v:${f}"></i></div>`).join('')}</div>
+    <div class="illo__net"><span>↓ 24.6 MB/s</span><span>↑ 1.2 MB/s</span></div>
+    ${groups.map(([g, items]) => `<p class="illo__group">${g}<small>${items.length} containers</small></p>
+    <ul class="illo__list">${items.map(([n, st, off]) => `<li><i class="illo__dot${off ? ' illo__dot--off' : ''}"></i>${n}<span>${st}</span></li>`).join('')}</ul>`).join('')}
+    <span class="illo__note">Illustration</span>
+  </div>`;
+}
+
+const screenFile = (name, theme) => `${name}-${theme}.webp`;
 const screenSrc = (name, theme) => `assets/screens/${screenFile(name, theme)}`;
 const pageTheme = () => root.dataset.theme || (mqDark.matches ? 'dark' : 'light');
 
@@ -45,6 +65,13 @@ function makeLayer(name, { fixedTheme = null, eager = false } = {}, layer = docu
   layer.classList.add('layer');
   layer.dataset.name = name;
   if (fixedTheme) layer.dataset.theme = fixedTheme;
+
+  if (info.illo) {
+    layer.innerHTML = info.illo();
+    layer.firstElementChild.setAttribute('aria-hidden', 'true');
+    layer.classList.add('is-loaded');
+    return layer;
+  }
 
   const ph = document.createElement('div');
   ph.className = 'ph';
@@ -71,6 +98,7 @@ function makeLayer(name, { fixedTheme = null, eager = false } = {}, layer = docu
 function setLayerTheme(layer) {
   const theme = layer.dataset.theme || pageTheme();
   const img = $('img', layer);
+  if (!img) return; // illustration: follows the page colours by itself
   const src = screenSrc(layer.dataset.name, theme);
   if (img.getAttribute('src') !== src) {
     layer.classList.remove('is-loaded', 'is-missing');

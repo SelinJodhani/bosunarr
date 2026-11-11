@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Privacy policy · Bosunarr</title>
-  <meta name="description" content="Bosunarr collects no personal data: no accounts, no analytics, no ads. Your service settings and keys stay encrypted on your phone, and the app only talks to your own servers and GitHub.">
+  <meta name="description" content="Bosunarr collects no personal data: no accounts, no analytics, no ads. Your service settings, API keys and SSH keys stay encrypted on your phone, background checks only talk to your own services, and the app otherwise only contacts GitHub for updates.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#fcf8ff">
   <link rel="canonical" href="https://selinjodhani.github.io/bosunarr/privacy.html">
@@ -65,8 +65,9 @@
         <h2>The short version</h2>
         <ul>
           <li>Bosunarr collects no personal data. There are no accounts, no analytics, no ads and no tracking SDKs.</li>
-          <li>Everything you enter stays on your phone. Service keys and passwords are stored encrypted.</li>
-          <li>The app only connects to the servers you add, to GitHub to check for updates, and to image servers your own services link to.</li>
+          <li>Everything you enter stays on your phone. Service keys, passwords and SSH keys are stored encrypted.</li>
+          <li>The app only connects to the servers you add, to GitHub to check for updates, and to image servers your own services link to. Background checks for notifications only talk to your own services.</li>
+          <li>Demo mode runs entirely on your phone and doesn't touch your own services.</li>
           <li>Crash reports are only shared if you choose to send them.</li>
         </ul>
       </div>
@@ -86,7 +87,9 @@
         <p>To work, the app keeps the following on your phone only:</p>
         <ul>
           <li><strong>Service connections:</strong> the names, URLs, API keys, usernames and passwords you enter for your own services. Secrets are encrypted with AES-256-GCM using a key held in the Android Keystore.</li>
-          <li><strong>Preferences:</strong> settings such as your theme, layout choices and when the app last checked for updates.</li>
+          <li><strong>SSH:</strong> if you add a server, the SSH key pair is generated on your phone, and its private key is stored encrypted in the same way. It never leaves the device; only the public key is shown for you to add to your server. The server's host-key fingerprint is saved (pinned) on first connection, and Bosunarr warns you instead of connecting if it ever changes. Saved commands are stored encrypted with the server's other settings.</li>
+          <li><strong>Notification state:</strong> a small record of what the background checks have already told you about, so you aren't notified twice.</li>
+          <li><strong>Preferences:</strong> settings such as your theme, layout choices, notification and widget settings, and when the app last checked for updates.</li>
           <li><strong>Cache:</strong> temporary copies of data and artwork fetched from your services, so screens load quickly.</li>
         </ul>
         <p>This data is excluded from Android cloud backups. It is removed when you clear the app's storage or uninstall it.</p>
@@ -96,16 +99,26 @@
         <h2 id="network">Network connections</h2>
         <p>Bosunarr makes network requests directly from your phone, only to:</p>
         <ul>
-          <li><strong>Your own servers</strong>, at the addresses you configure (for example Sonarr, Radarr, qBittorrent or Jellyfin), to show and manage your media. Your credentials are only ever sent to the service they belong to.</li>
-          <li><strong>GitHub</strong>, to check for new versions of the app and, if you choose to install one, to download it. Release builds check automatically at most every 12 hours; you can also check by hand in Settings. These requests don't include any of your data.</li>
+          <li><strong>Your own servers</strong>, at the addresses you configure (for example Sonarr, Radarr, qBittorrent, SABnzbd or Jellyfin), to show and manage your media, and over SSH to the server you add, if any. Your credentials are only ever sent to the service they belong to. Home-screen widgets and Quick Settings tiles use the same direct connections.</li>
+          <li><strong>GitHub</strong>, to check for new versions of the app and, if you choose to install one, to download it. Release builds check automatically at most every 12 hours; you can also check by hand in Settings. These requests don't include any of your data. Each download's checksum is verified before it's offered for install, and Android checks the signature.</li>
           <li><strong>Image servers your services link to</strong>, to show posters and artwork. For example, Jellyseerr and Overseerr return poster addresses on TMDB's image CDN.</li>
         </ul>
         <p>As with any internet request, the servers you connect to can see your IP address and basic request details. Those servers are run by you or by the third parties above, under their own privacy policies (see <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>).</p>
       </section>
 
+      <section aria-labelledby="notifications">
+        <h2 id="notifications">Notifications</h2>
+        <p>If you turn notifications on, Bosunarr checks your services in the background every 15, 30 or 60 minutes, using Android's own scheduler. There is no push service and no Bosunarr server: each check goes straight from your phone to your own services, and what it finds stays on the device. Notifications for adult-content services are off by default and, if you turn them on, are never shown on the lock screen.</p>
+      </section>
+
+      <section aria-labelledby="demo">
+        <h2 id="demo">Demo mode</h2>
+        <p>Demo mode answers the app's requests on your phone with built-in sample data and artwork. It makes no network requests to your services and leaves your own connections unchanged.</p>
+      </section>
+
       <section aria-labelledby="crash">
         <h2 id="crash">Crash reports</h2>
-        <p>Bosunarr does not send crash reports or diagnostics automatically. If you choose to share a crash report or log with us, for example by attaching it to a GitHub issue, it is shared only with the people you send it to. Please check it for anything you'd rather keep private, such as server addresses, before you share it.</p>
+        <p>Bosunarr does not send crash reports or diagnostics automatically. If the app crashes, a short report is saved in its private storage, with server addresses removed. Next time you open the app it offers to open a prefilled GitHub issue, which you can review, edit and submit yourself, or dismiss. If you choose to share a report or log, it is shared only with the people you send it to. Please check it for anything you'd rather keep private before you share it.</p>
       </section>
 
       <section aria-labelledby="permissions">
@@ -113,6 +126,7 @@
         <ul>
           <li><strong>Internet and network state:</strong> to reach your services and check whether you're online.</li>
           <li><strong>Install packages:</strong> only used when you choose to install an update downloaded from GitHub. Android asks you to confirm every install.</li>
+          <li><strong>Notifications:</strong> only used if you turn on notifications, to show what the background checks find.</li>
         </ul>
       </section>
 
@@ -163,8 +177,8 @@
         </ul>
       </nav>
       <div class="footer__legal">
-        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Whisparr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Jellyfin, Jellystat or Wizarr.</p>
-        <p>Service logos from <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> by homarr-labs; logos are trademarks of their respective projects. Android is a trademark of Google LLC.</p>
+        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Whisparr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, SABnzbd, NZBGet, Jellyfin, Jellystat or Wizarr.</p>
+        <p>Service logos from <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> by homarr-labs; logos are trademarks of their respective projects. Android is a trademark of Google LLC. Docker is a trademark of Docker, Inc.</p>
       </div>
     </div>
   </footer>

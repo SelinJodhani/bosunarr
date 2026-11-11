@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Bosunarr · your *arr stack, in your pocket</title>
-  <meta name="description" content="Bosunarr is a native Material You app for Android that runs Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, qBittorrent, Jellyfin and more straight from your phone. No account, no cloud: your keys stay encrypted on your device.">
+  <meta name="description" content="Bosunarr is a native Material You app for Android that runs Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, qBittorrent, SABnzbd, NZBGet, Jellyfin and the server underneath them over SSH, straight from your phone. Notifications and widgets without a server, a built-in demo, no account and no cloud.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#fcf8ff">
   <link rel="canonical" href="https://selinjodhani.github.io/bosunarr/">
@@ -13,7 +13,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Bosunarr">
   <meta property="og:title" content="Bosunarr · your *arr stack, in your pocket">
-  <meta property="og:description" content="A native Material You app for Android to run Sonarr, Radarr, qBittorrent, Jellyfin and more. No account, no cloud: your keys stay on your phone.">
+  <meta property="og:description" content="A native Material You app for Android to run Sonarr, Radarr, qBittorrent, SABnzbd, Jellyfin and your server over SSH. Try the built-in demo, no server needed. No account, no cloud: your keys stay on your phone.">
   <meta property="og:url" content="https://selinjodhani.github.io/bosunarr/">
   <meta property="og:image" content="https://selinjodhani.github.io/bosunarr/assets/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -42,7 +42,7 @@
       var dark = d.getAttribute('data-theme') ? d.getAttribute('data-theme') === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
       var l = document.createElement('link');
       l.rel = 'preload'; l.as = 'image'; l.setAttribute('fetchpriority', 'high');
-      l.href = 'assets/screens/dashboard-' + (dark ? 'dark' : 'light') + '.png';
+      l.href = 'assets/screens/dashboard-' + (dark ? 'dark' : 'light') + '.webp';
       document.head.appendChild(l);
     })();
   </script>
@@ -51,7 +51,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wdth,wght,ROND@6..144,25..151,1..1000,0..100&display=swap">
   <!-- Icon font subset: icon_names must stay alphabetically sorted. Add a name here when you use a new icon. -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&icon_names=arrow_forward,brightness_auto,calendar_month,check,cloud_off,colors,dark_mode,dashboard,dns,download,downloading,encrypted,expand_more,explore,key,light_mode,lock,movie,no_accounts,palette,pause,play_arrow,policy,router,sailing,smartphone,star,swipe,terminal,tv,update,verified_user,video_library,vpn_lock,wifi&display=block">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&icon_names=arrow_forward,brightness_auto,calendar_month,check,cloud_off,colors,dark_mode,dashboard,dns,download,downloading,encrypted,expand_more,explore,fingerprint,key,light_mode,lock,movie,no_accounts,notifications,palette,pause,play_arrow,play_circle,policy,router,sailing,smartphone,star,swipe,terminal,toggle_on,tv,update,verified_user,video_library,vpn_lock,waves,widgets,wifi&display=block">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -114,7 +114,7 @@
         <div class="hero__copy">
           <p class="chip chip--tonal"><span class="ms" aria-hidden="true">sailing</span> Early access · Free for Android</p>
           <h1 id="hero-title">Your <span class="hl">*arr stack</span>, in&nbsp;your&nbsp;pocket.</h1>
-          <p class="lead">Bosunarr is a native Material You app for running your self-hosted media crew, from Sonarr and Radarr to qBittorrent and Jellyfin, straight from your phone. No account. No cloud. Just you and your server.</p>
+          <p class="lead">Bosunarr is a native Material You app for your self-hosted media crew, from Sonarr and Radarr to qBittorrent, SABnzbd and Jellyfin, plus the server they all run on. No account. No cloud. Just you and your server.</p>
           <div class="actions" id="hero-actions">
             <a class="btn btn--filled btn--lg" href="https://github.com/SelinJodhani/bosunarr/releases/latest" data-apk>
               <span class="ms" aria-hidden="true">download</span>
@@ -125,6 +125,7 @@
           <ul class="hero__facts" role="list">
             <li><span class="ms" aria-hidden="true">smartphone</span> Android 10+</li>
             <li><span class="ms" aria-hidden="true">no_accounts</span> No sign-up</li>
+            <li><span class="ms" aria-hidden="true">play_circle</span> Demo built in</li>
             <li><span class="ms" aria-hidden="true">lock</span> Open source, AGPL-3.0</li>
           </ul>
         </div>
@@ -175,7 +176,7 @@
         <div class="section-head reveal">
           <p class="eyebrow">Take the tour</p>
           <h2 id="tour-title">Everything you check on, without the browser tabs.</h2>
-          <p class="section-lead">Pick a screen. Everything you see is the real app, running in demo mode.</p>
+          <p class="section-lead">Pick a screen. Everything you see is the real app, with your colours and your services.</p>
         </div>
 
         <div class="tour reveal">
@@ -190,7 +191,7 @@
             <button role="tab" type="button" id="tab-torrents" aria-controls="panel-torrents" aria-selected="false" tabindex="-1" data-screen="torrents"><span class="ms" aria-hidden="true">download</span>Torrents</button>
             <button role="tab" type="button" id="tab-service" aria-controls="panel-service" aria-selected="false" tabindex="-1" data-screen="service-sonarr"><span class="ms" aria-hidden="true">dns</span>Service screens</button>
             <button role="tab" type="button" id="tab-onboarding" aria-controls="panel-onboarding" aria-selected="false" tabindex="-1" data-screen="onboarding-welcome" data-screens="onboarding-welcome onboarding-pick"><span class="ms" aria-hidden="true">sailing</span>Guided setup</button>
-            <button role="tab" type="button" id="tab-server" aria-controls="panel-server" aria-selected="false" tabindex="-1" data-screen="server"><span class="ms" aria-hidden="true">terminal</span>Server <span class="badge">Soon</span></button>
+            <button role="tab" type="button" id="tab-server" aria-controls="panel-server" aria-selected="false" tabindex="-1" data-screen="server"><span class="ms" aria-hidden="true">terminal</span>Server</button>
           </div>
 
           <div class="tour__stage">
@@ -203,6 +204,7 @@
                   <span class="device__glare" aria-hidden="true"></span>
                 </div>
               </div>
+              <p class="tour__caption"><span class="ms" aria-hidden="true">play_circle</span>Screenshots from demo mode — free-licensed films.</p>
             </div>
 
             <div class="tour__panels">
@@ -262,9 +264,10 @@
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-activity" aria-labelledby="tab-activity" tabindex="0" hidden>
                 <h3>Everything in flight, in one list</h3>
-                <p>Sonarr, Radarr and Whisparr queues side by side with live progress, so you can see what's stuck and why.</p>
+                <p>Every *arr queue side by side with live progress, so you can see what's stuck and why. A Usenet tab does the same for SABnzbd and NZBGet.</p>
                 <ul class="ticks" role="list">
                   <li>Combined queue across services</li>
+                  <li>Usenet queue and history in their own tab</li>
                   <li>Progress, ETA and status messages</li>
                   <li>Remove or retry from your phone</li>
                 </ul>
@@ -275,38 +278,57 @@
                 <ul class="ticks" role="list">
                   <li>Pause, resume and recheck in bulk</li>
                   <li>Categories and speed limits</li>
+                  <li>Alternative speed from a Quick Settings tile</li>
                   <li>Magnet links from the share sheet</li>
                 </ul>
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-service" aria-labelledby="tab-service" tabindex="0" hidden>
                 <h3>A real home for every service</h3>
-                <p>Each service gets its own screen: Sonarr and Radarr health and disks, Prowlarr indexers, Bazarr subtitles, Jellyfin sessions, Jellystat stats and Wizarr invites.</p>
+                <p>Each service gets its own screen: Sonarr and Radarr health and disks, Prowlarr indexers, Bazarr subtitles, SABnzbd and NZBGet queues, Jellyfin sessions, Jellystat stats and Wizarr invites.</p>
                 <ul class="ticks" role="list">
                   <li>Indexers, subtitles, sessions, stats</li>
+                  <li>Usenet queues, speed limits and NZB uploads</li>
                   <li>Create and share Wizarr invites</li>
                   <li>One tap to the service's web UI</li>
                 </ul>
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-onboarding" aria-labelledby="tab-onboarding" tabindex="0" hidden>
                 <h3>Set up in about a minute</h3>
-                <p>A guided first run: pick the services you run, paste a URL and key (or let your password manager fill them), and Bosunarr tests each connection before you continue.</p>
+                <p>A guided first run: pick the services you run, paste a URL and key (or let your password manager fill them), and Bosunarr tests each connection before you continue. Not ready to connect anything? Tap <strong>Try the demo</strong>.</p>
                 <ul class="ticks" role="list">
+                  <li>A live, offline demo to explore first</li>
                   <li>Pick only the services you use</li>
                   <li>Connection test for each one</li>
                   <li>Password-manager autofill for keys</li>
                 </ul>
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-server" aria-labelledby="tab-server" tabindex="0" hidden>
-                <h3>The box itself <span class="badge">Coming soon</span></h3>
-                <p>Connect over SSH to see CPU, memory, disks and uptime for the machine your stack runs on, and start, stop or restart Docker containers when something needs a nudge.</p>
+                <h3>The box itself</h3>
+                <p>Connect over SSH to watch the machine your stack runs on, and give a Docker container a nudge when it needs one. The key is generated on your phone, and Bosunarr checks the server's host-key fingerprint before every connection.</p>
                 <ul class="ticks" role="list">
-                  <li>Server stats over SSH</li>
-                  <li>Docker container controls</li>
-                  <li>Same on-device key storage</li>
+                  <li>Live CPU, memory, disks, network and temperatures</li>
+                  <li>Containers grouped by compose project: start, stop, restart, logs</li>
+                  <li>Saved commands for the jobs you run often</li>
+                  <li>Ed25519 key made on the device, host key pinned</li>
                 </ul>
               </div>
             </div>
           </div>
+        </div>
+
+        <div class="extras">
+          <div class="extras__head reveal">
+            <p class="eyebrow">Beyond the screens</p>
+            <h3 class="extras__title">The little things, on screen and off.</h3>
+          </div>
+          <ul class="extras__grid reveal-stagger" role="list">
+            <li><span class="ms" aria-hidden="true">notifications</span><div><h4>Notifications, no server needed</h4><p>Background checks every 15, 30 or 60 minutes for finished downloads, failed imports, new requests, service health and completed torrents. Tap one to open the item.</p></div></li>
+            <li><span class="ms" aria-hidden="true">widgets</span><div><h4>Home-screen widgets</h4><p>Downloads, Up next and Services status, drawn in your wallpaper colours.</p></div></li>
+            <li><span class="ms" aria-hidden="true">toggle_on</span><div><h4>Quick Settings tiles</h4><p>Switch qBittorrent to its alternative speed limits, or pause every download, from the notification shade.</p></div></li>
+            <li><span class="ms" aria-hidden="true">play_circle</span><div><h4>A demo you can poke at</h4><p>A live, offline sample stack of Blender open movies and public-domain classics. Downloads progress, requests can be approved, and your own services are untouched.</p></div></li>
+            <li><span class="ms" aria-hidden="true">waves</span><div><h4>Calm seas on empty screens</h4><p>Nothing to show? You get a small animated sea scene in your Material You colours instead: a lighthouse, calm water, a message in a bottle.</p></div></li>
+            <li><span class="ms" aria-hidden="true">update</span><div><h4>Updates you can trust</h4><p>Bosunarr checks GitHub Releases, verifies the checksum before it installs, and Android checks the signature.</p></div></li>
+          </ul>
         </div>
       </div>
     </section>
@@ -418,6 +440,16 @@
             <ul class="svc__caps" role="list"><li>Live torrents</li><li>Pause, resume, recheck</li><li>Magnets from any app</li></ul>
           </li>
           <li class="svc" tabindex="0">
+            <img src="assets/logos/sabnzbd.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>SABnzbd</h3><p class="svc__kind">Usenet downloads</p>
+            <ul class="svc__caps" role="list"><li>Queue &amp; history</li><li>Pause, resume, speed limit</li><li>Add NZBs by link or file</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/nzbget.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>NZBGet</h3><p class="svc__kind">Usenet downloads</p>
+            <ul class="svc__caps" role="list"><li>Queue &amp; history</li><li>Priority &amp; categories</li><li>Add NZBs by link or file</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
             <img src="assets/logos/jellyfin.webp" alt="" width="56" height="56" loading="lazy">
             <h3>Jellyfin</h3><p class="svc__kind">Media server</p>
             <ul class="svc__caps" role="list"><li>Who's watching now</li><li>Direct play or transcode</li><li>Libraries</li></ul>
@@ -432,10 +464,10 @@
             <h3>Wizarr</h3><p class="svc__kind">Invites</p>
             <ul class="svc__caps" role="list"><li>Create invites</li><li>Share invite links</li><li>Manage users</li></ul>
           </li>
-          <li class="svc svc--soon" tabindex="0">
+          <li class="svc" tabindex="0">
             <span class="svc__icon" aria-hidden="true"><span class="ms">terminal</span></span>
-            <h3>SSH &amp; Docker</h3><p class="svc__kind">Coming soon</p>
-            <ul class="svc__caps" role="list"><li>CPU, memory &amp; disks</li><li>Container start / stop</li><li>Uptime at a glance</li></ul>
+            <h3>SSH &amp; Docker</h3><p class="svc__kind">Your server</p>
+            <ul class="svc__caps" role="list"><li>CPU, memory, disks &amp; temps</li><li>Containers by compose project</li><li>Logs &amp; saved commands</li></ul>
           </li>
         </ul>
       </div>
@@ -447,7 +479,7 @@
         <div class="section-head reveal">
           <p class="eyebrow">How it works</p>
           <h2 id="how-title">Straight from your phone to your server.</h2>
-          <p class="section-lead">There's no Bosunarr cloud in the middle. The app talks to each service's own API, the same way its web UI does, over whatever route you already use.</p>
+          <p class="section-lead">There's no Bosunarr cloud in the middle. The app talks to each service's own API, the same way its web UI does, and to the server itself over SSH if you add it, over whatever route you already use.</p>
         </div>
 
         <figure class="flow reveal" aria-labelledby="flow-caption">
@@ -496,17 +528,17 @@
           <li class="step">
             <span class="step__num" aria-hidden="true">1</span>
             <h3>Install</h3>
-            <p>Download the APK from GitHub. After that, updates arrive in the app itself.</p>
+            <p>Download the APK from GitHub. After that, updates arrive in the app itself, checksum-verified.</p>
           </li>
           <li class="step">
             <span class="step__num" aria-hidden="true">2</span>
             <h3>Connect</h3>
-            <p>Pick your services, paste a URL and API key, and watch each connection test go green.</p>
+            <p>Pick your services, paste a URL and API key (or let your password manager fill it), and watch each connection test go green.</p>
           </li>
           <li class="step">
             <span class="step__num" aria-hidden="true">3</span>
             <h3>Sail</h3>
-            <p>Your dashboard fills in straight away. Prefer a test drive? A demo mode is on the way.</p>
+            <p>Your dashboard fills in straight away. Prefer a test drive first? Tap <strong>Try the demo</strong> on the welcome screen.</p>
           </li>
         </ol>
       </div>
@@ -524,10 +556,10 @@
           <a class="link-arrow" href="privacy.html">Read the privacy policy <span class="ms" aria-hidden="true">arrow_forward</span></a>
         </div>
         <ul class="privacy__list reveal-stagger" role="list">
-          <li><span class="ms" aria-hidden="true">smartphone</span><div><h3>Direct connections</h3><p>Requests go from your phone to your server, over your LAN, a VPN or your own reverse proxy.</p></div></li>
-          <li><span class="ms" aria-hidden="true">encrypted</span><div><h3>Encrypted on device</h3><p>API keys and passwords are sealed with AES-256-GCM using a key held in the Android Keystore.</p></div></li>
-          <li><span class="ms" aria-hidden="true">no_accounts</span><div><h3>No account, no tracking</h3><p>No sign-up, no analytics, no ads. The only other call it makes is an update check to GitHub.</p></div></li>
-          <li><span class="ms" aria-hidden="true">policy</span><div><h3>Open source</h3><p>Every line is on GitHub under the AGPL-3.0. Read it, build it yourself, improve it.</p></div></li>
+          <li><span class="ms" aria-hidden="true">smartphone</span><div><h3>Direct connections</h3><p>Requests go from your phone to your server, over your LAN, a VPN or your own reverse proxy. Background checks for notifications do too.</p></div></li>
+          <li><span class="ms" aria-hidden="true">encrypted</span><div><h3>Encrypted on device</h3><p>API keys, passwords and SSH keys are sealed with AES-256-GCM using a key held in the Android Keystore.</p></div></li>
+          <li><span class="ms" aria-hidden="true">no_accounts</span><div><h3>No account, no tracking</h3><p>No sign-up, no analytics, no ads. Crash reports stay on your phone unless you choose to file one on GitHub.</p></div></li>
+          <li><span class="ms" aria-hidden="true">policy</span><div><h3>Open source</h3><p>Every line is on GitHub under the AGPL-3.0, and the app lists the licence of every library it uses. Read it, build it yourself, improve it.</p></div></li>
         </ul>
       </div>
     </section>
@@ -550,7 +582,7 @@
           </details>
           <details name="faq">
             <summary>How do I install it?<span class="ms" aria-hidden="true">expand_more</span></summary>
-            <div class="faq__body"><p>Download the APK on your phone and open it. Android will ask you to allow installs from your browser or file manager the first time. After that, Bosunarr checks GitHub Releases for new versions and can update itself.</p></div>
+            <div class="faq__body"><p>Download the APK on your phone and open it. Android will ask you to allow installs from your browser or file manager the first time. After that, Bosunarr checks GitHub Releases for new versions and can update itself: it verifies the download's checksum, and Android checks the signature before installing.</p></div>
           </details>
           <details name="faq">
             <summary>How does it reach my services?<span class="ms" aria-hidden="true">expand_more</span></summary>
@@ -558,7 +590,7 @@
           </details>
           <details name="faq">
             <summary>Do I need to host anything extra?<span class="ms" aria-hidden="true">expand_more</span></summary>
-            <div class="faq__body"><p>No. There's no companion server or cloud account. The app is the whole thing.</p></div>
+            <div class="faq__body"><p>No. There's no companion server or cloud account, and notifications and widgets work without one too. The app is the whole thing.</p></div>
           </details>
           <details name="faq">
             <summary>Where are my API keys stored?<span class="ms" aria-hidden="true">expand_more</span></summary>
@@ -566,7 +598,15 @@
           </details>
           <details name="faq">
             <summary>Can I try it without a server?<span class="ms" aria-hidden="true">expand_more</span></summary>
-            <div class="faq__body"><p>Soon. A demo mode with sample content is on the way, so you can explore every screen before connecting anything.</p></div>
+            <div class="faq__body"><p>Yes. Tap <strong>Try the demo</strong> on the welcome screen for a live sample stack that runs entirely offline, stocked with Blender open movies and public-domain classics. Downloads progress, requests can be approved, and your own services are never touched. The screenshots on this page come from it.</p></div>
+          </details>
+          <details name="faq">
+            <summary>Does it send notifications?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Yes, without a server or push service. Bosunarr checks your services in the background every 15, 30 or 60 minutes and lets you know about finished downloads, failed imports, new requests, service health problems and completed torrents. Tap a notification to open the item. The checks go straight from your phone to your own services.</p></div>
+          </details>
+          <details name="faq">
+            <summary>Can I manage Docker?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>Yes, over SSH. Add your server and Bosunarr generates an Ed25519 key on your phone for you to authorise. The server's host-key fingerprint is checked when you first connect and pinned after that, so a changed key never connects silently. You get live CPU, memory, disk, network and temperatures, Docker containers grouped by compose project with start, stop, restart and logs, and saved commands for the jobs you run often, each confirmed before it runs.</p></div>
           </details>
           <details name="faq">
             <summary>Is there an iPhone version?<span class="ms" aria-hidden="true">expand_more</span></summary>
@@ -647,8 +687,8 @@
         </ul>
       </nav>
       <div class="footer__legal">
-        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Whisparr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Jellyfin, Jellystat or Wizarr.</p>
-        <p>Service logos from <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> by homarr-labs; logos are trademarks of their respective projects. Android is a trademark of Google LLC.</p>
+        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Whisparr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, SABnzbd, NZBGet, Jellyfin, Jellystat or Wizarr.</p>
+        <p>Service logos from <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> by homarr-labs; logos are trademarks of their respective projects. Android is a trademark of Google LLC. Docker is a trademark of Docker, Inc.</p>
       </div>
     </div>
   </footer>
