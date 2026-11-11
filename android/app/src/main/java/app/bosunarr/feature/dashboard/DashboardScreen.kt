@@ -92,6 +92,7 @@ import app.bosunarr.nav.SettingsRoute
 import app.bosunarr.ui.common.AppMark
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.Poster
+import app.bosunarr.ui.common.ScrollToTopOnReselect
 import app.bosunarr.ui.common.ServiceStatus
 import app.bosunarr.ui.common.ServiceStatuses
 import app.bosunarr.ui.common.Tag
@@ -160,7 +161,7 @@ private fun Welcome(nav: NavController) {
             ServiceType.entries.filter { it != ServiceType.Whisparr }.forEach { t -> ServiceBadge(t, size = 36.dp) }
         }
         Spacer(Modifier.height(32.dp))
-        Button(onClick = { nav.navigate(OnboardingRoute) }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Connect services") }
+        Button(onClick = { nav.navigate(OnboardingRoute) }, modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth().height(52.dp)) { Text("Connect services") }
         TextButton(onClick = { nav.navigate(SettingsRoute) }, modifier = Modifier.padding(top = 4.dp)) { Text("Open Settings") }
     }
 }
@@ -179,17 +180,22 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
     val jellyfins = services.filter { it.serviceType == ServiceType.Jellyfin }
     val healthServices = services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Prowlarr }
 
+    val scroll = rememberScrollState()
+    ScrollToTopOnReselect(scroll)
     HubRefreshBox(hub) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 4.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxSize().verticalScroll(scroll).padding(top = 4.dp, bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (services.isNotEmpty()) StatusCard(hub, services, healthServices, nav)
-            if (qbits.isNotEmpty() || arrs.isNotEmpty()) DownloadsCard(hub, qbits, arrs, nav)
-            if (arrs.isNotEmpty()) UpNextCard(hub, arrs, nav)
-            if (arrs.isNotEmpty() || jellyfins.isNotEmpty()) RecentCard(hub, arrs, jellyfins, nav)
-            if (seerrs.isNotEmpty()) RequestsCard(hub, seerrs, nav)
-            if (arrs.isNotEmpty()) DiskCard(hub, arrs)
+            // On tablets and in landscape the cards keep a readable width instead of stretching edge to edge.
+            Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (services.isNotEmpty()) StatusCard(hub, services, healthServices, nav)
+                if (qbits.isNotEmpty() || arrs.isNotEmpty()) DownloadsCard(hub, qbits, arrs, nav)
+                if (arrs.isNotEmpty()) UpNextCard(hub, arrs, nav)
+                if (arrs.isNotEmpty() || jellyfins.isNotEmpty()) RecentCard(hub, arrs, jellyfins, nav)
+                if (seerrs.isNotEmpty()) RequestsCard(hub, seerrs, nav)
+                if (arrs.isNotEmpty()) DiskCard(hub, arrs)
+            }
         }
     }
 }

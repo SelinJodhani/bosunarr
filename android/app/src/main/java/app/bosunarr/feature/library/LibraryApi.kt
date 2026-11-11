@@ -6,7 +6,7 @@ import app.bosunarr.data.ServiceType
 import app.bosunarr.net.AppJson
 import app.bosunarr.net.ServiceException
 import app.bosunarr.net.fanOut
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -74,7 +74,7 @@ object LibraryApi {
                 }
             }
         }
-        val errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { ServiceError(s, it.userMessage()) } }
+        val errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { ServiceError(s, it.friendlyMessage()) } }
         if (services.isNotEmpty() && errors.size == services.size) throw ServiceException(errors.first().message)
         val items = results.flatMap { it.second.getOrNull().orEmpty() }.sortedBy { it.sortTitle }
         LibraryStore.remember(items)
@@ -210,7 +210,7 @@ object LibraryApi {
             val arr = app.client.json(s, path) as? JsonArray ?: throw ServiceException("${s.name} gave an unexpected answer")
             arr.mapNotNull { it as? JsonObject }
         }
-        val errors = per.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { ServiceError(s, it.userMessage()) } }
+        val errors = per.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { ServiceError(s, it.friendlyMessage()) } }
         if (errors.size == services.size && services.isNotEmpty()) throw ServiceException(errors.first().message)
         // Merge the same title across instances, keeping the first instance's ordering (relevance).
         val merged = LinkedHashMap<String, Found>()

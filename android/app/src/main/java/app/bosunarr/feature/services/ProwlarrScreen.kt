@@ -423,7 +423,7 @@ private fun ReleaseItem(row: ReleaseRow, onClick: () -> Unit) {
                     color = if (seeders > 0) okColor() else MaterialTheme.colorScheme.error,
                     maxLines = 1,
                 )
-            } else r.grabs?.let { Text("$it grabs", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
+            } else r.grabs?.let { Text(plural(it, "grab"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
         }
     }
 }

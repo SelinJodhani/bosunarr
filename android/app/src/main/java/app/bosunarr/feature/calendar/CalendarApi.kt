@@ -12,7 +12,7 @@ import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.net.ServiceException
 import app.bosunarr.net.fanOut
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -122,7 +122,7 @@ object CalendarApi {
         val results = fanOut(services) { s ->
             if (s.serviceType == ServiceType.Sonarr) episodes(s, start, end, zone) else movies(s, start, end, startDay, endDay)
         }
-        val errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { LibraryApi.ServiceError(s, it.userMessage()) } }
+        val errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { LibraryApi.ServiceError(s, it.friendlyMessage()) } }
         if (services.isNotEmpty() && errors.size == services.size) throw ServiceException(errors.first().message)
 
         // The same title in several instances (e.g. Radarr + Radarr 4K) becomes one entry; the non-4K copy is primary.

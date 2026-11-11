@@ -65,7 +65,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.nav.MediaRoute
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ConfirmDialog
 import app.bosunarr.ui.common.ErrorBox
@@ -149,7 +149,7 @@ class RequestsVm : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                lists[f] = list(f).copy(refreshing = false, error = e.userMessage())
+                lists[f] = list(f).copy(refreshing = false, error = e.friendlyMessage())
             }
         }
     }
@@ -173,7 +173,7 @@ class RequestsVm : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                lists[f] = list(f).copy(loadingMore = false, error = e.userMessage())
+                lists[f] = list(f).copy(loadingMore = false, error = e.friendlyMessage())
             }
         }
     }
@@ -213,7 +213,7 @@ class RequestsVm : ViewModel() {
                     val items = st.items.filterNot { it.id == r.id }.toMutableList().also { it.add(i.coerceAtMost(it.size), r) }
                     lists[f] = st.copy(items = items, skip = if (removed) st.skip + 1 else st.skip)
                 }
-                notify("Couldn't ${action.name.lowercase()}: ${e.userMessage()}")
+                notify("Couldn't ${action.name.lowercase()}: ${e.friendlyMessage()}")
             } finally {
                 busy.remove(r.id)
             }

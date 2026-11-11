@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import app.bosunarr.ui.common.plural
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.net.AppJson
@@ -343,7 +344,7 @@ private fun TopCard(title: String, icon: ImageVector, loader: Loader<JsTop>, pic
                     Spacer(Modifier.width(8.dp))
                     Text(item.name, style = MaterialTheme.typography.bodyLarge, fontWeight = if (i == 0) FontWeight.Medium else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
-                    Tag(listOfNotNull("${item.plays} plays", item.seconds?.takeIf { sec -> sec > 0 }?.let(::watchTime)).joinToString(" · "))
+                    Tag(listOfNotNull(plural(item.plays, "play"), item.seconds?.takeIf { sec -> sec > 0 }?.let(::watchTime)).joinToString(" · "))
                 }
             }
         }

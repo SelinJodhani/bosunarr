@@ -22,7 +22,7 @@ import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.queue.ArrQueue
 import app.bosunarr.feature.activity.queue.QueueEntry
 import app.bosunarr.net.fanOut
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.ErrorBox
 import app.bosunarr.ui.common.Loader
 import app.bosunarr.ui.common.LoadingBox
@@ -47,7 +47,7 @@ suspend fun loadQueue(services: List<ServiceConfig>): QueueData = withContext(Di
     val results = fanOut(services) { ArrQueue.load(it) }
     QueueData(
         entries = results.flatMap { (_, r) -> r.getOrDefault(emptyList()) },
-        errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { ServiceError(s.name, it.userMessage()) } },
+        errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { ServiceError(s.name, it.friendlyMessage()) } },
     )
 }
 
@@ -56,7 +56,7 @@ suspend fun loadTorrents(services: List<ServiceConfig>): TorrentData {
     val clients = results.mapNotNull { it.second.getOrNull() }
     return TorrentData(
         clients = clients,
-        errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { ServiceError(s.name, it.userMessage()) } } +
+        errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { ServiceError(s.name, it.friendlyMessage()) } } +
             clients.mapNotNull { c -> c.error?.let { ServiceError(c.serviceName, it) } },
     )
 }

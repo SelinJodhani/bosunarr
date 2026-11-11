@@ -12,7 +12,7 @@ import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.net.ServiceException
 import app.bosunarr.net.fanOut
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.ServiceStatus
 import app.bosunarr.ui.common.ServiceStatuses
 import app.bosunarr.ui.common.parseInstant
@@ -32,7 +32,7 @@ data class Partial<T>(val ok: List<Pair<ServiceConfig, T>>, val errors: List<Str
 suspend fun <T> each(services: List<ServiceConfig>, block: suspend (ServiceConfig) -> T): Partial<T> {
     val r = fanOut(services, block)
     val ok = r.mapNotNull { (s, x) -> x.getOrNull()?.let { s to it } }
-    val errors = r.mapNotNull { (_, x) -> x.exceptionOrNull()?.userMessage() }
+    val errors = r.mapNotNull { (_, x) -> x.exceptionOrNull()?.friendlyMessage() }
     if (services.isNotEmpty() && ok.isEmpty()) throw ServiceException(errors.firstOrNull() ?: "Couldn't load")
     return Partial(ok, errors)
 }
@@ -91,7 +91,7 @@ suspend fun loadDownloads(qbits: List<ServiceConfig>, arrs: List<ServiceConfig>)
             )
         } else app.client.get<QueueStatus>(s, "/api/v3/queue/status")
     }
-    val errors = r.mapNotNull { (_, x) -> x.exceptionOrNull()?.userMessage() }
+    val errors = r.mapNotNull { (_, x) -> x.exceptionOrNull()?.friendlyMessage() }
     if (all.isNotEmpty() && errors.size == all.size) throw ServiceException(errors.first())
     val q = r.mapNotNull { it.second.getOrNull() as? QbPart }
     val a = r.mapNotNull { it.second.getOrNull() as? QueueStatus }

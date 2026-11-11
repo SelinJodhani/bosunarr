@@ -57,7 +57,7 @@ import app.bosunarr.app
 import app.bosunarr.feature.activity.queue.ArrQueue
 import app.bosunarr.feature.activity.queue.QueueEntry
 import app.bosunarr.feature.activity.queue.QueueHealth
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.LocalSnackbar
 import app.bosunarr.ui.common.Poster
 import app.bosunarr.ui.common.Tag
@@ -95,7 +95,7 @@ class QueueController internal constructor(private val snackbar: SnackbarHostSta
                 throw ex
             } catch (ex: Exception) {
                 hidden.remove(e.key)
-                "Couldn't remove ${e.title} — ${ex.userMessage()}"
+                "Couldn't remove ${e.title} — ${ex.friendlyMessage()}"
             }
             onChanged()
             snackbar.currentSnackbarData?.dismiss()

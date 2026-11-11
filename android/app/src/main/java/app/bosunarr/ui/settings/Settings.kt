@@ -76,6 +76,13 @@ import androidx.navigation.toRoute
 import app.bosunarr.BuildConfig
 import app.bosunarr.app
 import app.bosunarr.update.UpdateSettingsRow
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Gavel
+import androidx.compose.material.icons.rounded.PrivacyTip
+import app.bosunarr.ui.common.LicencesRoute
+import app.bosunarr.ui.common.PRIVACY_URL
+import app.bosunarr.ui.common.feedbackUrl
+import app.bosunarr.ui.common.safeOpen
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.services.okColor
@@ -216,8 +223,9 @@ fun SettingsScreen(nav: NavController) {
             }
 
             item("h:about") { GroupHeader("About") }
+            val about = 7
             item("app") {
-                GroupRow(0, 4) {
+                GroupRow(0, about) {
                     ListItem(
                         headlineContent = { Text("Bosunarr", style = MaterialTheme.typography.titleMedium) },
                         supportingContent = { Text("Version ${BuildConfig.VERSION_NAME}") },
@@ -227,12 +235,44 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
             item("updates") {
-                GroupRow(1, 4) {
+                GroupRow(1, about) {
                     UpdateSettingsRow(leading = { RowIcon(Icons.Rounded.SystemUpdate) }, colors = TransparentListItem)
                 }
             }
+            item("feedback") {
+                GroupRow(2, about, onClick = { uri.safeOpen(feedbackUrl()) }) {
+                    ListItem(
+                        headlineContent = { Text("Send feedback or report a bug") },
+                        supportingContent = { Text("Opens a GitHub issue with your app and Android version") },
+                        leadingContent = { RowIcon(Icons.Rounded.BugReport) },
+                        trailingContent = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        colors = TransparentListItem,
+                    )
+                }
+            }
+            item("privacy") {
+                GroupRow(3, about, onClick = { uri.safeOpen(PRIVACY_URL) }) {
+                    ListItem(
+                        headlineContent = { Text("Privacy policy") },
+                        supportingContent = { Text("No accounts, no analytics, no tracking") },
+                        leadingContent = { RowIcon(Icons.Rounded.PrivacyTip) },
+                        trailingContent = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        colors = TransparentListItem,
+                    )
+                }
+            }
+            item("licences") {
+                GroupRow(4, about, onClick = { nav.navigate(LicencesRoute) }) {
+                    ListItem(
+                        headlineContent = { Text("Open-source licences") },
+                        leadingContent = { RowIcon(Icons.Rounded.Gavel) },
+                        trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        colors = TransparentListItem,
+                    )
+                }
+            }
             item("github") {
-                GroupRow(2, 4, onClick = { runCatching { uri.openUri(GITHUB_URL) } }) {
+                GroupRow(5, about, onClick = { uri.safeOpen(GITHUB_URL) }) {
                     ListItem(
                         headlineContent = { Text("Source code") },
                         supportingContent = { Text("github.com/SelinJodhani/bosunarr", maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -243,7 +283,7 @@ fun SettingsScreen(nav: NavController) {
                 }
             }
             item("web") {
-                GroupRow(3, 4, onClick = { runCatching { uri.openUri(WEBSITE_URL) } }) {
+                GroupRow(6, about, onClick = { uri.safeOpen(WEBSITE_URL) }) {
                     ListItem(
                         headlineContent = { Text("Website") },
                         supportingContent = { Text("selinjodhani.github.io/bosunarr", maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -256,12 +296,7 @@ fun SettingsScreen(nav: NavController) {
             item("footer") {
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Open-source *arr manager. Talks to your services directly; nothing leaves this phone.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        "Service logos from dashboard-icons (homarr-labs). Logos are trademarks of their respective projects.",
+                        "Talks to your services directly. Your addresses and credentials stay on this phone, encrypted.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

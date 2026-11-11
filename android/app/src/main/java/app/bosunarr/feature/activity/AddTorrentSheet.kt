@@ -55,6 +55,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
@@ -62,10 +64,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
+import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.feature.activity.qbit.Qbit
 import app.bosunarr.feature.activity.qbit.categoryLabel
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -150,7 +153,7 @@ fun AddTorrentSheet(
 
     fun submit() {
         val s = client ?: return
-        val parsed = try { Qbit.parseLinks(links) } catch (e: Exception) { error = e.userMessage(); return }
+        val parsed = try { Qbit.parseLinks(links) } catch (e: Exception) { error = e.friendlyMessage(); return }
         if (parsed.isEmpty() && files.isEmpty()) { error = "Paste a magnet link or pick a .torrent file"; return }
         if (parsed.size > 50) { error = "Add at most 50 at a time"; return }
         busy = true
@@ -164,7 +167,7 @@ fun AddTorrentSheet(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                error = e.userMessage()
+                error = e.friendlyMessage()
             } finally {
                 busy = false
             }
@@ -254,12 +257,15 @@ fun AddTorrentSheet(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).toggleRow(paused) { paused = it }.padding(vertical = 4.dp),
+            ) {
                 Column(Modifier.weight(1f)) {
                     Text("Start paused", style = MaterialTheme.typography.bodyLarge)
                     Text("Add without downloading yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(paused, onCheckedChange = { paused = it })
+                Switch(paused, onCheckedChange = null)
             }
 
             if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)

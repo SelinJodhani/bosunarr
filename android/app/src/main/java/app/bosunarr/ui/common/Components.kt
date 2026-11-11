@@ -1,6 +1,10 @@
 package app.bosunarr.ui.common
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +37,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +56,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
-import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.AsyncImage
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
@@ -59,6 +68,8 @@ val LocalSnackbar = staticCompositionLocalOf { SnackbarHostState() }
 /**
  * Image from a service (arr MediaCover, Seerr /imageproxy, Jellyfin /Items/…) with that service's auth headers.
  * `path` is relative to the service URL, or an absolute URL. Shows a quiet placeholder while loading or on error.
+ * Uses [AsyncImage] (not the subcomposing variant) so long poster grids scroll without jank; Coil sizes the
+ * request to the layout, so only thumbnails are decoded.
  */
 @Composable
 fun ServiceImage(
@@ -76,31 +87,35 @@ fun ServiceImage(
         service != null -> app.client.baseUrl(service) + path
         else -> null
     }
-    val placeholder = @Composable {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
-            Icon(placeholderIcon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(32.dp))
+    var loaded by remember(url) { mutableStateOf(false) }
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
+        if (!loaded) {
+            Icon(
+                placeholderIcon, null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxSize(0.4f).sizeIn(maxWidth = 32.dp, maxHeight = 32.dp),
+            )
+        }
+        if (url != null) {
+            val request = remember(url, service) {
+                ImageRequest.Builder(ctx).data(url).apply {
+                    // Only send credentials to the service's own addresses, never to a third-party absolute URL.
+                    if (service != null && listOfNotNull(service.url, service.altUrl, app.client.baseUrl(service)).any { sameOrigin(it, url) }) {
+                        val h = NetworkHeaders.Builder()
+                        app.client.authHeaders(service).forEach { (k, v) -> h[k] = v }
+                        httpHeaders(h.build())
+                    }
+                }.build()
+            }
+            AsyncImage(
+                model = request,
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+                onSuccess = { loaded = true },
+                modifier = Modifier.matchParentSize(),
+            )
         }
     }
-    if (url == null) {
-        Box(modifier) { placeholder() }
-        return
-    }
-    val request = ImageRequest.Builder(ctx).data(url).apply {
-        // Only send credentials to the service's own addresses, never to a third-party absolute URL.
-        if (service != null && listOfNotNull(service.url, service.altUrl, app.client.baseUrl(service)).any { sameOrigin(it, url) }) {
-            val h = NetworkHeaders.Builder()
-            app.client.authHeaders(service).forEach { (k, v) -> h[k] = v }
-            httpHeaders(h.build())
-        }
-    }.build()
-    SubcomposeAsyncImage(
-        model = request,
-        contentDescription = contentDescription,
-        contentScale = contentScale,
-        modifier = modifier,
-        loading = { placeholder() },
-        error = { placeholder() },
-    )
 }
 
 /** 2:3 rounded poster. */
@@ -142,9 +157,34 @@ fun MessageBox(
     }
 }
 
+/** Full-screen load failure: a friendly explanation, "Try again", and the technical text behind "Details". */
 @Composable
-fun ErrorBox(message: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null) =
-    MessageBox(Icons.Rounded.CloudOff, "Couldn't load", modifier, hint = message, action = if (onRetry != null) "Try again" else null, onAction = onRetry)
+fun ErrorBox(message: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null) {
+    val e = remember(message) { friendlyError(message) }
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        MessageBox(Icons.Rounded.CloudOff, "Couldn't load", hint = e.message, action = if (onRetry != null) "Try again" else null, onAction = onRetry)
+        if (e.details != null) ErrorDetails(e.details, Modifier.padding(horizontal = 32.dp).padding(bottom = 24.dp))
+    }
+}
+
+/** "Details" toggle revealing the technical error text (selectable, so it can be copied into a bug report). */
+@Composable
+fun ErrorDetails(details: String, modifier: Modifier = Modifier) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        TextButton(onClick = { open = !open }) { Text(if (open) "Hide details" else "Details") }
+        AnimatedVisibility(open) {
+            SelectionContainer {
+                Text(
+                    details,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(12.dp),
+                )
+            }
+        }
+    }
+}
 
 /**
  * Standard screen body for a [Loader]: spinner on first load, error with retry, pull-to-refresh, and an inline
@@ -179,7 +219,7 @@ fun <T> LoadContent(
 @Composable
 fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
     Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(12.dp), modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-        Text(message, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+        Text(friendlyMessage(message), color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
     }
 }
 

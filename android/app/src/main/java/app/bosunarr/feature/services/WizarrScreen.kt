@@ -1,5 +1,6 @@
 package app.bosunarr.feature.services
 
+import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.ui.common.MessageBox
 import androidx.compose.material.icons.rounded.Group
 import android.content.ClipData
@@ -59,6 +60,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -547,7 +549,7 @@ private fun CreateInviteSheet(s: ServiceConfig, o: WizarrOverview, onDismiss: ()
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).toggleRow(unlimited) { unlimited = it }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Unlimited uses", style = MaterialTheme.typography.bodyLarge)
                     Text(
@@ -556,7 +558,7 @@ private fun CreateInviteSheet(s: ServiceConfig, o: WizarrOverview, onDismiss: ()
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(checked = unlimited, onCheckedChange = { unlimited = it })
+                Switch(checked = unlimited, onCheckedChange = null)
             }
 
             error?.let { InlineError(it, Modifier.padding(top = 4.dp)) }

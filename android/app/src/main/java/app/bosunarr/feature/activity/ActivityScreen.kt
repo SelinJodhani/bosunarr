@@ -1,8 +1,5 @@
 package app.bosunarr.feature.activity
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,6 +66,7 @@ import app.bosunarr.ui.common.ListPadding
 import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.LocalSnackbar
 import app.bosunarr.ui.common.MessageBox
+import app.bosunarr.ui.common.OnTabReselected
 import app.bosunarr.ui.common.rememberLoader
 import kotlinx.coroutines.launch
 
@@ -119,9 +117,6 @@ fun ActivityScreen(nav: NavController) {
     AppScaffold(
         title = "Activity",
         actions = {
-            AnimatedVisibility(torrentData != null && qbits.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
-                SpeedReadout(torrentData?.down ?: 0, torrentData?.up ?: 0, Modifier.padding(start = 12.dp, end = 4.dp))
-            }
             if (!noServices) OverflowMenu(
                 qbits = qbits,
                 hasTorrents = !torrentData?.torrents.isNullOrEmpty(),
@@ -180,6 +175,11 @@ fun ActivityScreen(nav: NavController) {
                     HorizontalPager(pager, Modifier.weight(1f), beyondViewportPageCount = 1, key = { it }) { page ->
                         if (page == 0) QueuePage(arrs, queueLoader, queue, queueList, nav)
                         else TorrentsPage(qbits, torrentLoader, torrents, listState, torrentList, nav, onAdd = { addInitial = null; showAdd = true })
+                    }
+                    // Re-tapping the Activity tab scrolls the visible page back to the top.
+                    OnTabReselected {
+                        val l = if (pager.currentPage == 0) queueList else torrentList
+                        if (l.firstVisibleItemIndex > 30) l.scrollToItem(0) else l.animateScrollToItem(0)
                     }
                 }
             }
@@ -317,6 +317,16 @@ private fun TorrentsPage(
             error = errorText(data.errors).takeIf { data.clients.isNotEmpty() } ?: loader.state.error,
             onAdd = onAdd,
             onRetry = { loader.refresh() },
+            header = {
+                if (data.clients.isNotEmpty()) item("summary") {
+                    TransferSummary(
+                        data,
+                        Modifier.animateItem(),
+                        // One client: its own screen has the full transfer stats and the alt-speed switch.
+                        onOpen = qbits.singleOrNull()?.let { s -> { nav.navigate(ServiceRoute(s.id)) } },
+                    )
+                }
+            },
         )
     }
 }

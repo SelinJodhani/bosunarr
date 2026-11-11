@@ -72,21 +72,25 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
+import app.bosunarr.ui.common.rememberToggleHaptic
 import app.bosunarr.feature.discover.LightStatusBarIcons
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
-import app.bosunarr.net.userMessage
 import app.bosunarr.ui.common.Poster
 import app.bosunarr.ui.common.ServiceImage
 import androidx.compose.material3.SnackbarHostState
+import app.bosunarr.ui.common.friendlyMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -112,7 +116,7 @@ fun runAction(
             throw e
         } catch (e: Exception) {
             onError()
-            launch { snackbar.showSnackbar(e.userMessage()) }
+            launch { snackbar.showSnackbar(e.friendlyMessage()) }
         } finally {
             onDone()
         }
@@ -306,11 +310,14 @@ fun RowScope.DetailAction(
     busy: Boolean = false,
     selected: Boolean = false,
     destructive: Boolean = false,
+    /** An on/off action (Monitored): ticks like a switch. */
+    toggle: Boolean = false,
 ) {
     val cs = MaterialTheme.colorScheme
+    val haptic = rememberToggleHaptic()
     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         FilledTonalIconButton(
-            onClick = onClick,
+            onClick = { if (toggle) haptic(!selected); onClick() },
             enabled = !busy,
             modifier = Modifier.size(width = 64.dp, height = 44.dp),
             colors = when {
@@ -319,9 +326,10 @@ fun RowScope.DetailAction(
                 else -> IconButtonDefaults.filledTonalIconButtonColors()
             },
         ) {
-            if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Icon(icon, null)
+            // The caption is the button's label for TalkBack (read once, not twice).
+            if (busy) CircularProgressIndicator(Modifier.size(20.dp).semantics { contentDescription = label }, strokeWidth = 2.dp) else Icon(icon, label)
         }
-        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = cs.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = cs.onSurfaceVariant, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 

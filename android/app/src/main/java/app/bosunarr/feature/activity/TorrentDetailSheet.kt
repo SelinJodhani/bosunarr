@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import app.bosunarr.ui.common.plural
 import app.bosunarr.app
 import app.bosunarr.feature.activity.qbit.FILE_PRIORITIES
 import app.bosunarr.feature.activity.qbit.Qbit
@@ -75,7 +76,7 @@ import app.bosunarr.feature.activity.qbit.TorrentGroup
 import app.bosunarr.feature.activity.qbit.TorrentTracker
 import app.bosunarr.feature.activity.qbit.categoryLabel
 import app.bosunarr.feature.activity.qbit.filePriorityLabel
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.Tag
 import app.bosunarr.ui.common.bytes
@@ -126,7 +127,7 @@ fun TorrentDetailSheet(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    detailError = e.userMessage()
+                    detailError = e.friendlyMessage()
                 }
                 delay(3_000)
             }
@@ -204,7 +205,7 @@ fun TorrentDetailSheet(
                                     throw e
                                 } catch (e: Exception) {
                                     prioOverrides.remove(f.index)
-                                    controller.show("Couldn't change priority — ${e.userMessage()}")
+                                    controller.show("Couldn't change priority — ${e.friendlyMessage()}")
                                 }
                             }
                         }
@@ -384,10 +385,10 @@ private fun TrackerRow(tr: TorrentTracker, onCopy: () -> Unit) {
         Text(
             meta(
                 if (tr.isPseudo && tr.status == 0) null else tr.statusLabel,
-                tr.seeds.takeIf { it >= 0 }?.let { "$it seeds" },
-                tr.leeches.takeIf { it >= 0 }?.let { "$it leechers" },
-                tr.peers.takeIf { it >= 0 }?.let { "$it peers" },
-                tr.downloaded.takeIf { it >= 0 }?.let { "$it downloads" },
+                tr.seeds.takeIf { it >= 0 }?.let { plural(it, "seed") },
+                tr.leeches.takeIf { it >= 0 }?.let { plural(it, "leecher") },
+                tr.peers.takeIf { it >= 0 }?.let { plural(it, "peer") },
+                tr.downloaded.takeIf { it >= 0 }?.let { plural(it, "download") },
             ),
             style = MaterialTheme.typography.labelMedium.tnum(),
             color = statusColor,

@@ -53,8 +53,9 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.data.ServiceConfig
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.bytes
 import app.bosunarr.ui.common.plural
 import kotlinx.coroutines.CancellationException
@@ -116,7 +117,7 @@ fun RequestSheet(s: ServiceConfig, m: MediaDetail, preset4k: Boolean?, onDismiss
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            serverError = e.userMessage()
+            serverError = e.friendlyMessage()
         }
     }
 
@@ -157,7 +158,7 @@ fun RequestSheet(s: ServiceConfig, m: MediaDetail, preset4k: Boolean?, onDismiss
             } catch (e: Exception) {
                 // Errors stay in the sheet: it sits above the snackbar.
                 busy = false
-                error = e.userMessage()
+                error = e.friendlyMessage()
             }
         }
     }
@@ -171,7 +172,7 @@ fun RequestSheet(s: ServiceConfig, m: MediaDetail, preset4k: Boolean?, onDismiss
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                 if (showSwitch) {
                     Row(
-                        Modifier.fillMaxWidth().toggleable(is4k, enabled = !busy, role = Role.Switch) { is4k = it }.padding(horizontal = 24.dp, vertical = 8.dp),
+                        Modifier.fillMaxWidth().toggleRow(is4k, enabled = !busy) { is4k = it }.padding(horizontal = 24.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {

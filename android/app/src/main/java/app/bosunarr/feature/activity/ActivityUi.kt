@@ -16,6 +16,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.semantics
+import app.bosunarr.ui.common.plural
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Close
@@ -103,16 +111,74 @@ fun SpeedLabel(
 }
 
 /**
- * Compact live transfer readout for a top bar: download over upload, each arrow tight to its figure, left-aligned
- * in a fixed-width column so polling never makes it jitter.
+ * Live transfer summary at the top of the Torrents tab: total speeds across clients, what's downloading/seeding,
+ * and whether alternative speed limits are on. Tapping it opens the client's own screen (one client only).
  */
 @Composable
-fun SpeedReadout(down: Long, up: Long, modifier: Modifier = Modifier) {
+fun TransferSummary(data: TorrentData, modifier: Modifier = Modifier, onOpen: (() -> Unit)? = null) {
     val cs = MaterialTheme.colorScheme
-    val style = MaterialTheme.typography.labelMedium
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-        SpeedLabel(true, down, style = style, color = cs.onSurface, iconTint = cs.primary, align = Alignment.CenterStart)
-        SpeedLabel(false, up, style = style, color = cs.onSurface, iconTint = cs.tertiary, align = Alignment.CenterStart)
+    val torrents = data.torrents
+    val downloading = remember(torrents) { torrents.count(TorrentFilter.Downloading.test) }
+    val seeding = remember(torrents) { torrents.count(TorrentFilter.Seeding.test) }
+    val errored = remember(torrents) { torrents.count(TorrentFilter.Errored.test) }
+    val alt = data.clients.any { it.server.altSpeed }
+    val shape = RoundedCornerShape(20.dp)
+    val body: @Composable () -> Unit = {
+        Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BigRate(true, data.down, cs.primary, Modifier.weight(1f))
+                BigRate(false, data.up, cs.tertiary, Modifier.weight(1f))
+                if (onOpen != null) Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = cs.onSurfaceVariant)
+            }
+            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    when {
+                        torrents.isEmpty() -> "No torrents"
+                        else -> listOfNotNull(
+                            "$downloading downloading",
+                            "$seeding seeding",
+                            errored.takeIf { it > 0 }?.let { plural(it, "error") },
+                        ).joinToString(" · ")
+                    },
+                    style = MaterialTheme.typography.bodySmall.tnum(),
+                    color = cs.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (alt) {
+                    Surface(color = cs.secondaryContainer, contentColor = cs.onSecondaryContainer, shape = RoundedCornerShape(8.dp), modifier = Modifier.padding(start = 8.dp)) {
+                        Row(Modifier.padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Speed, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Alt speed on", style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    val m = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+    if (onOpen != null) Surface(onClick = onOpen, shape = shape, color = cs.surfaceContainerLow, modifier = m, content = body)
+    else Surface(shape = shape, color = cs.surfaceContainerLow, modifier = m, content = body)
+}
+
+@Composable
+private fun BigRate(down: Boolean, bps: Long, tint: Color, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    Row(modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            if (down) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward,
+            contentDescription = if (down) "Download speed" else "Upload speed",
+            tint = if (bps > 0) tint else cs.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        FixedWidthText(
+            speed(bps), SPEED_TEMPLATE, MaterialTheme.typography.titleLarge.tnum(),
+            color = if (bps > 0) cs.onSurface else cs.onSurfaceVariant,
+            align = Alignment.CenterStart,
+        )
     }
 }
 

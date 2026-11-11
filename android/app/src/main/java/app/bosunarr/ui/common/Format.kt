@@ -42,7 +42,7 @@ fun parseInstant(iso: String?): Instant? = iso?.let {
         ?: runCatching { LocalDate.parse(it.take(10)).atStartOfDay(ZoneId.systemDefault()).toInstant() }.getOrNull()
 }
 
-/** "just now", "5 min ago", "in 3 days", "2 h ago". */
+/** "just now", "5 min ago", "in 3 days", "2 hours ago", "1 month ago". */
 fun relative(iso: String?): String = parseInstant(iso)?.let { relative(it) } ?: ""
 
 fun relative(at: Instant): String {
@@ -52,10 +52,10 @@ fun relative(at: Instant): String {
     val text = when {
         s < 45 -> return "just now"
         s < 3600 -> "${(s / 60).coerceAtLeast(1)} min"
-        s < 86400 -> "${s / 3600} h"
-        s < 86400 * 30 -> "${s / 86400} ${if (s / 86400 == 1L) "day" else "days"}"
-        s < 86400 * 365 -> "${s / (86400 * 30)} mo"
-        else -> "${s / (86400 * 365)} y"
+        s < 86400 -> unit(s / 3600, "hour")
+        s < 86400 * 30 -> unit(s / 86400, "day")
+        s < 86400 * 365 -> unit(s / (86400 * 30), "month")
+        else -> unit(s / (86400 * 365), "year")
     }
     return if (past) "$text ago" else "in $text"
 }
@@ -75,4 +75,6 @@ fun runtime(minutes: Int?): String = when {
 
 fun percent(f: Double?): String = if (f == null) "" else "${(f * 100).toInt().coerceIn(0, 100)}%"
 
-fun plural(n: Int, one: String, many: String = one + "s") = "$n ${if (n == 1) one else many}"
+fun plural(n: Int, one: String, many: String = one + "s") = "${String.format(Locale.getDefault(), "%,d", n)} ${if (n == 1) one else many}"
+
+private fun unit(n: Long, one: String) = "$n ${if (n == 1L) one else one + "s"}"

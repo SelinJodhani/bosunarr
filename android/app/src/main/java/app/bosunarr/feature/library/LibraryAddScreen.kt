@@ -75,6 +75,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
@@ -82,7 +83,7 @@ import app.bosunarr.nav.LibraryAddRoute
 import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.nav.SettingsRoute
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ErrorBanner
 import app.bosunarr.ui.common.ErrorBox
@@ -124,7 +125,7 @@ class AddSearchViewModel : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state.value.copy(loading = false, error = e.userMessage(), result = null)
+                state.value.copy(loading = false, error = e.friendlyMessage(), result = null)
             }
         }
     }
@@ -186,7 +187,7 @@ fun LibraryAddScreen(nav: NavController, route: LibraryAddRoute) {
             Column(Modifier.padding(p).fillMaxSize().verticalScroll(rememberScrollState())) {
                 MessageBox(
                     Icons.Rounded.Search, "No Sonarr or Radarr yet", hint = "Add a Sonarr or Radarr service to add series and movies.",
-                    action = "Open settings", onAction = { nav.navigate(SettingsRoute) },
+                    action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
                 )
             }
             return@AppScaffold
@@ -387,7 +388,7 @@ private fun AddSheet(
             target == null -> Unit
             options == null -> Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             options!!.isFailure -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Text(options!!.exceptionOrNull()?.userMessage() ?: "Couldn't load options", color = cs.error, style = MaterialTheme.typography.bodyMedium)
+                Text(options!!.exceptionOrNull()?.friendlyMessage() ?: "Couldn't load options", color = cs.error, style = MaterialTheme.typography.bodyMedium)
                 TextButton(onClick = { reload++ }) { Text("Try again") }
             }
             else -> {
@@ -450,7 +451,7 @@ private fun AddSheet(
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
-                                error = e.userMessage()
+                                error = e.friendlyMessage()
                             } finally {
                                 adding = false
                             }
@@ -474,13 +475,13 @@ private fun AddSheet(
 @Composable
 private fun SwitchRow(title: String, hint: String?, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled) { onChange(!checked) }.padding(vertical = 4.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).toggleRow(checked, enabled = enabled, onValueChange = onChange).padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f).padding(end = 16.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f))
             if (hint != null) Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }

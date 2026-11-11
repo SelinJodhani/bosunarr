@@ -83,7 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.navigation.NavController
 import app.bosunarr.data.ServiceConfig
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ConfirmDialog
 import app.bosunarr.ui.common.ErrorBox
@@ -177,7 +177,7 @@ fun MediaScreen(nav: NavController, type: String, tmdbId: Int) {
     val list = rememberSeerrServices()
     val service = list?.let { currentSeerr(it) }
     if (list == null || service == null || (type != "movie" && type != "tv")) {
-        AppScaffold("", onBack = { nav.back() }) { p -> if (list != null) NoSeerr(nav, Modifier.padding(p)) }
+        AppScaffold(if (list != null) "Discover" else "", onBack = { nav.back() }) { p -> if (list != null) NoSeerr(nav, Modifier.padding(p)) }
         return
     }
     key(service.id) { MediaContent(nav, service, type, tmdbId) }
@@ -217,7 +217,7 @@ private fun MediaContent(nav: NavController, s: ServiceConfig, type: String, id:
                 snackbar.showSnackbar(if (action == Seerr.Action.Approve) "Request approved" else "Request declined")
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                snackbar.showSnackbar(e.userMessage())
+                snackbar.showSnackbar(e.friendlyMessage())
             } finally {
                 busyRequest = null
             }

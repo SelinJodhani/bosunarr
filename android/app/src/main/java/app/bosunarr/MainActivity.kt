@@ -13,11 +13,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import app.bosunarr.ui.AppRoot
+import app.bosunarr.ui.common.CrashReporter
 import app.bosunarr.update.Updater
 import app.bosunarr.ui.theme.BosunarrTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        CrashReporter.install(this)
         val splash = installSplashScreen()
         // Hold the splash until the encrypted store is read (usually a few ms) so the first frame is the real
         // screen, never an empty one; capped so a slow disk can't keep the app on the splash.

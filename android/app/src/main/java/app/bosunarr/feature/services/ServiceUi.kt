@@ -69,7 +69,6 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.nav.ServiceEditRoute
-import app.bosunarr.net.userMessage
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.Loader
 import app.bosunarr.ui.common.LocalSnackbar
@@ -78,6 +77,10 @@ import app.bosunarr.ui.common.bytes
 import app.bosunarr.ui.common.expandTopBarFirst
 import app.bosunarr.ui.settings.ServiceBadge
 import app.bosunarr.ui.common.rememberLoader
+import app.bosunarr.ui.common.friendlyMessage
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -174,7 +177,7 @@ class ActionRunner(private val snackbar: SnackbarHostState) {
             } catch (e: CancellationException) {
                 busy.remove(key); throw e
             } catch (e: Exception) {
-                e.userMessage()
+                e.friendlyMessage()
             }
             busy.remove(key)
             after?.invoke()
@@ -302,7 +305,7 @@ fun InlineError(message: String, modifier: Modifier = Modifier, compact: Boolean
         Icon(Icons.Rounded.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(if (compact) 16.dp else 20.dp))
         Spacer(Modifier.width(8.dp))
         Text(
-            message,
+            friendlyMessage(message),
             style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
             maxLines = 3,
@@ -360,7 +363,9 @@ fun StatTile(label: String, value: String, modifier: Modifier = Modifier, tint: 
                     Icon(icon, null, tint = tint, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                 }
-                Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Shrinks (rather than clipping to "12.4 MB…") at large font scales or in narrow tiles.
+                val style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold, color = tint)
+                BasicText(value, style = style, maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize))
             }
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }

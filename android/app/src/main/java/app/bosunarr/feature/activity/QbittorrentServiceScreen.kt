@@ -16,26 +16,20 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -53,11 +47,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.feature.activity.qbit.Qbit
@@ -65,11 +59,9 @@ import app.bosunarr.feature.activity.qbit.QbitServer
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.qbit.categoryLabel
 import app.bosunarr.feature.library.horizontalFadingEdges
-import app.bosunarr.nav.ServiceEditRoute
-import app.bosunarr.net.userMessage
-import app.bosunarr.ui.common.AppScaffold
+import app.bosunarr.ui.common.friendlyMessage
+import app.bosunarr.feature.services.ServiceFrame
 import app.bosunarr.ui.common.SectionTitle
-import app.bosunarr.ui.common.back
 import app.bosunarr.ui.common.bytes
 import app.bosunarr.ui.common.rememberLoader
 import app.bosunarr.ui.common.speed
@@ -116,7 +108,7 @@ fun QbittorrentServiceScreen(service: ServiceConfig, nav: NavController) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                controller.show("Couldn't switch speed limits — ${e.userMessage()}")
+                controller.show("Couldn't switch speed limits — ${e.friendlyMessage()}")
             } finally {
                 if (altToken == token) altPending = null
             }
@@ -127,19 +119,11 @@ fun QbittorrentServiceScreen(service: ServiceConfig, nav: NavController) {
         if (altPending != null && snap?.server?.altSpeed == altPending) altPending = null
     }
 
-    AppScaffold(
-        title = s.name,
-        subtitle = snap?.let { connectionLabel(it.server.connection) },
-        onBack = { nav.back() },
-        actions = {
-            var open by remember { mutableStateOf(false) }
-            Box {
-                IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreVert, "More") }
-                DropdownMenu(open, onDismissRequest = { open = false }) {
-                    DropdownMenuItem(text = { Text("Edit service") }, leadingIcon = { Icon(Icons.Rounded.Edit, null) }, onClick = { open = false; nav.navigate(ServiceEditRoute(id = s.id)) })
-                }
-            }
-        },
+    // Same frame as every other service screen: logo, name, type · status, and the edit action.
+    ServiceFrame(
+        s,
+        nav,
+        subtitle = listOfNotNull(s.serviceType?.label, snap?.let { connectionLabel(it.server.connection) }).joinToString(" · "),
         floatingActionButton = {
             val atTop by remember { derivedStateOf { listState.firstVisibleItemIndex < 3 } }
             if (!torrentState.selecting) ExtendedFloatingActionButton(
@@ -313,7 +297,7 @@ private fun AltSpeedCard(on: Boolean, busy: Boolean, server: QbitServer, onChang
         colors = CardDefaults.cardColors(containerColor = if (on) cs.secondaryContainer else cs.surfaceContainer),
     ) {
         Row(
-            Modifier.fillMaxWidth().toggleable(on, enabled = !busy, role = Role.Switch, onValueChange = onChange).padding(horizontal = 16.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().toggleRow(on, enabled = !busy, onValueChange = onChange).padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Rounded.Speed, null, tint = if (on) cs.onSecondaryContainer else cs.onSurfaceVariant)

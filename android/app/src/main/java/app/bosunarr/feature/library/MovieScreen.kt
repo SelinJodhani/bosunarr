@@ -144,7 +144,7 @@ fun MovieScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceCo
                     else -> {
                         item("actions") {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 16.dp)) {
-                                DetailAction(if (m.monitored) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, if (m.monitored) "Monitored" else "Unmonitored", ::toggleMonitored, selected = m.monitored)
+                                DetailAction(if (m.monitored) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, if (m.monitored) "Monitored" else "Unmonitored", ::toggleMonitored, selected = m.monitored, toggle = true)
                                 DetailAction(Icons.Rounded.Search, "Search", { busyAction("search", "Searching for ${m.title}") { LibraryApi.searchMovie(service, id) } }, busy = busy["search"] == true)
                                 DetailAction(Icons.Rounded.Refresh, "Refresh", {
                                     busyAction("refresh", "Refreshing and rescanning") {

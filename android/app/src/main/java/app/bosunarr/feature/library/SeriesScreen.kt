@@ -205,7 +205,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                     else -> {
                         item("actions") {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 16.dp)) {
-                                DetailAction(if (x.monitored) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, if (x.monitored) "Monitored" else "Unmonitored", ::toggleSeries, selected = x.monitored)
+                                DetailAction(if (x.monitored) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, if (x.monitored) "Monitored" else "Unmonitored", ::toggleSeries, selected = x.monitored, toggle = true)
                                 DetailAction(Icons.Rounded.Search, "Search", { busyAction("search", "Searching for monitored episodes") { LibraryApi.searchSeries(service, id) } }, busy = busy["search"] == true)
                                 DetailAction(Icons.Rounded.Refresh, "Refresh", {
                                     busyAction("refresh", "Refreshing and rescanning") {

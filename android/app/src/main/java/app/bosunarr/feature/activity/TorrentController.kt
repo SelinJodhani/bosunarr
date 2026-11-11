@@ -12,7 +12,7 @@ import app.bosunarr.data.ServiceConfig
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.qbit.TorrentGroup
 import app.bosunarr.feature.activity.qbit.categoryLabel
-import app.bosunarr.net.userMessage
+import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.LocalSnackbar
 import app.bosunarr.ui.common.plural
 import kotlinx.coroutines.CancellationException
@@ -136,7 +136,7 @@ class TorrentController internal constructor(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    failures += if (ts.size > group.size) "${s.name}: ${e.userMessage()}" else e.userMessage()
+                    failures += if (ts.size > group.size) "${s.name}: ${e.friendlyMessage()}" else e.friendlyMessage()
                     group.forEach { pending.remove(it.key) }
                 }
             }

@@ -74,6 +74,7 @@ import app.bosunarr.ui.common.ErrorBanner
 import app.bosunarr.ui.common.ErrorBox
 import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.MessageBox
+import app.bosunarr.ui.common.ScrollToTopOnReselect
 import app.bosunarr.ui.common.rememberLoader
 import java.util.Locale
 
@@ -96,7 +97,7 @@ fun LibraryScreen(nav: NavController) {
                 MessageBox(
                     Icons.Rounded.Dns, "No Sonarr or Radarr yet",
                     hint = "Add a Sonarr or Radarr service to browse your series and movies here.",
-                    action = "Open settings", onAction = { nav.navigate(SettingsRoute) },
+                    action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
                 )
             }
         }
@@ -228,6 +229,7 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
             )
         },
     ) { p ->
+        ScrollToTopOnReselect(grid)
         Column(Modifier.padding(p).fillMaxSize()) {
             TextField(
                 value = query,

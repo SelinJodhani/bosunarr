@@ -27,9 +27,9 @@ import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.MessageBox
 import app.bosunarr.ui.common.back
 
-/** Registers Library, SeriesRoute, MovieRoute and LibraryAddRoute. */
-fun NavGraphBuilder.libraryGraph(nav: NavController) {
-    composable<LibraryRoute> { LibraryScreen(nav) }
+/** Registers Library, SeriesRoute, MovieRoute and LibraryAddRoute. [tabFrame] wraps the tab root (adds the nav bar). */
+fun NavGraphBuilder.libraryGraph(nav: NavController, tabFrame: @Composable (@Composable () -> Unit) -> Unit) {
+    composable<LibraryRoute> { tabFrame { LibraryScreen(nav) } }
     composable<SeriesRoute> { entry ->
         val r = entry.toRoute<SeriesRoute>()
         WithArrService(nav, r.serviceId, setOf(ServiceType.Sonarr), "Series") { s -> SeriesScreen(nav, entry, s, r.id) }

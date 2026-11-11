@@ -77,6 +77,7 @@ import app.bosunarr.ui.common.ErrorBanner
 import app.bosunarr.ui.common.ErrorBox
 import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.MessageBox
+import app.bosunarr.ui.common.OnTabReselected
 import app.bosunarr.ui.common.Poster
 import app.bosunarr.ui.common.Tag
 import app.bosunarr.ui.common.rememberLoader
@@ -102,7 +103,7 @@ fun CalendarScreen(nav: NavController) {
                 MessageBox(
                     Icons.Rounded.Dns, "No Sonarr or Radarr yet",
                     hint = "Add a Sonarr or Radarr service to see upcoming episodes and movie releases.",
-                    action = "Open settings", onAction = { nav.navigate(SettingsRoute) },
+                    action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
                 )
             }
         }
@@ -201,6 +202,8 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
             CalendarMenu(showPast, onShowPast = { showPast = it })
         },
     ) { p ->
+        // Re-tapping the Calendar tab jumps back to today.
+        OnTabReselected { if (data != null && data.entries.isNotEmpty()) list.animateScrollToItem(todayIndex) }
         Column(Modifier.padding(p).fillMaxSize()) {
             data?.errors?.takeIf { it.isNotEmpty() }?.let { errs -> ErrorBanner(errs.joinToString("\n") { it.message }) }
             if (data != null && state.error != null) ErrorBanner(state.error)

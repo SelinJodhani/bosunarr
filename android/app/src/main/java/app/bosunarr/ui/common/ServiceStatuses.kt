@@ -4,7 +4,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.net.fanOut
-import app.bosunarr.net.userMessage
 
 /** Result of a lightweight connection check ([app.bosunarr.net.ServiceClient.test]). */
 data class ServiceStatus(val ok: Boolean, val version: String?, val ms: Int?, val error: String?)
@@ -30,7 +29,7 @@ object ServiceStatuses {
         return fanOut(services) { app.client.test(it) }.associate { (s, r) ->
             val st = r.fold(
                 { ServiceStatus(true, it.version, it.ms, null) },
-                { ServiceStatus(false, null, null, it.userMessage()) },
+                { ServiceStatus(false, null, null, it.friendlyMessage()) },
             )
             entries[key(s)] = Entry(st, now)
             s.id to st

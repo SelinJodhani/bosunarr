@@ -65,12 +65,14 @@ import androidx.navigation.NavController
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.nav.MediaRoute
 import app.bosunarr.nav.RequestsRoute
-import app.bosunarr.net.userMessage
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ErrorBanner
 import app.bosunarr.ui.common.ErrorBox
 import app.bosunarr.ui.common.ListPadding
 import app.bosunarr.ui.common.MessageBox
+import app.bosunarr.ui.common.ScrollToTopOnReselect
+import app.bosunarr.ui.common.friendlyMessage
+import androidx.compose.foundation.lazy.rememberLazyListState
 import app.bosunarr.ui.common.rememberLoader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -166,8 +168,10 @@ private fun DiscoverContent(nav: NavController, list: List<ServiceConfig>, s: Se
 private fun Home(nav: NavController, s: ServiceConfig, home: app.bosunarr.ui.common.Loader<List<Seerr.HomeRow>>, onRefresh: () -> Unit) {
     val st = home.state
     // The spinner is for the user's pull only (not for the quiet reload after a request elsewhere).
+    val list = rememberLazyListState()
+    ScrollToTopOnReselect(list)
     PullToRefreshBox(isRefreshing = st.userRefreshing && st.value != null, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = ListPadding) {
+        LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = ListPadding) {
             val rows = st.value
             when {
                 rows != null -> {
@@ -187,6 +191,7 @@ private fun SearchResults(nav: NavController, s: ServiceConfig, vm: SearchVm) {
     val st = vm.state
     // A fresh grid per query (saved per query too, so coming back from a detail keeps the position).
     val grid = key(st.query) { rememberLazyGridState() }
+    ScrollToTopOnReselect(grid)
     val nearEnd by remember(grid) {
         derivedStateOf {
             val info = grid.layoutInfo
@@ -217,7 +222,7 @@ private fun SearchResults(nav: NavController, s: ServiceConfig, vm: SearchVm) {
         }
         if (st.error != null) item(key = "error", span = { GridItemSpan(maxLineSpan) }) {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(st.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
+                Text(friendlyMessage(st.error), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
                 TextButton(onClick = { vm.retry(s) }) { Text("Try again") }
             }
         }
@@ -271,7 +276,7 @@ class SearchVm : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state.copy(loading = false, error = e.userMessage())
+                state.copy(loading = false, error = e.friendlyMessage())
             }
         }
     }
