@@ -65,6 +65,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.nav.MediaRoute
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ConfirmDialog
@@ -286,8 +287,8 @@ private fun RequestsContent(nav: NavController, all: List<ServiceConfig>, s: Ser
                         !st.loaded && st.error != null -> item(key = "error") { ErrorBox(st.error, onRetry = { vm.refresh(s) }) }
                         !st.loaded -> items(4, key = { "sk$it" }) { RequestSkeleton() }
                         st.items.isEmpty() && !st.hasMore -> item(key = "empty") {
-                            if (filter == ReqFilter.Pending) MessageBox(Icons.Rounded.DoneAll, "All caught up", hint = "No requests are waiting for approval.")
-                            else MessageBox(Icons.Rounded.Inbox, "No requests here", hint = if (filter == ReqFilter.All) null else "Nothing is ${filter.label.lowercase()} right now.")
+                            if (filter == ReqFilter.Pending) MessageBox(Icons.Rounded.DoneAll, "All caught up", hint = "No requests waiting for approval.", scene = SeaScene.MessageBottle)
+                            else MessageBox(Icons.Rounded.Inbox, "No requests here", hint = if (filter == ReqFilter.All) "Requests for movies and series show up here." else "Nothing is ${filter.label.lowercase()} right now.", scene = SeaScene.MessageBottle)
                         }
                         else -> {
                             if (st.error != null) item(key = "banner") {

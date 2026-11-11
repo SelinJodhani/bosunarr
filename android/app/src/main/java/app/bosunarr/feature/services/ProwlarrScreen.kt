@@ -51,6 +51,7 @@ import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.net.AppJson
 import app.bosunarr.net.ServiceException
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.ConfirmDialog
 import app.bosunarr.ui.common.Loader
 import app.bosunarr.ui.common.MessageBox
@@ -341,7 +342,7 @@ private fun SearchTab(s: ServiceConfig, hub: RefreshHub) {
         }
         when {
             loader == null || st == null -> item("hint") {
-                MessageBox(Icons.Rounded.TravelExplore, "Search your indexers", hint = "Results come straight from Prowlarr. Grabbing sends the release to Prowlarr's download client.")
+                MessageBox(Icons.Rounded.TravelExplore, "Search your indexers", hint = "Results come straight from Prowlarr. Grabbing sends the release to Prowlarr's download client.", scene = SeaScene.Spyglass)
             }
             sorted != null -> {
                 item("head") {

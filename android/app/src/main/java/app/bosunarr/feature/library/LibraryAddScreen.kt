@@ -75,6 +75,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
@@ -188,6 +189,7 @@ fun LibraryAddScreen(nav: NavController, route: LibraryAddRoute) {
                 MessageBox(
                     Icons.Rounded.Search, "No Sonarr or Radarr yet", hint = "Add a Sonarr or Radarr service to add series and movies.",
                     action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
+                    scene = SeaScene.Harbor,
                 )
             }
             return@AppScaffold
@@ -228,12 +230,13 @@ fun LibraryAddScreen(nav: NavController, route: LibraryAddRoute) {
                         if (kind == LibKind.Series) Icons.Rounded.Tv else Icons.Rounded.Movie,
                         if (kind == LibKind.Series) "Find a series" else "Find a movie",
                         hint = "Search by title, or paste an id like ${if (kind == LibKind.Series) "tvdb:81189" else "tmdb:603 or imdb:tt0133093"}.",
+                        scene = SeaScene.Spyglass,
                     )
                 }
                 s.error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { ErrorBox(s.error!!, onRetry = { vm.search(kind, services, query, force = true) }) }
                 result == null -> Unit
                 result.results.isEmpty() && !s.loading -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                    MessageBox(Icons.Rounded.SearchOff, "No results", hint = "Nothing found for “${s.term}”. Check the spelling or try the original title.")
+                    MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", hint = "No results for “${s.term}”. Check the spelling or try the original title.", scene = SeaScene.Spyglass)
                 }
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 32.dp)) {
                     items(result.results, key = { it.key }) { f ->

@@ -51,6 +51,7 @@ import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.nav.MediaRoute
 import app.bosunarr.nav.SettingsRoute
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.MessageBox
 import app.bosunarr.ui.common.Poster
 import app.bosunarr.ui.common.SectionTitle
@@ -92,9 +93,10 @@ fun currentSeerr(list: List<ServiceConfig>): ServiceConfig? {
 @Composable
 fun NoSeerr(nav: NavController, modifier: Modifier = Modifier) {
     MessageBox(
-        Icons.Rounded.Explore, "No request service", modifier,
+        Icons.Rounded.Explore, "No request service yet", modifier,
         hint = "Add Jellyseerr or Overseerr in Settings to discover and request movies and series.",
         action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
+        scene = SeaScene.Harbor,
     )
 }
 

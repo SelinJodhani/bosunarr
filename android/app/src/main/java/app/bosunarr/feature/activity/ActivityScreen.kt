@@ -53,6 +53,7 @@ import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.queue.QueueEntry
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.Loader
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.lazy.LazyListScope
@@ -152,6 +153,7 @@ fun ActivityScreen(nav: NavController) {
                     hint = "Add Sonarr, Radarr or qBittorrent in Settings to see downloads here.",
                     action = "Open Settings",
                     onAction = { nav.navigate(SettingsRoute) },
+                    scene = SeaScene.Harbor,
                 )
                 else -> Column(Modifier.fillMaxSize()) {
                     SecondaryTabRow(selectedTabIndex = pager.currentPage) {
@@ -242,6 +244,7 @@ private fun QueuePage(
             hint = "Add Sonarr or Radarr in Settings to see their download queues here.",
             action = "Open Settings",
             onAction = { nav.navigate(SettingsRoute) },
+            scene = SeaScene.Harbor,
         )
         return
     }
@@ -257,17 +260,20 @@ private fun QueuePage(
             if (unreachable) item("unreachable") {
                 MessageBox(
                     Icons.Rounded.CloudOff,
-                    "Couldn't reach ${data.errors.joinToString(", ") { it.service }}",
-                    hint = data.errors.firstOrNull()?.message,
+                    "Foggy waters",
+                    hint = "Can't reach ${data.errors.joinToString(", ") { it.service }}. " +
+                        (data.errors.firstOrNull()?.message?.takeUnless { "unreachable" in it || "timed out" in it } ?: "Check your network or VPN."),
                     action = "Try again",
                     onAction = { loader.refresh() },
+                    scene = SeaScene.Fog,
                 )
             } else if (list.isEmpty()) item("empty") {
                 MessageBox(
                     Icons.Rounded.DownloadDone,
-                    "Nothing downloading",
-                    hint = "New grabs from ${arrNames(arrs)} will show up here.",
+                    "Calm seas",
+                    hint = "Nothing downloading. New grabs from ${arrNames(arrs)} sail in here.",
                     modifier = Modifier.animateItem(),
+                    scene = SeaScene.CalmSeas,
                 )
             }
             queueRows(
@@ -304,6 +310,7 @@ private fun TorrentsPage(
             hint = "Add a qBittorrent service in Settings to manage torrents here.",
             action = "Open Settings",
             onAction = { nav.navigate(SettingsRoute) },
+            scene = SeaScene.Harbor,
         )
         return
     }
@@ -370,19 +377,22 @@ fun TorrentListBody(
                 unreachable -> item("unreachable") {
                     MessageBox(
                         Icons.Rounded.CloudOff,
-                        "Couldn't reach ${data.errors.joinToString(", ") { it.service }}",
-                        hint = data.errors.first().message,
+                        "Foggy waters",
+                        hint = "Can't reach ${data.errors.joinToString(", ") { it.service }}. " +
+                            (data.errors.first().message.takeUnless { "unreachable" in it || "timed out" in it } ?: "Check your network or VPN."),
                         action = "Try again",
                         onAction = onRetry,
+                        scene = SeaScene.Fog,
                     )
                 }
                 // The screen's FAB is the one way to add: no second button in the empty state.
                 all.isEmpty() -> item("empty") {
                     MessageBox(
                         Icons.Rounded.Download,
-                        "No torrents",
-                        hint = if (onAdd != null) "Tap Add torrent to paste a magnet link or pick a .torrent file." else "This client has no torrents.",
+                        "Empty dock",
+                        hint = if (onAdd != null) "No torrents yet. Tap Add torrent to paste a magnet link or pick a .torrent file." else "This client has no torrents.",
                         modifier = Modifier.animateItem(),
+                        scene = SeaScene.EmptyDock,
                     )
                 }
                 visible.isEmpty() -> item("nomatch") {
@@ -395,6 +405,8 @@ fun TorrentListBody(
                         },
                         action = "Show all",
                         onAction = { state.query = ""; state.filter = TorrentFilter.All; onResetFilter?.invoke() },
+                        scene = SeaScene.Spyglass,
+                        artSize = 120.dp,
                     )
                 }
             }

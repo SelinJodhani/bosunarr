@@ -89,6 +89,8 @@ import app.bosunarr.data.ServiceType
 import app.bosunarr.data.normalizeUrl
 import app.bosunarr.demo.TryDemoButton
 import app.bosunarr.net.userMessage
+import app.bosunarr.ui.art.SeaArt
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.AppMark
 import app.bosunarr.ui.settings.ServiceBadge
 import kotlinx.coroutines.CancellationException
@@ -291,12 +293,11 @@ private fun DoneStep(connected: List<Connected>, onFinish: () -> Unit) {
         Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(72.dp))
-        Box(Modifier.size(96.dp).clip(RoundedCornerShape(32.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.CheckCircle, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(52.dp))
-        }
-        Spacer(Modifier.height(24.dp))
-        Text(if (connected.isEmpty()) "You're ready" else "You're all set", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(40.dp))
+        // A ship heading out: the art follows the wallpaper colours like the rest of the app.
+        SeaArt(SeaScene.SetSail, size = 200.dp)
+        Spacer(Modifier.height(20.dp))
+        Text(if (connected.isEmpty()) "You're ready to set sail" else "You're all set", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Text(
             if (connected.isEmpty()) "Add services any time from Settings." else "Connected ${connected.size} ${if (connected.size == 1) "service" else "services"}. You can add or change them in Settings.",

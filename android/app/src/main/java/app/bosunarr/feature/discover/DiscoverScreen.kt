@@ -65,6 +65,7 @@ import androidx.navigation.NavController
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.nav.MediaRoute
 import app.bosunarr.nav.RequestsRoute
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ErrorBanner
 import app.bosunarr.ui.common.ErrorBox
@@ -176,7 +177,7 @@ private fun Home(nav: NavController, s: ServiceConfig, home: app.bosunarr.ui.com
             when {
                 rows != null -> {
                     if (st.error != null) item(key = "error") { ErrorBanner(st.error) }
-                    if (rows.isEmpty()) item(key = "empty") { MessageBox(Icons.Rounded.SearchOff, "Nothing to discover", hint = "${s.name} returned no titles.") }
+                    if (rows.isEmpty()) item(key = "empty") { MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", hint = "${s.name} didn't return any titles.", scene = SeaScene.Spyglass) }
                     items(rows, key = { it.id }) { row -> MediaCarousel(row.title, s, row.items, nav, Modifier.animateItem()) }
                 }
                 st.error != null -> item(key = "error") { ErrorBox(st.error, onRetry = { home.refresh() }) }
@@ -203,7 +204,7 @@ private fun SearchResults(nav: NavController, s: ServiceConfig, vm: SearchVm) {
     }
     val waiting = st.query != vm.text.trim().take(100) && st.items.isEmpty()
     if (!st.loading && !waiting && st.error == null && st.page >= 1 && st.items.isEmpty()) {
-        MessageBox(Icons.Rounded.SearchOff, "No results", hint = "Nothing matches “${st.query}”.")
+        MessageBox(Icons.Rounded.SearchOff, "Nothing in sight", hint = "No results for “${st.query}”.", scene = SeaScene.Spyglass)
         return
     }
     LazyVerticalGrid(

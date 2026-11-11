@@ -22,6 +22,7 @@ import app.bosunarr.nav.LibraryAddRoute
 import app.bosunarr.nav.LibraryRoute
 import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.MessageBox
@@ -53,7 +54,7 @@ private fun WithArrService(nav: NavController, id: String, types: Set<ServiceTyp
         loaded == null -> AppScaffold(title, onBack = { nav.back() }) { p -> LoadingBox(Modifier.padding(p)) }
         else -> AppScaffold(title, onBack = { nav.back() }) { p ->
             Column(Modifier.padding(p).fillMaxSize().verticalScroll(rememberScrollState())) {
-                MessageBox(Icons.Rounded.Dns, "${type.label} not found", hint = "This ${type.label} service was removed from Bosunarr.", action = "Go back", onAction = { nav.back() })
+                MessageBox(Icons.Rounded.Dns, "${type.label} not found", hint = "This ${type.label} service was removed from Bosunarr.", action = "Go back", onAction = { nav.back() }, scene = SeaScene.Compass)
             }
         }
     }

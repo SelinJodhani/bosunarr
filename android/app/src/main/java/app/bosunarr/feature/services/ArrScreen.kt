@@ -1,5 +1,6 @@
 package app.bosunarr.feature.services
 
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.MessageBox
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -505,7 +506,7 @@ private fun ArrHistoryTab(s: ServiceConfig, hub: RefreshHub, nav: NavController)
         when {
             rows != null -> {
                 if (st.error != null) item("err") { InlineError(st.error, compact = true) }
-                if (rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.History, "Nothing here yet", hint = if (filter == HistoryFilter.All) "Grabs, imports and failures show up here." else "No ${filter.label.lowercase()} events recently.") }
+                if (rows.isEmpty()) item("empty") { MessageBox(Icons.Rounded.History, "Nothing logged yet", hint = if (filter == HistoryFilter.All) "Grabs, imports and failures show up here." else "No ${filter.label.lowercase()} events recently.", scene = SeaScene.Logbook) }
                 items(rows, key = { it.key }) { r -> HistoryItemRow(s, r, nav) }
             }
             st.error != null -> item("err") { InlineError(st.error, onRetry = { loader.refresh() }) }

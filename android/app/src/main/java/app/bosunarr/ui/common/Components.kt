@@ -1,6 +1,15 @@
 package app.bosunarr.ui.common
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
+import app.bosunarr.ui.art.SeaArt
+import app.bosunarr.ui.art.SeaScene
+import app.bosunarr.ui.art.rememberReducedMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -130,6 +139,11 @@ fun LoadingBox(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().padding(vertical = 64.dp), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator() }
 }
 
+/**
+ * Empty or info state: a small icon tile (or, when [scene] is set, a nautical [SeaArt] illustration instead), a
+ * headline, a plain-language [hint] and an optional action. Fades and scales in when it appears (unless the system
+ * has animations turned off). [artSize] defaults to 160dp, or 120dp on short screens; pass 120.dp inside cards/tabs.
+ */
 @Composable
 fun MessageBox(
     icon: ImageVector,
@@ -138,17 +152,58 @@ fun MessageBox(
     hint: String? = null,
     action: String? = null,
     onAction: (() -> Unit)? = null,
+    scene: SeaScene? = null,
+    artSize: Dp = Dp.Unspecified,
+) = MessageBoxImpl(icon, scene, title, modifier, hint, action, onAction, artSize)
+
+/** [MessageBox] with an illustration and no icon. */
+@Composable
+fun MessageBox(
+    scene: SeaScene,
+    title: String,
+    modifier: Modifier = Modifier,
+    hint: String? = null,
+    action: String? = null,
+    onAction: (() -> Unit)? = null,
+    artSize: Dp = Dp.Unspecified,
+) = MessageBoxImpl(null, scene, title, modifier, hint, action, onAction, artSize)
+
+@Composable
+private fun MessageBoxImpl(
+    icon: ImageVector?,
+    scene: SeaScene?,
+    title: String,
+    modifier: Modifier,
+    hint: String?,
+    action: String?,
+    onAction: (() -> Unit)?,
+    artSize: Dp,
 ) {
+    val still = rememberReducedMotion()
+    val shown = remember { Animatable(if (still) 1f else 0f) }
+    LaunchedEffect(Unit) { if (!still) shown.animateTo(1f, tween(420, easing = FastOutSlowInEasing)) }
     Column(
-        modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
+        modifier
+            .graphicsLayer {
+                alpha = shown.value
+                val s = 0.94f + 0.06f * shown.value
+                scaleX = s; scaleY = s
+            }
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = if (scene != null) 32.dp else 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(Modifier.size(72.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(36.dp))
+        if (scene != null) {
+            val short = LocalConfiguration.current.screenHeightDp < 640
+            SeaArt(scene, size = if (artSize != Dp.Unspecified) artSize else if (short) 120.dp else 160.dp)
+        } else if (icon != null) {
+            Box(Modifier.size(72.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(36.dp))
+            }
         }
         Spacer(Modifier.height(8.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Text(title, style = if (scene != null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         if (hint != null) Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         if (action != null && onAction != null) {
             Spacer(Modifier.height(8.dp))
@@ -157,14 +212,34 @@ fun MessageBox(
     }
 }
 
-/** Full-screen load failure: a friendly explanation, "Try again", and the technical text behind "Details". */
+/**
+ * Full-screen load failure: an illustration, a friendly explanation, "Try again", and the technical text behind
+ * "Details". [scene] defaults to [SeaScene.Fog] when the service couldn't be reached (offline, timeout, DNS, refused)
+ * and [SeaScene.Storm] for everything else.
+ */
 @Composable
-fun ErrorBox(message: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null) {
+fun ErrorBox(message: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null, scene: SeaScene? = null) {
     val e = remember(message) { friendlyError(message) }
+    val art = scene ?: remember(message) { if (isUnreachable(message)) SeaScene.Fog else SeaScene.Storm }
+    val title = when (art) {
+        SeaScene.Fog -> "Foggy waters"
+        SeaScene.Storm -> "Rough seas"
+        else -> "Couldn't load"
+    }
+    // "Sonarr timed out" alone doesn't say what to do: point at the usual culprit.
+    val hint = if (art == SeaScene.Fog && listOf("network", "vpn", "address", "running").none { e.message.contains(it, ignoreCase = true) })
+        "${e.message.trimEnd('.')}. Check your network or VPN." else e.message
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        MessageBox(Icons.Rounded.CloudOff, "Couldn't load", hint = e.message, action = if (onRetry != null) "Try again" else null, onAction = onRetry)
+        MessageBox(Icons.Rounded.CloudOff, title, hint = hint, action = if (onRetry != null) "Try again" else null, onAction = onRetry, scene = art)
         if (e.details != null) ErrorDetails(e.details, Modifier.padding(horizontal = 32.dp).padding(bottom = 24.dp))
     }
+}
+
+/** True for "couldn't get there at all" failures (as opposed to the service answering with an error). */
+private fun isUnreachable(raw: String): Boolean {
+    val l = raw.lowercase()
+    if ("certificate" in l || "ssl" in l || "handshake" in l || "trust anchor" in l) return false
+    return l.startsWith("network error") || listOf("unreachable", "timed out", "timeout", "unable to resolve", "no address associated", "couldn't reach", "can't reach", "refused", "failed to connect").any { it in l }
 }
 
 /** "Details" toggle revealing the technical error text (selectable, so it can be copied into a bug report). */

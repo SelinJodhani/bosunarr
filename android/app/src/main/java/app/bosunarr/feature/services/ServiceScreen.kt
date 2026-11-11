@@ -45,6 +45,7 @@ import app.bosunarr.feature.usenet.NzbgetServiceScreen
 import app.bosunarr.feature.usenet.SabnzbdServiceScreen
 import app.bosunarr.nav.DiscoverRoute
 import app.bosunarr.nav.RequestsRoute
+import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.LocalTopBarState
 import app.bosunarr.ui.common.MessageBox
@@ -60,7 +61,7 @@ fun ServiceScreen(id: String, nav: NavController) {
     if (s == null) {
         AppScaffold("Service", onBack = { nav.back() }) { p ->
             // Still reading the store: blank rather than a false "not found".
-            if (state != null) MessageBox(Icons.Rounded.Dns, "Service not found", Modifier.padding(p), hint = "It may have been removed in Settings.")
+            if (state != null) MessageBox(Icons.Rounded.Dns, "Service not found", Modifier.padding(p), hint = "It may have been removed in Settings.", scene = SeaScene.Compass)
         }
         return
     }
