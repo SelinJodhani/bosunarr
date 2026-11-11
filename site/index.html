@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bosunarr — your *arr stack, in your pocket</title>
+  <meta name="description" content="Bosunarr is a free, open-source Material You app for Android that manages Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, qBittorrent, Jellyfin, Jellystat and Wizarr straight from your phone. No server, no account, no tracking.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#FEF7FF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141218" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://selinjodhani.github.io/bosunarr/">
+
+  <!-- Open Graph / social cards (og:image must be an absolute URL) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Bosunarr">
+  <meta property="og:title" content="Bosunarr — your *arr stack, in your pocket">
+  <meta property="og:description" content="A free, open-source Material You app for Android to run Sonarr, Radarr, qBittorrent, Jellyfin and more. No server, no account — your keys stay on your phone.">
+  <meta property="og:url" content="https://selinjodhani.github.io/bosunarr/">
+  <meta property="og:image" content="https://selinjodhani.github.io/bosunarr/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Bosunarr sailboat logo next to the text: your *arr stack, in your pocket.">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,400..700&display=swap">
+  <!-- Icon font is subset with icon_names (must stay alphabetically sorted). Add a name here when you use a new icon. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&icon_names=add,add_link,android,calendar_month,check_circle,code,dark_mode,dashboard,download,downloading,encrypted,expand_more,explore,forward_to_inbox,monitoring,movie,no_accounts,palette,person_add,play_circle,search,smartphone,star,storage,subtitles,travel_explore,tune,tv,video_library&display=block">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="top-bar">
+    <div class="top-bar__inner">
+      <a class="brand" href="./" aria-label="Bosunarr home">
+        <img src="assets/logo.svg" alt="" width="36" height="36">
+        <span>Bosunarr</span>
+      </a>
+      <nav class="top-nav" aria-label="Sections">
+        <a href="#features">Features</a>
+        <a href="#services">Services</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="icon-button" href="https://github.com/SelinJodhani/bosunarr" aria-label="Bosunarr on GitHub">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============ HERO ============ -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero__grid">
+        <div class="hero__copy">
+          <p class="chip"><span class="ms" aria-hidden="true">android</span> Free &amp; open source · Android 10+</p>
+          <h1 id="hero-title">Your <span class="nowrap">*arr</span> stack, in&nbsp;your&nbsp;pocket.</h1>
+          <p class="lead">Bosunarr is a Material You app for Android that runs your whole media crew — Sonarr, Radarr, qBittorrent, Jellyfin and friends — straight from your phone. No server to host, no account to make, nothing tracking you.</p>
+          <div class="actions">
+            <a class="btn btn--filled" href="https://github.com/SelinJodhani/bosunarr/releases/latest">
+              <span class="ms" aria-hidden="true">download</span> Download APK
+            </a>
+            <a class="btn btn--tonal" href="https://github.com/SelinJodhani/bosunarr">
+              <span class="ms" aria-hidden="true">code</span> View on GitHub
+            </a>
+          </div>
+          <p class="fine">APK on GitHub Releases · Requires Android 10 or newer</p>
+        </div>
+
+        <div class="hero__visual">
+          <!-- Hero mockup: Dashboard. To use a real screenshot, replace the .phone__screen contents
+               with <img src="screenshots/dashboard.png" alt=""> (see the note in the Screenshots section). -->
+          <div class="phone phone--hero" role="img" aria-label="Illustration of the Bosunarr dashboard: service health, active downloads, upcoming episodes and disk space.">
+            <div class="phone__screen">
+              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
+              <div class="ui-appbar"><span class="ui-title">Dashboard</span><span class="ms">tune</span></div>
+              <div class="ui-body">
+                <div class="ui-card">
+                  <div class="ui-card__head"><span class="ms ms--sm">check_circle</span> Service health</div>
+                  <div class="ui-health">
+                    <i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="warn"></i><i class="ok"></i>
+                  </div>
+                  <div class="ui-sub">8 of 9 services healthy</div>
+                </div>
+                <div class="ui-card">
+                  <div class="ui-card__head"><span class="ms ms--sm">downloading</span> Downloads <span class="ui-pill">12.4 MB/s</span></div>
+                  <div class="ui-dl"><span>Harbor Lights S02E05</span><div class="ui-bar"><b style="--p:72%"></b></div></div>
+                  <div class="ui-dl"><span>The Long Voyage</span><div class="ui-bar"><b style="--p:38%"></b></div></div>
+                </div>
+                <div class="ui-card">
+                  <div class="ui-card__head"><span class="ms ms--sm">calendar_month</span> Up next</div>
+                  <div class="ui-row"><span class="ui-poster p2"></span><span class="ui-lines"><b>Tidewater</b><small>S04E01 · Tonight</small></span></div>
+                  <div class="ui-row"><span class="ui-poster p5"></span><span class="ui-lines"><b>North Light</b><small>Release · Friday</small></span></div>
+                </div>
+                <div class="ui-card">
+                  <div class="ui-card__head"><span class="ms ms--sm">storage</span> Disk space</div>
+                  <div class="ui-bar ui-bar--thick"><b style="--p:61%"></b></div>
+                  <div class="ui-sub">6.1 TB of 10 TB used</div>
+                </div>
+              </div>
+              <div class="ui-nav">
+                <span class="is-active"><span class="ms">dashboard</span></span>
+                <span><span class="ms">video_library</span></span>
+                <span><span class="ms">explore</span></span>
+                <span><span class="ms">calendar_month</span></span>
+                <span><span class="ms">downloading</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SERVICES ============ -->
+    <section id="services" class="section" aria-labelledby="services-title">
+      <div class="container">
+        <p class="eyebrow">Supported services</p>
+        <h2 id="services-title">One app for the whole crew</h2>
+        <p class="section-lead">Connect as many of these as you run. Each gets its own screen, and the useful bits surface on your dashboard.</p>
+        <ul class="service-grid" role="list">
+          <li class="service"><span class="service__icon ms" aria-hidden="true">tv</span><span><strong>Sonarr</strong><small>Series, episodes, queue</small></span></li>
+          <li class="service"><span class="service__icon ms" aria-hidden="true">movie</span><span><strong>Radarr</strong><small>Movies, releases, queue</small></span></li>
+          <li class="service"><span class="service__icon ms" aria-hidden="true">travel_explore</span><span><strong>Prowlarr</strong><small>Indexers and health</small></span></li>
+          <li class="service"><span class="service__icon ms" aria-hidden="true">subtitles</span><span><strong>Bazarr</strong><small>Missing and wanted subtitles</small></span></li>
+          <li class="service"><span class="service__icon ms" aria-hidden="true">person_add</span><span><strong>Jellyseerr / Overseerr</strong><small>Discover and requests</small></span></li>
+          <li class="service"><span class="service__icon ms" aria-hidden="true">download</span><span><strong>qBittorrent</strong><small>Torrents and magnet links</small></span></li>
+          <li class="service"><span class="service__icon ms" aria-hidden="true">play_circle</span><span><strong>Jellyfin</strong><small>Who's watching what</small></span></li>
+          <li class="service"><span class="service__icon ms" aria-hidden="true">monitoring</span><span><strong>Jellystat</strong><small>Playback statistics</small></span></li>
+          <li class="service"><span class="service__icon ms" aria-hidden="true">forward_to_inbox</span><span><strong>Wizarr</strong><small>Invites for friends</small></span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES ============ -->
+    <section id="features" class="section section--tinted" aria-labelledby="features-title">
+      <div class="container">
+        <p class="eyebrow">Features</p>
+        <h2 id="features-title">Everything you check on, without the browser tabs</h2>
+        <div class="feature-grid">
+          <article class="feature">
+            <span class="feature__icon ms" aria-hidden="true">dashboard</span>
+            <h3>Dashboard at a glance</h3>
+            <p>Health, downloads, what's airing next and how full your disks are — on one screen the moment you open the app.</p>
+          </article>
+          <article class="feature">
+            <span class="feature__icon ms" aria-hidden="true">video_library</span>
+            <h3>Your library</h3>
+            <p>Browse series and movies, open the details, see what's missing, and search for something new to add.</p>
+          </article>
+          <article class="feature">
+            <span class="feature__icon ms" aria-hidden="true">explore</span>
+            <h3>Discover &amp; request</h3>
+            <p>Trending and upcoming picks from Jellyseerr or Overseerr, with request status right on each title.</p>
+          </article>
+          <article class="feature">
+            <span class="feature__icon ms" aria-hidden="true">calendar_month</span>
+            <h3>Release calendar</h3>
+            <p>Upcoming episodes and movie releases from all your Sonarr and Radarr instances, in one timeline.</p>
+          </article>
+          <article class="feature">
+            <span class="feature__icon ms" aria-hidden="true">downloading</span>
+            <h3>Activity</h3>
+            <p>Sonarr and Radarr queues side by side with live qBittorrent torrents: everything in flight, in one list.</p>
+          </article>
+          <article class="feature">
+            <span class="feature__icon ms" aria-hidden="true">add_link</span>
+            <h3>Magnets &amp; share-to-app</h3>
+            <p>Paste a magnet link, or share one from any app straight into Bosunarr to send it to qBittorrent.</p>
+          </article>
+          <article class="feature">
+            <span class="feature__icon ms" aria-hidden="true">tune</span>
+            <h3>Per-service screens</h3>
+            <p>Prowlarr indexers, Bazarr subtitles, Jellyfin sessions, Jellystat stats and Wizarr invites each get a proper home.</p>
+          </article>
+          <article class="feature">
+            <span class="feature__icon ms" aria-hidden="true">palette</span>
+            <h3>Material You</h3>
+            <p>Dynamic colour picks up your wallpaper, with light and dark themes that follow your system.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PRIVACY ============ -->
+    <section id="privacy" class="section" aria-labelledby="privacy-title">
+      <div class="container privacy">
+        <div class="privacy__copy">
+          <p class="eyebrow">Privacy</p>
+          <h2 id="privacy-title">Your keys never leave your phone</h2>
+          <p class="section-lead">Bosunarr has no backend. The app talks to your services directly, the same way their own web UIs do, so there's nobody in the middle to trust.</p>
+        </div>
+        <ul class="privacy__list" role="list">
+          <li><span class="ms" aria-hidden="true">smartphone</span><div><strong>Direct connections</strong><p>Requests go from your phone to your server — over your LAN, a VPN or your own reverse proxy.</p></div></li>
+          <li><span class="ms" aria-hidden="true">encrypted</span><div><strong>Encrypted on device</strong><p>API keys and passwords are sealed with AES-256-GCM using a key held in the Android Keystore.</p></div></li>
+          <li><span class="ms" aria-hidden="true">no_accounts</span><div><strong>No account, no tracking</strong><p>No sign-up, no analytics, no ads. The app doesn't phone home.</p></div></li>
+          <li><span class="ms" aria-hidden="true">code</span><div><strong>Open source</strong><p>Every line is on GitHub under the AGPL-3.0 licence. Read it, build it, improve it.</p></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ SCREENSHOTS ============ -->
+    <section id="screenshots" class="section section--tinted" aria-labelledby="screenshots-title">
+      <div class="container">
+        <p class="eyebrow">Screenshots</p>
+        <h2 id="screenshots-title">A tour of the deck</h2>
+        <p class="section-lead">Illustrations of the main screens. Titles and artwork are placeholders.</p>
+      </div>
+      <!--
+        HOW TO USE REAL SCREENSHOTS
+        1. Put PNG/WebP screenshots (portrait, ~1080×2340) in site/screenshots/,
+           e.g. dashboard.png, library.png, discover.png, calendar.png, activity.png.
+        2. In each <figure class="shot"> below, replace the whole <div class="phone__screen">…</div>
+           with:  <img class="phone__img" src="screenshots/library.png" alt="" loading="lazy">
+           (keep alt="" — the .phone wrapper already has role="img" and an aria-label; update that label).
+        3. Use relative paths only (the site is served from /bosunarr/). No posters or user data you
+           don't have rights to share.
+      -->
+      <div class="shots" tabindex="0" aria-label="Screenshots, scroll horizontally">
+        <figure class="shot">
+          <div class="phone" role="img" aria-label="Library screen: a grid of series posters with a Series and Movies switch.">
+            <div class="phone__screen">
+              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
+              <div class="ui-appbar"><span class="ui-title">Library</span><span class="ms">search</span></div>
+              <div class="ui-segment"><span class="is-active">Series</span><span>Movies</span></div>
+              <div class="ui-posters">
+                <span class="ui-poster p1"></span><span class="ui-poster p2"></span><span class="ui-poster p3"></span>
+                <span class="ui-poster p4"></span><span class="ui-poster p5"></span><span class="ui-poster p6"></span>
+                <span class="ui-poster p7"></span><span class="ui-poster p8"></span><span class="ui-poster p9"></span>
+                <span class="ui-poster p3"></span><span class="ui-poster p1"></span><span class="ui-poster p6"></span>
+              </div>
+              <div class="ui-fab"><span class="ms">add</span></div>
+              <div class="ui-nav">
+                <span><span class="ms">dashboard</span></span>
+                <span class="is-active"><span class="ms">video_library</span></span>
+                <span><span class="ms">explore</span></span>
+                <span><span class="ms">calendar_month</span></span>
+                <span><span class="ms">downloading</span></span>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>Library</strong> Series and movies, with details and search &amp; add.</figcaption>
+        </figure>
+
+        <figure class="shot">
+          <div class="phone" role="img" aria-label="Discover screen: trending titles with request buttons and request status chips.">
+            <div class="phone__screen">
+              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
+              <div class="ui-appbar"><span class="ui-title">Discover</span><span class="ms">search</span></div>
+              <div class="ui-body">
+                <div class="ui-label">Trending</div>
+                <div class="ui-strip"><span class="ui-poster p7"></span><span class="ui-poster p4"></span><span class="ui-poster p9"></span></div>
+                <div class="ui-label">Requests</div>
+                <div class="ui-row"><span class="ui-poster p8"></span><span class="ui-lines"><b>Saltmarsh</b><small>Requested by you</small></span><span class="ui-chip ui-chip--ok">Available</span></div>
+                <div class="ui-row"><span class="ui-poster p1"></span><span class="ui-lines"><b>The Quiet Reef</b><small>Season 1</small></span><span class="ui-chip">Pending</span></div>
+                <div class="ui-row"><span class="ui-poster p6"></span><span class="ui-lines"><b>Lanterns</b><small>Movie · 4K</small></span><span class="ui-chip">Processing</span></div>
+              </div>
+              <div class="ui-nav">
+                <span><span class="ms">dashboard</span></span>
+                <span><span class="ms">video_library</span></span>
+                <span class="is-active"><span class="ms">explore</span></span>
+                <span><span class="ms">calendar_month</span></span>
+                <span><span class="ms">downloading</span></span>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>Discover</strong> Find something new and request it in a tap.</figcaption>
+        </figure>
+
+        <figure class="shot">
+          <div class="phone" role="img" aria-label="Calendar screen: a week strip with days that have releases marked, and a list of upcoming episodes.">
+            <div class="phone__screen">
+              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
+              <div class="ui-appbar"><span class="ui-title">Calendar</span><span class="ms">calendar_month</span></div>
+              <div class="ui-week">
+                <span><small>M</small>10</span><span class="has"><small>T</small>11</span><span class="is-active has"><small>W</small>12</span><span><small>T</small>13</span><span class="has"><small>F</small>14</span><span><small>S</small>15</span><span class="has"><small>S</small>16</span>
+              </div>
+              <div class="ui-body">
+                <div class="ui-label">Today</div>
+                <div class="ui-row"><span class="ui-poster p2"></span><span class="ui-lines"><b>Tidewater</b><small>S04E01 · 21:00</small></span></div>
+                <div class="ui-row"><span class="ui-poster p9"></span><span class="ui-lines"><b>Signal Fires</b><small>S01E07 · 22:30</small></span></div>
+                <div class="ui-label">Friday</div>
+                <div class="ui-row"><span class="ui-poster p5"></span><span class="ui-lines"><b>North Light</b><small>Digital release</small></span></div>
+              </div>
+              <div class="ui-nav">
+                <span><span class="ms">dashboard</span></span>
+                <span><span class="ms">video_library</span></span>
+                <span><span class="ms">explore</span></span>
+                <span class="is-active"><span class="ms">calendar_month</span></span>
+                <span><span class="ms">downloading</span></span>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>Calendar</strong> Every upcoming episode and release, in order.</figcaption>
+        </figure>
+
+        <figure class="shot">
+          <div class="phone" role="img" aria-label="Activity screen: download queue with progress bars, speeds, and a button to add a magnet link.">
+            <div class="phone__screen">
+              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
+              <div class="ui-appbar"><span class="ui-title">Activity</span><span class="ms">tune</span></div>
+              <div class="ui-segment"><span class="is-active">Torrents</span><span>Queue</span></div>
+              <div class="ui-body">
+                <div class="ui-dl ui-dl--card"><span>Harbor Lights S02E05</span><div class="ui-bar"><b style="--p:72%"></b></div><small>8.2 MB/s · 3 min left</small></div>
+                <div class="ui-dl ui-dl--card"><span>The Long Voyage</span><div class="ui-bar"><b style="--p:38%"></b></div><small>4.1 MB/s · 11 min left</small></div>
+                <div class="ui-dl ui-dl--card"><span>Saltmarsh S01</span><div class="ui-bar"><b style="--p:100%"></b></div><small>Seeding paused</small></div>
+              </div>
+              <div class="ui-fab ui-fab--wide"><span class="ms">add_link</span> Magnet</div>
+              <div class="ui-nav">
+                <span><span class="ms">dashboard</span></span>
+                <span><span class="ms">video_library</span></span>
+                <span><span class="ms">explore</span></span>
+                <span><span class="ms">calendar_month</span></span>
+                <span class="is-active"><span class="ms">downloading</span></span>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>Activity</strong> Queues and torrents together; add magnets anytime.</figcaption>
+        </figure>
+
+        <figure class="shot">
+          <div class="phone phone--dark" role="img" aria-label="Jellyfin sessions screen in dark theme: two people currently streaming, with playback progress.">
+            <div class="phone__screen">
+              <div class="ui-status"><span>9:41</span><span class="ui-status__icons"></span></div>
+              <div class="ui-appbar"><span class="ui-title">Jellyfin</span><span class="ms">dark_mode</span></div>
+              <div class="ui-body">
+                <div class="ui-label">Now playing</div>
+                <div class="ui-card">
+                  <div class="ui-row"><span class="ui-poster p4"></span><span class="ui-lines"><b>Tidewater</b><small>Living room TV · Direct play</small></span></div>
+                  <div class="ui-bar"><b style="--p:55%"></b></div>
+                </div>
+                <div class="ui-card">
+                  <div class="ui-row"><span class="ui-poster p7"></span><span class="ui-lines"><b>Lanterns</b><small>Phone · Transcoding</small></span></div>
+                  <div class="ui-bar"><b style="--p:20%"></b></div>
+                </div>
+                <div class="ui-label">This week</div>
+                <div class="ui-stats"><span><b>42</b><small>plays</small></span><span><b>31h</b><small>watched</small></span><span><b>5</b><small>users</small></span></div>
+              </div>
+              <div class="ui-nav">
+                <span class="is-active"><span class="ms">dashboard</span></span>
+                <span><span class="ms">video_library</span></span>
+                <span><span class="ms">explore</span></span>
+                <span><span class="ms">calendar_month</span></span>
+                <span><span class="ms">downloading</span></span>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>Service screens</strong> Jellyfin sessions, stats and more — in light or dark.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section id="faq" class="section" aria-labelledby="faq-title">
+      <div class="container container--narrow">
+        <p class="eyebrow">FAQ</p>
+        <h2 id="faq-title">Questions, answered</h2>
+        <div class="faq">
+          <details>
+            <summary>Which Android versions are supported? <span class="ms" aria-hidden="true">expand_more</span></summary>
+            <p>Android 10 or newer. Dynamic (wallpaper-based) colour needs Android 12+; on older versions Bosunarr uses its own purple theme.</p>
+          </details>
+          <details>
+            <summary>Is it free? <span class="ms" aria-hidden="true">expand_more</span></summary>
+            <p>Yes — completely free, with no ads, subscriptions or paywalled features. It's open source under the AGPL-3.0 licence.</p>
+          </details>
+          <details>
+            <summary>How do I install it? <span class="ms" aria-hidden="true">expand_more</span></summary>
+            <p>Download the latest APK from <a href="https://github.com/SelinJodhani/bosunarr/releases/latest">GitHub Releases</a> on your phone and open it. Android will ask you to allow installs from your browser or file manager the first time.</p>
+          </details>
+          <details>
+            <summary>How does it reach my services? <span class="ms" aria-hidden="true">expand_more</span></summary>
+            <p>Your phone connects to each service directly using the URL and API key (or username and password, for qBittorrent) that you enter. That works on your home Wi-Fi with a LAN address like <code>http://192.168.1.20:8989</code>, or from anywhere through a VPN such as Tailscale or WireGuard using the server's VPN address. If you already expose services through your own reverse proxy with HTTPS, use those URLs instead.</p>
+          </details>
+          <details>
+            <summary>Do I need to run a server for Bosunarr? <span class="ms" aria-hidden="true">expand_more</span></summary>
+            <p>No. There's nothing extra to host — the app is the whole thing. (There is also an older self-hosted web version, published as a Docker image, if you'd rather use a browser; the Android app is the main focus now.)</p>
+          </details>
+          <details>
+            <summary>Where are my API keys stored? <span class="ms" aria-hidden="true">expand_more</span></summary>
+            <p>Only on your phone, encrypted with AES-256-GCM using a key kept in the Android Keystore. They're never sent anywhere except to the service they belong to.</p>
+          </details>
+          <details>
+            <summary>Is there an iOS version? <span class="ms" aria-hidden="true">expand_more</span></summary>
+            <p>No. Bosunarr is a native Android app built with Kotlin and Jetpack Compose. There is no iPhone or iPad version.</p>
+          </details>
+          <details>
+            <summary>Something's broken or missing — where do I report it? <span class="ms" aria-hidden="true">expand_more</span></summary>
+            <p>Open an issue on <a href="https://github.com/SelinJodhani/bosunarr/issues">GitHub</a>. Pull requests are welcome too.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section class="section" aria-labelledby="cta-title">
+      <div class="container">
+        <div class="cta">
+          <img src="assets/logo.svg" alt="" width="72" height="72">
+          <h2 id="cta-title">Ready to take the helm?</h2>
+          <p>Grab the APK, add your first service, and you're sailing in about a minute.</p>
+          <div class="actions actions--center">
+            <a class="btn btn--filled btn--on-container" href="https://github.com/SelinJodhani/bosunarr/releases/latest">
+              <span class="ms" aria-hidden="true">download</span> Download APK
+            </a>
+            <a class="btn btn--outlined" href="https://github.com/SelinJodhani/bosunarr">
+              <span class="ms" aria-hidden="true">star</span> Star on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <img src="assets/logo.svg" alt="" width="32" height="32">
+        <span>Bosunarr</span>
+      </div>
+      <nav aria-label="Footer">
+        <ul role="list" class="footer__links">
+          <li><a href="https://github.com/SelinJodhani/bosunarr">GitHub</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/releases/latest">Releases</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/issues">Issues</a></li>
+          <li><a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">License</a></li>
+        </ul>
+      </nav>
+      <p class="footer__note">Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Jellyfin, Jellystat or Wizarr. Android is a trademark of Google LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

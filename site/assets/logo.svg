@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Bosunarr</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7F67BE"/>
+      <stop offset="1" stop-color="#4F378B"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <rect x="257" y="88" width="12" height="270" rx="6" fill="#F6EDFF"/>
+  <path d="M280 96C340 168 380 256 394 338H280Z" fill="#EADDFF"/>
+  <path d="M246 140V338H138C164 262 202 196 246 140Z" fill="#D0BCFF"/>
+  <path d="M112 362H400C390 404 354 426 314 426H198C158 426 122 404 112 362Z" fill="#F6EDFF"/>
+  <path d="M100 458q26-16 52 0t52 0t52 0t52 0t52 0t52 0" fill="none" stroke="#D0BCFF" stroke-width="14" stroke-linecap="round" opacity=".75"/>
+</svg>

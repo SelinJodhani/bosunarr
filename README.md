@@ -2,6 +2,8 @@
 
 > The bosun runs the deck crew. **Bosunarr runs your \*arr crew.**
 
+**Website:** <https://selinjodhani.github.io/bosunarr/> · **Android app:** [download the APK](https://github.com/SelinJodhani/bosunarr/releases/latest)
+
 A fast, self-hosted web app for managing your media stack — Sonarr, Radarr, Prowlarr, Bazarr,
 Jellyseerr/Overseerr, qBittorrent, Jellyfin, Jellystat and Wizarr — with a Material 3 interface
 that works the same on your phone and your laptop. Install it as an app (PWA) from the browser.
