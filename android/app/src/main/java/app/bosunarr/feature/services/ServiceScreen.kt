@@ -59,7 +59,7 @@ fun ServiceScreen(id: String, nav: NavController) {
         return
     }
     when (s.serviceType) {
-        ServiceType.Sonarr, ServiceType.Radarr -> ArrServiceScreen(s, nav)
+        ServiceType.Sonarr, ServiceType.Radarr, ServiceType.Whisparr -> ArrServiceScreen(s, nav)
         ServiceType.Prowlarr -> ProwlarrServiceScreen(s, nav)
         ServiceType.Bazarr -> BazarrServiceScreen(s, nav)
         ServiceType.Jellyfin -> JellyfinServiceScreen(s, nav)

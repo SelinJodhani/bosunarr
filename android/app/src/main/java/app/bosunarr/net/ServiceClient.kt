@@ -256,6 +256,8 @@ private val version: (JsonElement) -> String? = { it.obj()?.get("version").str()
 private val PROBES = mapOf(
     ServiceType.Sonarr to Probe("/api/v3/system/status", hasVersion, version),
     ServiceType.Radarr to Probe("/api/v3/system/status", hasVersion, version),
+    // Whisparr v3 is Radarr-based (v2 was Sonarr-based); both answer /api/v3/system/status.
+    ServiceType.Whisparr to Probe("/api/v3/system/status", hasVersion, version),
     ServiceType.Prowlarr to Probe("/api/v1/system/status", hasVersion, version),
     ServiceType.Bazarr to Probe("/api/system/status", { it.obj()?.get("data")?.obj() != null }, { it.obj()?.get("data")?.obj()?.get("bazarr_version").str() }),
     // /settings/about needs an admin API key (/status is public).

@@ -23,6 +23,7 @@ enum class ServiceType(
 ) {
     Sonarr("sonarr", "Sonarr", ServiceCategory.Media, Credentials.ApiKey, 8989, "Sonarr → Settings → General → API Key", Color(0xFF35C5F4), "TV shows"),
     Radarr("radarr", "Radarr", ServiceCategory.Media, Credentials.ApiKey, 7878, "Radarr → Settings → General → API Key", Color(0xFFFFC230), "Movies"),
+    Whisparr("whisparr", "Whisparr", ServiceCategory.Media, Credentials.ApiKey, 6969, "Whisparr → Settings → General → API Key", Color(0xFFE85A9B), "Adult"),
     Prowlarr("prowlarr", "Prowlarr", ServiceCategory.Indexers, Credentials.ApiKey, 9696, "Prowlarr → Settings → General → API Key", Color(0xFFE66001), "Indexers"),
     Bazarr("bazarr", "Bazarr", ServiceCategory.Subtitles, Credentials.ApiKey, 6767, "Bazarr → Settings → General → API Key", Color(0xFF14B8A6), "Subtitles"),
     Jellyseerr("jellyseerr", "Jellyseerr", ServiceCategory.Requests, Credentials.ApiKey, 5055, "Jellyseerr → Settings → General → API Key", Color(0xFF7C3AED), "Requests"),
