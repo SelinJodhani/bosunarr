@@ -24,10 +24,8 @@ import androidx.navigation.compose.composable
  */
 @Composable
 fun AnimatedContentScope.PredictiveBackCard(content: @Composable () -> Unit) {
-    val corner by transition.animateDp(transitionSpec = { tween(400, easing = LinearEasing) }, label = "backCorner") {
-        if (it == EnterExitState.PostExit) 34.dp else 0.dp
-    }
-    Box(Modifier.fillMaxSize().clip(RoundedCornerShape(corner))) { content() }
+    // Plain screens: no card/corner effect (the owner prefers the standard back animation).
+    content()
 }
 
 /** `composable<T>` with the predictive back card. Use for every pushed (non-tab) screen. */

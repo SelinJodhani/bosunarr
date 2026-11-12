@@ -119,15 +119,10 @@ private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 private val ForwardEnter = slideInHorizontally(tween(380, easing = Emphasized)) { it }
 private val ForwardExit = slideOutHorizontally(tween(380, easing = Emphasized)) { -it / 4 }
 
-// Back = Android's predictive back. The gesture seeks these transitions: for the first 70% of the swipe the page
-// lifts into a card (scales to 90%, rounded corners from PredictiveBackCard) and shifts a little toward the finger;
-// releasing completes the rest, sliding it off to the right. The previous page sits behind, dimmed, and settles in.
-private val BackShift = Easing { t -> if (t < 0.7f) t / 0.7f * 0.08f else 0.08f + (t - 0.7f) / 0.3f * 0.92f }
-private val BackLift = Easing { t -> (t / 0.7f).coerceAtMost(1f) }
-private val BackExit = slideOutHorizontally(tween(400, easing = BackShift)) { it } +
-    scaleOut(tween(400, easing = BackLift), targetScale = 0.9f)
-private val BackEnter = slideInHorizontally(tween(400, easing = LinearEasing)) { -it / 10 } +
-    fadeIn(tween(400, easing = LinearEasing), initialAlpha = 0.45f)
+// Back: the standard animation when the gesture is released (not tied to the finger — predictive back is off in
+// the manifest): the page slides off to the right and the previous one slides back in from the left.
+private val BackExit = slideOutHorizontally(tween(300, easing = Emphasized)) { it }
+private val BackEnter = slideInHorizontally(tween(300, easing = Emphasized)) { -it / 4 }
 
 @Composable
 fun AppRoot() {
