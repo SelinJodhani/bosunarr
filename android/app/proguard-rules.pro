@@ -34,6 +34,11 @@
             com.jcraft.jsch.bc.MLKEM1024,
             com.jcraft.jsch.bc.SNTRUP761,
             com.jcraft.jsch.bc.SCrypt { <init>(); }
+# JSch loads those algorithm classes with Class.forName from its own package, and several are package-private
+# (e.g. DHEC256). If R8 repackages JSch's classes (minified names like `jy3`), the loader ends up in another
+# package and key exchange fails with IllegalAccessException. Keep every JSch class's name and package;
+# unused classes can still be removed.
+-keepnames class com.jcraft.jsch.**
 -dontwarn com.jcraft.jsch.**
 -dontwarn org.ietf.jgss.**
 -dontwarn org.apache.logging.log4j.**
