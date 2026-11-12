@@ -10,6 +10,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -107,11 +110,13 @@ private fun NavDestination.isTabRoot() = TABS.any { hasRoute(it.cls) }
 private val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 
-private val ForwardEnter = fadeIn(tween(210, delayMillis = 60, easing = LinearOutSlowInEasing)) +
-    scaleIn(tween(270, delayMillis = 60, easing = Emphasized), initialScale = 0.96f)
-private val ForwardExit = fadeOut(tween(90, easing = FastOutLinearInEasing))
-private val BackExit = scaleOut(tween(250, easing = EmphasizedAccelerate), targetScale = 0.9f) +
-    fadeOut(tween(250, easing = EmphasizedAccelerate))
+// Pixel-style horizontal navigation (like the Settings app): forward, the new page slides in from the right while
+// the old one drifts left; back, the page slides off to the right, tracking the finger (predictive back seeks
+// these, hence linear easing), and the previous page slides back in from the left.
+private val ForwardEnter = slideInHorizontally(tween(380, easing = Emphasized)) { it }
+private val ForwardExit = slideOutHorizontally(tween(380, easing = Emphasized)) { -it / 4 }
+private val BackEnter = slideInHorizontally(tween(320, easing = LinearEasing)) { -it / 4 }
+private val BackExit = slideOutHorizontally(tween(320, easing = LinearEasing)) { it }
 
 @Composable
 fun AppRoot() {
@@ -169,8 +174,12 @@ fun AppRoot() {
                 exitTransition = {
                     if (initialState.destination.isTabRoot() && targetState.destination.isTabRoot()) ExitTransition.None else ForwardExit
                 },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { BackExit },
+                popEnterTransition = {
+                    if (initialState.destination.isTabRoot() && targetState.destination.isTabRoot()) EnterTransition.None else BackEnter
+                },
+                popExitTransition = {
+                    if (initialState.destination.isTabRoot() && targetState.destination.isTabRoot()) ExitTransition.None else BackExit
+                },
             ) {
                 tab<DashboardRoute>(nav) { DashboardScreen(nav) }
                 composable<OnboardingRoute>(
