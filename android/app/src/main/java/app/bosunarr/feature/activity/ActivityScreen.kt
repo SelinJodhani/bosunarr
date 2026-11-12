@@ -57,8 +57,6 @@ import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.Loader
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.lazy.LazyListScope
-import app.bosunarr.nav.MovieRoute
-import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.nav.ServiceRoute
 import app.bosunarr.nav.SettingsRoute
 import app.bosunarr.ui.common.AppScaffold
@@ -79,7 +77,7 @@ import kotlinx.coroutines.launch
 fun ActivityScreen(nav: NavController) {
     val appState by app.state.collectAsState()
     val services by app.services.collectAsState()
-    val arrs = remember(services) { services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Whisparr } }
+    val arrs = remember(services) { services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Whisparr || it.serviceType == ServiceType.Lidarr } }
     val qbits = remember(services) { services.filter { isTorrentClient(it.serviceType) } }
     val usenet = remember(services) { services.filter { isUsenet(it.serviceType) } }
     val snackbar = LocalSnackbar.current
@@ -291,8 +289,7 @@ private fun QueuePage(
                 expanded = expanded,
                 onToggleExpanded = { e -> expanded[e.key] = expanded[e.key] != true },
                 onOpen = { e ->
-                    val id = e.libraryId ?: return@queueRows
-                    nav.navigate(if (e.isEpisode) SeriesRoute(e.serviceId, id) else MovieRoute(e.serviceId, id))
+                    nav.navigate(e.route ?: return@queueRows)
                 },
                 onRemove = { removing = it },
             )

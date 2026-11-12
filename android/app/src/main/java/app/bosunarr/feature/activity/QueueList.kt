@@ -191,7 +191,7 @@ fun QueueRow(
             IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "Actions for ${e.title}") }
             DropdownMenu(menu, onDismissRequest = { menu = false }) {
                 if (e.libraryId != null) DropdownMenuItem(
-                    text = { Text(if (e.isEpisode) "Open series" else "Open movie") },
+                    text = { Text(e.openLabel) },
                     leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
                     onClick = { menu = false; onOpen() },
                 )

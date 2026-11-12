@@ -73,6 +73,8 @@ import androidx.navigation.NavController
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.feature.music.SquareCover
+import androidx.compose.material.icons.rounded.MusicNote
 import app.bosunarr.nav.SettingsRoute
 import app.bosunarr.ui.common.AppScaffold
 import app.bosunarr.ui.common.ErrorBanner
@@ -97,14 +99,14 @@ private const val WEEK_PAST = 7L
 fun CalendarScreen(nav: NavController) {
     val loaded by app.state.collectAsState()
     val all by app.services.collectAsState()
-    val arrs = remember(all) { all.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr } }
+    val arrs = remember(all) { all.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Lidarr } }
     when {
         loaded == null -> AppScaffold("Calendar") { p -> LoadingBox(Modifier.padding(p)) }
         arrs.isEmpty() -> AppScaffold("Calendar") { p ->
             FullScreenScroll(Modifier.padding(p)) { m ->
                 MessageBox(
-                    Icons.Rounded.Dns, "No Sonarr or Radarr yet", m,
-                    hint = "Add a Sonarr or Radarr service to see upcoming episodes and movie releases.",
+                    Icons.Rounded.Dns, "No Sonarr, Radarr or Lidarr yet", m,
+                    hint = "Add a Sonarr, Radarr or Lidarr service to see upcoming episodes, movies and albums.",
                     action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
                     scene = SeaScene.Harbor,
                 )
@@ -225,7 +227,7 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
                         repeat(6) { SkeletonRow() }
                     }
                     data.entries.isEmpty() -> FullScreenScroll { m ->
-                        MessageBox(Icons.Rounded.CalendarMonth, "Nothing on the horizon", m, hint = "No monitored episodes or movie releases in the next 4 weeks.", scene = SeaScene.Horizon)
+                        MessageBox(Icons.Rounded.CalendarMonth, "Nothing on the horizon", m, hint = "No monitored episodes, movies or albums in the next 4 weeks.", scene = SeaScene.Horizon)
                     }
                     else -> LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
                         rows.forEach { r ->
@@ -251,7 +253,8 @@ private fun CalendarContent(nav: NavController, arrs: List<ServiceConfig>) {
 private fun countLabel(list: List<CalEntry>): String? = when {
     list.isEmpty() -> null
     list.all { it.episodeLabel != null } -> plural(list.size, "episode")
-    list.none { it.episodeLabel != null } -> plural(list.size, "movie")
+    list.all { it.music } -> plural(list.size, "album")
+    list.none { it.episodeLabel != null || it.music } -> plural(list.size, "movie")
     else -> plural(list.size, "release")
 }
 
@@ -343,16 +346,23 @@ private fun EntryRow(e: CalEntry, modifier: Modifier = Modifier, onClick: () -> 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Poster(e.posterService, e.poster, width = 48.dp, title = e.title)
+        if (e.music) {
+            // Album covers are square: centre one in the poster's slot so rows keep their rhythm.
+            Box(Modifier.width(48.dp).height(72.dp), contentAlignment = Alignment.Center) { SquareCover(e.posterService, e.poster, 48.dp, e.title) }
+        } else Poster(e.posterService, e.poster, width = 48.dp, title = e.title)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(e.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                e.episodeLabel ?: e.releaseLabel,
-                style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Albums: a note and the artist (the album is the title).
+                if (e.music) Icon(Icons.Rounded.MusicNote, "Album", tint = cs.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                Text(
+                    if (e.music) e.network ?: e.releaseLabel else e.episodeLabel ?: e.releaseLabel,
+                    style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
             val meta = listOfNotNull(
                 e.time?.let { timeFormat.format(Date.from(it)) },
-                e.network,
+                e.network.takeIf { !e.music },
                 e.runtime?.let { runtime(it) }?.takeIf { it.isNotEmpty() },
                 if (!e.monitored) "Unmonitored" else null,
             ).joinToString(" · ")

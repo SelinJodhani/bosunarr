@@ -14,6 +14,8 @@ internal object DemoImages {
 
     fun serve(r: DemoRequest): DemoResponse? {
         if (r.method != "GET") return null
+        // The demo Lidarr has no artwork (its ids would otherwise hit the movie posters below).
+        if (r.service == "lidarr" && r.path.startsWith("/MediaCover/")) return DemoResponse.notFound("No image")
         val p = r.path
         val (key, fanart) = ARR.find(p)?.let { m ->
             val owner = m.groupValues[1]

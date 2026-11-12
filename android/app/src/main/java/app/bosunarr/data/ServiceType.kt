@@ -29,10 +29,16 @@ enum class ServiceType(
     Sonarr("sonarr", "Sonarr", ServiceCategory.Media, Credentials.ApiKey, 8989, "Sonarr → Settings → General → API Key", Color(0xFF35C5F4), "TV shows"),
     Radarr("radarr", "Radarr", ServiceCategory.Media, Credentials.ApiKey, 7878, "Radarr → Settings → General → API Key", Color(0xFFFFC230), "Movies"),
     Whisparr("whisparr", "Whisparr", ServiceCategory.Media, Credentials.ApiKey, 6969, "Whisparr → Settings → General → API Key", Color(0xFFE85A9B), "Adult"),
+    Lidarr("lidarr", "Lidarr", ServiceCategory.Media, Credentials.ApiKey, 8686, "Lidarr → Settings → General → API Key", Color(0xFF159552), "Music"),
     Prowlarr("prowlarr", "Prowlarr", ServiceCategory.Indexers, Credentials.ApiKey, 9696, "Prowlarr → Settings → General → API Key", Color(0xFFE66001), "Indexers"),
     Bazarr("bazarr", "Bazarr", ServiceCategory.Subtitles, Credentials.ApiKey, 6767, "Bazarr → Settings → General → API Key", Color(0xFF14B8A6), "Subtitles"),
-    Jellyseerr("jellyseerr", "Jellyseerr", ServiceCategory.Requests, Credentials.ApiKey, 5055, "Jellyseerr → Settings → General → API Key", Color(0xFF7C3AED), "Requests"),
-    Overseerr("overseerr", "Overseerr", ServiceCategory.Requests, Credentials.ApiKey, 5055, "Overseerr → Settings → General → API Key", Color(0xFF6366F1), "Requests"),
+    /**
+     * Seerr (Overseerr and Jellyseerr merged in Feb 2026). Both ids stay so stored services keep working; new
+     * setups use this one (see [offered]), and both show as "Seerr".
+     */
+    Jellyseerr("jellyseerr", "Seerr", ServiceCategory.Requests, Credentials.ApiKey, 5055, "Seerr → Settings → General → API Key", Color(0xFF7C3AED), "Requests"),
+    /** Legacy Overseerr id: same API as [Jellyseerr], hidden from the pickers. */
+    Overseerr("overseerr", "Seerr", ServiceCategory.Requests, Credentials.ApiKey, 5055, "Seerr → Settings → General → API Key", Color(0xFF6366F1), "Requests"),
     QBittorrent("qbittorrent", "qBittorrent", ServiceCategory.Downloads, Credentials.UserPass, 8080, "Your qBittorrent Web UI username and password", Color(0xFF2F67BA), "Downloads"),
     Jellyfin("jellyfin", "Jellyfin", ServiceCategory.Server, Credentials.ApiKey, 8096, "Jellyfin → Dashboard → API Keys", Color(0xFFAA5CC3), "Media server"),
     /** The credential is an X-Plex-Token: typed in, or filled by the plex.tv PIN sign-in on the setup form. */
@@ -52,9 +58,10 @@ enum class ServiceType(
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }
 
         /**
-         * Types offered when adding a service (onboarding, Settings). Whisparr is hidden for now: services the
-         * user already configured keep working, it just isn't offered for new setups.
+         * Types offered when adding a service (onboarding, Settings). Whisparr is hidden for now, and Overseerr is
+         * folded into the single "Seerr" choice: services the user already configured keep working, they just
+         * aren't offered for new setups.
          */
-        val offered: List<ServiceType> get() = entries.filter { it != Whisparr }
+        val offered: List<ServiceType> get() = entries.filter { it != Whisparr && it != Overseerr }
     }
 }

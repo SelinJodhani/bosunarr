@@ -171,7 +171,8 @@ data class ArrCommandResult(val id: Int = 0, val name: String? = null, val statu
 
 /* ---------------------------------------------------------------- Library list item */
 
-enum class LibKind { Series, Movie }
+/** [Music] items are Lidarr artists. */
+enum class LibKind { Series, Movie, Music }
 
 /** missing = monitored and nothing on disk; partial = some episodes missing; upcoming = not released yet. */
 enum class LibStatus(val label: String) {
@@ -197,13 +198,15 @@ data class LibItem(
     val network: String?,
     val tmdbId: Int,
     val tvdbId: Int,
+    /** Music: the artist's album count. */
+    val albums: Int = 0,
 ) {
     val key: String get() = libKey(serviceId, kind, id)
-    /** Episode completion 0..1 for series with known episodes, else null. */
-    val progress: Float? get() = if (kind == LibKind.Series && total > 0) (have.toFloat() / total).coerceIn(0f, 1f) else null
+    /** Episode (or, for an artist, track) completion 0..1 when the total is known, else null. */
+    val progress: Float? get() = if (kind != LibKind.Movie && total > 0) (have.toFloat() / total).coerceIn(0f, 1f) else null
 }
 
-fun libKey(serviceId: String, kind: LibKind, id: Int) = "$serviceId-${if (kind == LibKind.Series) "series" else "movie"}-$id"
+fun libKey(serviceId: String, kind: LibKind, id: Int) = "$serviceId-${when (kind) { LibKind.Series -> "series"; LibKind.Movie -> "movie"; LibKind.Music -> "artist" }}-$id"
 
 val UHD = Regex("2160|4k|uhd|ultra[\\s-]?hd", RegexOption.IGNORE_CASE)
 

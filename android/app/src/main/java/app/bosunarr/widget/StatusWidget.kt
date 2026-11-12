@@ -58,7 +58,7 @@ class StatusWidget : GlanceAppWidget() {
             services = listOf(
                 ServiceHealth("1", "Sonarr", "sonarr", true), ServiceHealth("2", "Radarr", "radarr", true),
                 ServiceHealth("3", "qBittorrent", "qbittorrent", true), ServiceHealth("4", "Jellyfin", "jellyfin", true),
-                ServiceHealth("5", "Prowlarr", "prowlarr", true), ServiceHealth("6", "Jellyseerr", "jellyseerr", true),
+                ServiceHealth("5", "Prowlarr", "prowlarr", true), ServiceHealth("6", "Seerr", "jellyseerr", true),
             ),
         )
         provideContent { GlanceTheme { StatusContent(sample, refreshing = false) } }

@@ -3,6 +3,7 @@ package app.bosunarr.feature.library
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.feature.music.MusicApi
 import app.bosunarr.net.AppJson
 import app.bosunarr.net.ServiceException
 import app.bosunarr.net.fanOut
@@ -57,10 +58,11 @@ object LibraryApi {
     data class ServiceError(val service: ServiceConfig, val message: String)
     data class LibraryData(val items: List<LibItem>, val errors: List<ServiceError>, val fetchedAt: Long)
 
-    /** Every series and movie across all Sonarr/Radarr instances. Fails only when every instance fails. */
+    /** Every series, movie and artist across all Sonarr/Radarr/Lidarr instances. Fails only when every instance fails. */
     suspend fun library(services: List<ServiceConfig>): LibraryData = withContext(Dispatchers.Default) {
         val startedAt = System.currentTimeMillis()
         val results = fanOut(services) { s ->
+            if (s.serviceType == ServiceType.Lidarr) return@fanOut MusicApi.artistItems(s)
             coroutineScope {
                 val names = async { profileNames(s) }
                 if (s.serviceType == ServiceType.Sonarr) {

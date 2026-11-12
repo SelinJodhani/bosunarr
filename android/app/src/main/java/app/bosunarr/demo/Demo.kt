@@ -34,6 +34,7 @@ object Demo {
     val services: List<ServiceConfig> = listOf(
         svc(ServiceType.Sonarr),
         svc(ServiceType.Radarr),
+        svc(ServiceType.Lidarr),
         svc(ServiceType.Prowlarr),
         svc(ServiceType.Bazarr),
         svc(ServiceType.Jellyseerr),

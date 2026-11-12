@@ -68,7 +68,7 @@ fun ServiceScreen(id: String, nav: NavController) {
         return
     }
     when (s.serviceType) {
-        ServiceType.Sonarr, ServiceType.Radarr, ServiceType.Whisparr -> ArrServiceScreen(s, nav)
+        ServiceType.Sonarr, ServiceType.Radarr, ServiceType.Whisparr, ServiceType.Lidarr -> ArrServiceScreen(s, nav)
         ServiceType.Prowlarr -> ProwlarrServiceScreen(s, nav)
         ServiceType.Bazarr -> BazarrServiceScreen(s, nav)
         ServiceType.Jellyfin -> JellyfinServiceScreen(s, nav)
@@ -123,7 +123,7 @@ fun CardList(modifier: Modifier = Modifier, content: LazyListScope.() -> Unit) {
     )
 }
 
-/* ================================================================ Jellyseerr / Overseerr */
+/* ================================================================ Seerr (Jellyseerr / Overseerr ids) */
 
 @Serializable
 private data class SeerrAbout(val version: String? = null, val totalRequests: Int? = null, val totalMediaItems: Int? = null)

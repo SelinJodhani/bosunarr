@@ -291,6 +291,7 @@ internal object DemoWorld {
             w.tick()
             when (r.service) {
                 "sonarr", "radarr" -> DemoArr.handle(w, r)
+                "lidarr" -> DemoLidarr.handle(w, r)
                 "qbittorrent" -> DemoQbit.handle(w, r)
                 "jellyseerr" -> DemoSeerr.handle(w, r)
                 "jellyfin" -> DemoJellyfin.handle(w, r)

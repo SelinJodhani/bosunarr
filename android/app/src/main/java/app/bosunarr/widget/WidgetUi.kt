@@ -174,10 +174,10 @@ internal fun isRefreshing(since: Long): Boolean = since > 0 && System.currentTim
 internal fun serviceIcon(type: String): Int? = when (ServiceType.of(type)) {
     ServiceType.Sonarr -> R.drawable.svc_sonarr
     ServiceType.Radarr -> R.drawable.svc_radarr
+    ServiceType.Lidarr -> R.drawable.svc_lidarr
     ServiceType.Prowlarr -> R.drawable.svc_prowlarr
     ServiceType.Bazarr -> R.drawable.svc_bazarr
-    ServiceType.Jellyseerr -> R.drawable.svc_jellyseerr
-    ServiceType.Overseerr -> R.drawable.svc_overseerr
+    ServiceType.Jellyseerr, ServiceType.Overseerr -> R.drawable.svc_seerr
     ServiceType.QBittorrent -> R.drawable.svc_qbittorrent
     ServiceType.Jellyfin -> R.drawable.svc_jellyfin
     ServiceType.Jellystat -> R.drawable.svc_jellystat

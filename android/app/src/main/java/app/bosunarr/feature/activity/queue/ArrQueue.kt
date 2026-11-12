@@ -4,6 +4,10 @@ import androidx.compose.runtime.Immutable
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.nav.AlbumRoute
+import app.bosunarr.nav.ArtistRoute
+import app.bosunarr.nav.MovieRoute
+import app.bosunarr.nav.SeriesRoute
 import kotlinx.serialization.Serializable
 import java.net.URI
 
@@ -29,6 +33,12 @@ internal data class ArrEpisode(val seasonNumber: Int = 0, val episodeNumber: Int
 internal data class ArrMovie(val title: String = "", val year: Int = 0, val images: List<ArrImage> = emptyList())
 
 @Serializable
+internal data class LidarrArtist(val artistName: String = "", val images: List<ArrImage> = emptyList())
+
+@Serializable
+internal data class LidarrAlbum(val title: String = "", val releaseDate: String? = null, val images: List<ArrImage> = emptyList())
+
+@Serializable
 internal data class ArrQueueRecord(
     val id: Int = 0,
     val title: String = "",
@@ -49,6 +59,11 @@ internal data class ArrQueueRecord(
     val series: ArrSeries? = null,
     val episode: ArrEpisode? = null,
     val movie: ArrMovie? = null,
+    // Lidarr (v1)
+    val artistId: Int? = null,
+    val albumId: Int? = null,
+    val artist: LidarrArtist? = null,
+    val album: LidarrAlbum? = null,
 )
 
 @Serializable
@@ -56,7 +71,7 @@ internal data class ArrQueuePage(val records: List<ArrQueueRecord> = emptyList()
 
 enum class QueueHealth { Ok, Warning, Error }
 
-/** One Sonarr/Radarr queue item. [key] is unique across services. */
+/** One Sonarr/Radarr/Lidarr queue item. [key] is unique across services. */
 @Immutable
 data class QueueEntry(
     val serviceId: String,
@@ -80,9 +95,26 @@ data class QueueEntry(
     /** Library item: Sonarr series id or Radarr movie id. */
     val libraryId: Int?,
     val downloadId: String?,
+    /** Lidarr: [title] is "Artist – Album", [libraryId] the artist, [albumId] the album. */
+    val music: Boolean = false,
+    val albumId: Int? = null,
 ) {
     val key: String get() = "$serviceId:$queueId"
     val stateLabel: String get() = queueStateLabel(state)
+
+    /** Where tapping the row goes: the series, movie or album (artist when the album is unknown). */
+    val route: Any? get() = when {
+        music -> albumId?.takeIf { it > 0 }?.let { AlbumRoute(serviceId, it) } ?: libraryId?.takeIf { it > 0 }?.let { ArtistRoute(serviceId, it) }
+        libraryId == null -> null
+        isEpisode -> SeriesRoute(serviceId, libraryId)
+        else -> MovieRoute(serviceId, libraryId)
+    }
+
+    val openLabel: String get() = when {
+        music -> if ((albumId ?: 0) > 0) "Open album" else "Open artist"
+        isEpisode -> "Open series"
+        else -> "Open movie"
+    }
 }
 
 private val QUEUE_STATE = mapOf(
@@ -113,7 +145,13 @@ fun arrTimeLeft(t: String?): String? {
 private fun pad(n: Int) = n.toString().padStart(2, '0')
 
 object ArrQueue {
+    private fun api(s: ServiceConfig) = if (s.serviceType == ServiceType.Lidarr) "/api/v1" else "/api/v3"
+
     suspend fun load(s: ServiceConfig): List<QueueEntry> {
+        if (s.serviceType == ServiceType.Lidarr) {
+            val page = app.client.get<ArrQueuePage>(s, "/api/v1/queue?page=1&pageSize=1000&includeArtist=true&includeAlbum=true")
+            return page.records.map { q -> entry(s, q, false) }
+        }
         val episode = s.serviceType == ServiceType.Sonarr
         val include = if (episode) "includeSeries=true&includeEpisode=true" else "includeMovie=true"
         val page = app.client.get<ArrQueuePage>(s, "/api/v3/queue?page=1&pageSize=1000&$include")
@@ -142,6 +180,22 @@ object ArrQueue {
         val size = q.size.toLong().coerceAtLeast(0)
         val left = q.sizeleft.toLong().coerceIn(0, maxOf(size, 0))
         val ep = q.episode
+        if (s.serviceType == ServiceType.Lidarr) {
+            val artist = q.artist?.artistName?.takeIf { it.isNotBlank() }
+            val album = q.album?.title?.takeIf { it.isNotBlank() }
+            return QueueEntry(
+                serviceId = s.id, serviceName = s.name, queueId = q.id, isEpisode = false,
+                title = listOfNotNull(artist, album).joinToString(" – ").ifBlank { q.title },
+                subtitle = q.title.takeIf { it.isNotBlank() },
+                progress = if (size > 0) (1f - left.toFloat() / size).coerceIn(0f, 1f) else 0f,
+                size = size, sizeLeft = left, state = state, health = health, messages = messages,
+                timeLeft = arrTimeLeft(q.timeleft), protocol = q.protocol, client = q.downloadClient?.takeIf { it.isNotBlank() },
+                quality = q.quality?.quality?.name,
+                poster = poster(s, q.artist?.images),
+                libraryId = q.artistId, downloadId = q.downloadId?.lowercase(),
+                music = true, albumId = q.albumId,
+            )
+        }
         return QueueEntry(
             serviceId = s.id,
             serviceName = s.name,
@@ -186,6 +240,6 @@ object ArrQueue {
 
     /** Remove one queue item. */
     suspend fun remove(s: ServiceConfig, queueId: Int, removeFromClient: Boolean, blocklist: Boolean) {
-        app.client.send(s, "/api/v3/queue/$queueId?removeFromClient=$removeFromClient&blocklist=$blocklist", "DELETE")
+        app.client.send(s, "${api(s)}/queue/$queueId?removeFromClient=$removeFromClient&blocklist=$blocklist", "DELETE")
     }
 }

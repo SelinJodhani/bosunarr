@@ -8,6 +8,12 @@ import app.bosunarr.feature.library.ArrMovie
 import app.bosunarr.feature.library.LibraryApi
 import app.bosunarr.feature.library.UHD
 import app.bosunarr.feature.library.arrImage
+import app.bosunarr.feature.library.LibStatus
+import app.bosunarr.feature.music.LidarrAlbum
+import app.bosunarr.feature.music.albumCover
+import app.bosunarr.feature.music.albumStatus
+import app.bosunarr.feature.music.releaseDay
+import app.bosunarr.nav.AlbumRoute
 import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.net.ServiceException
@@ -53,7 +59,7 @@ data class CalEpisode(
 
 enum class CalStatus(val label: String) { Downloaded("Downloaded"), Missing("Missing"), Upcoming("Upcoming") }
 
-enum class Release(val label: String) { Airing("Episode"), Cinema("In cinemas"), Digital("Digital release"), Physical("Physical release") }
+enum class Release(val label: String) { Airing("Episode"), Cinema("In cinemas"), Digital("Digital release"), Physical("Physical release"), Album("Album release") }
 
 /** One instance's copy of an entry (Radarr + Radarr 4K both list the same movie). */
 data class CalCopy(val service: ServiceConfig, val is4k: Boolean, val status: CalStatus, val monitored: Boolean, val route: Any)
@@ -77,6 +83,8 @@ data class CalEntry(
     val poster: String?,
     val posterService: ServiceConfig?,
     val copies: List<CalCopy>,
+    /** A Lidarr album release: [title] is the album, [network] the artist, [poster] a square cover. */
+    val music: Boolean = false,
 ) {
     val primary: CalCopy get() = copies.first()
     val monitored: Boolean get() = copies.any { it.monitored }
@@ -99,6 +107,7 @@ data class CalEntry(
             val parts = mutableListOf<String>()
             if (Release.Airing in releases) parts += Release.Airing.label
             if (Release.Cinema in releases) parts += Release.Cinema.label
+            if (Release.Album in releases) parts += Release.Album.label
             if (home.size == 2) parts += "Digital & physical release" else if (home.size == 1) parts += home[0].label
             return parts.joinToString(" · ")
         }
@@ -120,7 +129,11 @@ object CalendarApi {
         val end = endDay.plusDays(1).atStartOfDay(zone).toInstant()
 
         val results = fanOut(services) { s ->
-            if (s.serviceType == ServiceType.Sonarr) episodes(s, start, end, zone) else movies(s, start, end, startDay, endDay)
+            when (s.serviceType) {
+                ServiceType.Sonarr -> episodes(s, start, end, zone)
+                ServiceType.Lidarr -> albums(s, start, end, startDay, endDay)
+                else -> movies(s, start, end, startDay, endDay)
+            }
         }
         val errors = results.mapNotNull { (s, r) -> r.exceptionOrNull()?.let { LibraryApi.ServiceError(s, it.friendlyMessage()) } }
         if (services.isNotEmpty() && errors.size == services.size) throw ServiceException(errors.first().message)
@@ -193,6 +206,40 @@ object CalendarApi {
                         e.monitored && sr.monitored, SeriesRoute(s.id, e.seriesId),
                     ),
                 ),
+            )
+        }
+    }
+
+    /** Lidarr v1 album releases (calendar dates, like movie releases). */
+    private suspend fun albums(s: ServiceConfig, start: Instant, end: Instant, startDay: LocalDate, endDay: LocalDate): List<CalEntry> {
+        val qStart = start.minus(Duration.ofDays(1))
+        val qEnd = end.plus(Duration.ofDays(1))
+        val albums: List<LidarrAlbum> = app.client.get(s, "/api/v1/calendar?start=${enc(qStart)}&end=${enc(qEnd)}&unmonitored=true&includeArtist=true")
+        val today = LocalDate.now()
+        return albums.mapNotNull { a ->
+            val day = releaseDay(a.releaseDate) ?: return@mapNotNull null
+            if (day.isBefore(startDay) || day.isAfter(endDay)) return@mapNotNull null
+            val status = when (albumStatus(a, today)) {
+                LibStatus.Downloaded -> CalStatus.Downloaded
+                LibStatus.Upcoming -> CalStatus.Upcoming
+                else -> if (day.isAfter(today)) CalStatus.Upcoming else CalStatus.Missing
+            }
+            CalEntry(
+                id = (a.foreignAlbumId?.takeIf { it.isNotBlank() }?.let { "a:$it" } ?: "a:${s.id}:${a.id}") + ":$day",
+                isEpisode = false,
+                releases = listOf(Release.Album),
+                title = a.title,
+                year = day.year,
+                episodeLabel = null,
+                marker = a.albumType?.takeIf { it.isNotBlank() && it != "Album" },
+                day = day,
+                time = null,
+                runtime = null,
+                network = a.artist?.artistName?.takeIf { it.isNotBlank() },
+                poster = albumCover(s, a.images, a.id),
+                posterService = s,
+                copies = listOf(CalCopy(s, false, status, a.monitored && (a.artist?.monitored ?: true), AlbumRoute(s.id, a.id))),
+                music = true,
             )
         }
     }

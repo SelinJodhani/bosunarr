@@ -54,6 +54,8 @@ import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.dashboard.DiskSpace
 import app.bosunarr.feature.dashboard.dedupeDisks
 import app.bosunarr.nav.ActivityRoute
+import app.bosunarr.nav.AlbumRoute
+import app.bosunarr.nav.ArtistRoute
 import app.bosunarr.nav.LibraryRoute
 import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
@@ -125,6 +127,11 @@ private data class ArrHistory(
     val series: HSeries? = null,
     val episode: HEpisode? = null,
     val movie: HMovie? = null,
+    // Lidarr
+    val artistId: Int? = null,
+    val albumId: Int? = null,
+    val artist: HArtist? = null,
+    val album: HAlbum? = null,
 )
 
 @Serializable
@@ -138,6 +145,12 @@ private data class HSeries(val id: Int = 0, val title: String = "", val images: 
 
 @Serializable
 private data class HEpisode(val seasonNumber: Int = 0, val episodeNumber: Int = 0, val title: String? = null)
+
+@Serializable
+private data class HArtist(val id: Int = 0, val artistName: String = "", val images: List<ArrImage> = emptyList())
+
+@Serializable
+private data class HAlbum(val id: Int = 0, val title: String = "", val releaseDate: String? = null)
 
 @Serializable
 private data class HMovie(val id: Int = 0, val title: String = "", val year: Int = 0, val images: List<ArrImage> = emptyList())
@@ -160,14 +173,21 @@ private data class ArrOverview(
 )
 
 /** Actions offered as buttons, with each arr's command name. */
-private enum class ArrAction(val label: String, val sonarr: String, val radarr: String, val done: String, val confirm: String?) {
-    Rss("RSS sync", "RssSync", "RssSync", "RSS sync started", null),
-    Refresh("Refresh all", "RefreshSeries", "RefreshMovie", "Refresh & scan started", null),
-    Missing("Search missing", "MissingEpisodeSearch", "MissingMoviesSearch", "Searching for everything missing", "Search indexers for every monitored item that's missing? This can send a lot of queries to your indexers."),
-    Backup("Backup", "Backup", "Backup", "Backup started", null);
+private enum class ArrAction(val label: String, val sonarr: String, val radarr: String, val lidarr: String, val done: String, val confirm: String?) {
+    Rss("RSS sync", "RssSync", "RssSync", "RssSync", "RSS sync started", null),
+    Refresh("Refresh all", "RefreshSeries", "RefreshMovie", "RefreshArtist", "Refresh & scan started", null),
+    Missing("Search missing", "MissingEpisodeSearch", "MissingMoviesSearch", "MissingAlbumSearch", "Searching for everything missing", "Search indexers for every monitored item that's missing? This can send a lot of queries to your indexers."),
+    Backup("Backup", "Backup", "Backup", "Backup", "Backup started", null);
 
-    fun command(sonarr: Boolean) = if (sonarr) this.sonarr else radarr
+    fun command(type: ServiceType?) = when (type) {
+        ServiceType.Sonarr -> sonarr
+        ServiceType.Lidarr -> lidarr
+        else -> radarr
+    }
 }
+
+/** API root: Lidarr is on v1, Sonarr/Radarr/Whisparr on v3. */
+private fun apiOf(s: ServiceConfig) = if (s.serviceType == ServiceType.Lidarr) "/api/v1" else "/api/v3"
 
 private val COMMAND_LABELS = mapOf(
     "RssSync" to "RSS sync",
@@ -187,6 +207,15 @@ private val COMMAND_LABELS = mapOf(
     "RenameFiles" to "Rename files",
     "RenameMovie" to "Rename movies",
     "RenameSeries" to "Rename series",
+    "MissingAlbumSearch" to "Search missing albums",
+    "CutoffUnmetAlbumSearch" to "Search cutoff unmet",
+    "RefreshArtist" to "Refresh & scan artists",
+    "RefreshAlbum" to "Refresh album",
+    "ArtistSearch" to "Artist search",
+    "AlbumSearch" to "Album search",
+    "DownloadedAlbumsScan" to "Scan downloaded albums",
+    "RenameArtist" to "Rename artists",
+    "RetagArtist" to "Retag artists",
 )
 
 /**
@@ -219,14 +248,15 @@ private fun arrDisks(space: List<DiskSpace>, roots: List<RootFolder>): List<ArrD
 
 private suspend fun loadArrOverview(s: ServiceConfig): ArrOverview = coroutineScope {
     val c = app.client
-    val status = async { c.get<ArrStatus>(s, "/api/v3/system/status") }
-    val health = async { runCatching { c.get<List<ArrHealth>>(s, "/api/v3/health") } }
-    val space = async { runCatching { c.get<List<DiskSpace>>(s, "/api/v3/diskspace") } }
-    val roots = async { runCatching { c.get<List<RootFolder>>(s, "/api/v3/rootfolder") } }
-    val queue = async { runCatching { c.get<ArrQueueStatus>(s, "/api/v3/queue/status") } }
-    val cmds = async { runCatching { c.get<List<ArrCommand>>(s, "/api/v3/command") } }
-    val missing = async { runCatching { c.get<TotalOnly>(s, "/api/v3/wanted/missing?page=1&pageSize=1&monitored=true").totalRecords } }
-    val cutoff = async { runCatching { c.get<TotalOnly>(s, "/api/v3/wanted/cutoff?page=1&pageSize=1&monitored=true").totalRecords } }
+    val api = apiOf(s)
+    val status = async { c.get<ArrStatus>(s, "$api/system/status") }
+    val health = async { runCatching { c.get<List<ArrHealth>>(s, "$api/health") } }
+    val space = async { runCatching { c.get<List<DiskSpace>>(s, "$api/diskspace") } }
+    val roots = async { runCatching { c.get<List<RootFolder>>(s, "$api/rootfolder") } }
+    val queue = async { runCatching { c.get<ArrQueueStatus>(s, "$api/queue/status") } }
+    val cmds = async { runCatching { c.get<List<ArrCommand>>(s, "$api/command") } }
+    val missing = async { runCatching { c.get<TotalOnly>(s, "$api/wanted/missing?page=1&pageSize=1&monitored=true").totalRecords } }
+    val cutoff = async { runCatching { c.get<TotalOnly>(s, "$api/wanted/cutoff?page=1&pageSize=1&monitored=true").totalRecords } }
     val st = status.await() // the screen is useless without it: let its error (bad key, unreachable) surface
     if (st.version.isBlank()) throw ServiceException("${s.name} gave an unexpected answer — is this really ${s.serviceType?.label}?")
     val partial = mutableListOf<String>()
@@ -275,6 +305,7 @@ fun ArrServiceScreen(s: ServiceConfig, nav: NavController) {
 @Composable
 private fun ArrOverviewTab(s: ServiceConfig, loader: app.bosunarr.ui.common.Loader<ArrOverview>, nav: NavController) {
     val sonarr = s.serviceType == ServiceType.Sonarr
+    val lidarr = s.serviceType == ServiceType.Lidarr
     val runner = rememberActionRunner()
     var confirm by rememberSaveable { mutableStateOf<String?>(null) }
     val o = loader.value
@@ -282,7 +313,7 @@ private fun ArrOverviewTab(s: ServiceConfig, loader: app.bosunarr.ui.common.Load
     fun run(a: ArrAction) = runner.run("arr:${s.id}:${a.name}", success = a.done, after = {
         loader.refresh()
     }) {
-        app.client.send(s, "/api/v3/command", "POST", buildJsonObject { put("name", a.command(sonarr)) })
+        app.client.send(s, "${apiOf(s)}/command", "POST", buildJsonObject { put("name", a.command(s.serviceType)) })
         delay(600) // give the arr a moment so the refresh shows the task as queued
         null
     }
@@ -325,7 +356,7 @@ private fun ArrOverviewTab(s: ServiceConfig, loader: app.bosunarr.ui.common.Load
                     maxItemsInEachRow = 2,
                 ) {
                     ArrAction.entries.forEach { a ->
-                        val busy = runner.isBusy("arr:${s.id}:${a.name}") || a.command(sonarr) in running
+                        val busy = runner.isBusy("arr:${s.id}:${a.name}") || a.command(s.serviceType) in running
                         FilledTonalButton(
                             onClick = { if (a.confirm != null) confirm = a.name else run(a) },
                             enabled = !busy,
@@ -350,7 +381,7 @@ private fun ArrOverviewTab(s: ServiceConfig, loader: app.bosunarr.ui.common.Load
                 if (s.serviceType != ServiceType.Whisparr) TextButton(onClick = { nav.navigateTab(LibraryRoute) }, modifier = Modifier.padding(start = 8.dp)) {
                     Icon(Icons.Rounded.VideoLibrary, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(if (sonarr) "Open series in Library" else "Open movies in Library")
+                    Text(if (sonarr) "Open series in Library" else if (lidarr) "Open music in Library" else "Open movies in Library")
                 }
             }
         }
@@ -442,6 +473,14 @@ private val EVENTS = mapOf(
     "episodeFileRenamed" to ("File renamed" to "other"),
     "movieFileRenamed" to ("File renamed" to "other"),
     "downloadIgnored" to ("Ignored" to "other"),
+    // Lidarr
+    "trackFileImported" to ("Imported" to "ok"),
+    "downloadImported" to ("Imported" to "ok"),
+    "artistFolderImported" to ("Imported from folder" to "ok"),
+    "albumImportIncomplete" to ("Import incomplete" to "error"),
+    "trackFileDeleted" to ("File deleted" to "other"),
+    "trackFileRenamed" to ("File renamed" to "other"),
+    "trackFileRetagged" to ("File retagged" to "other"),
 )
 
 private val DELETE_REASONS = mapOf("Manual" to "Deleted manually", "MissingFromDisk" to "Missing from disk", "Upgrade" to "Replaced by an upgrade")
@@ -460,6 +499,7 @@ private fun historyDetail(h: ArrHistory): String? {
 }
 
 private suspend fun loadHistory(s: ServiceConfig, filter: HistoryFilter): List<HistoryRow> {
+    if (s.serviceType == ServiceType.Lidarr) return loadLidarrHistory(s, filter)
     val sonarr = s.serviceType == ServiceType.Sonarr
     val include = if (sonarr) "includeSeries=true&includeEpisode=true" else "includeMovie=true"
     val ev = when (filter) {
@@ -485,6 +525,35 @@ private suspend fun loadHistory(s: ServiceConfig, filter: HistoryFilter): List<H
             at = instant(h.date),
             poster = arrPoster(s, if (sonarr) h.series?.images else h.movie?.images, 250, ownerId = (if (sonarr) seriesId else movieId) ?: 0),
             route = if (sonarr) seriesId?.takeIf { it > 0 }?.let { SeriesRoute(s.id, it) } else movieId?.takeIf { it > 0 }?.let { MovieRoute(s.id, it) },
+        )
+    }
+}
+
+/** Lidarr v1 history: artist + album instead of series/movie; imports are trackFileImported (3) and downloadImported (8). */
+private suspend fun loadLidarrHistory(s: ServiceConfig, filter: HistoryFilter): List<HistoryRow> {
+    val ev = when (filter) {
+        HistoryFilter.All -> ""
+        HistoryFilter.Grabbed -> "&eventType=1"
+        HistoryFilter.Failed -> "&eventType=4"
+        HistoryFilter.Imported -> "&eventType=8&eventType=3"
+    }
+    val page = app.client.get<ArrHistoryPage>(s, "/api/v1/history?page=1&pageSize=30&sortKey=date&sortDirection=descending&includeArtist=true&includeAlbum=true$ev")
+    return page.records.map { h ->
+        val (label, tone) = EVENTS[h.eventType] ?: (h.eventType.replace(Regex("([a-z])([A-Z])"), "$1 $2").replaceFirstChar { it.uppercase() } to "other")
+        val artistId = h.artistId ?: h.artist?.id
+        val albumId = h.albumId ?: h.album?.id
+        HistoryRow(
+            key = "h:${h.id}",
+            title = h.artist?.artistName?.takeIf { it.isNotBlank() } ?: "Unknown artist",
+            subtitle = h.album?.title?.takeIf { it.isNotBlank() },
+            event = label,
+            tone = tone,
+            source = h.sourceTitle,
+            quality = h.quality?.quality?.name,
+            detail = historyDetail(h),
+            at = instant(h.date),
+            poster = arrPoster(s, h.artist?.images, 250, ownerId = artistId ?: 0),
+            route = albumId?.takeIf { it > 0 }?.let { AlbumRoute(s.id, it) } ?: artistId?.takeIf { it > 0 }?.let { ArtistRoute(s.id, it) },
         )
     }
 }

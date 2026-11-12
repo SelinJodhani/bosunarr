@@ -91,6 +91,7 @@ import app.bosunarr.ui.common.Poster
 import app.bosunarr.ui.common.ServiceImage
 import androidx.compose.material3.SnackbarHostState
 import app.bosunarr.ui.common.friendlyMessage
+import app.bosunarr.ui.common.plural
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -186,7 +187,10 @@ fun PosterCard(item: LibItem, service: ServiceConfig?, onClick: () -> Unit, modi
         Spacer(Modifier.height(6.dp))
         Text(item.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 2.dp))
         Text(
-            listOfNotNull(item.year?.toString(), if (item.kind == LibKind.Series && item.total > 0) "${item.have}/${item.total}" else null).joinToString(" · ").ifEmpty { " " },
+            when (item.kind) {
+                LibKind.Music -> if (item.albums > 0) plural(item.albums, "album") else ""
+                else -> listOfNotNull(item.year?.toString(), if (item.kind == LibKind.Series && item.total > 0) "${item.have}/${item.total}" else null).joinToString(" · ")
+            }.ifEmpty { " " },
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 2.dp),
         )
@@ -259,7 +263,10 @@ fun DetailScaffold(
     }
 }
 
-/** Backdrop with a poster and title block overlapping its bottom edge. */
+/**
+ * Backdrop with a poster and title block overlapping its bottom edge. [square] shows the poster 1:1 (album
+ * covers, artist photos); [placeholderIcon] stands in while artwork loads or when there is none.
+ */
 @Composable
 fun DetailHeader(
     service: ServiceConfig?,
@@ -268,11 +275,13 @@ fun DetailHeader(
     title: String,
     lines: List<String>,
     tags: @Composable RowScope.() -> Unit = {},
+    square: Boolean = false,
+    placeholderIcon: ImageVector = Icons.Rounded.Tv,
 ) {
     val surface = MaterialTheme.colorScheme.surface
     Box(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height(HeaderHeight)) {
-            ServiceImage(service, fanart, Modifier.fillMaxSize(), placeholderIcon = Icons.Rounded.Tv)
+            ServiceImage(service, fanart, Modifier.fillMaxSize(), placeholderIcon = placeholderIcon)
             // Scrim at the top for the status bar and bar icons (eased so it has no visible edge), fade into the
             // page at the bottom.
             Box(
@@ -289,7 +298,10 @@ fun DetailHeader(
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Surface(shape = RoundedCornerShape(12.dp), shadowElevation = 6.dp) { Poster(service, poster, width = 112.dp, title = title) }
+            Surface(shape = RoundedCornerShape(12.dp), shadowElevation = 6.dp) {
+                if (square) ServiceImage(service, poster, Modifier.width(112.dp).aspectRatio(1f).clip(RoundedCornerShape(12.dp)), contentDescription = title, placeholderIcon = placeholderIcon)
+                else Poster(service, poster, width = 112.dp, title = title)
+            }
             Column(Modifier.weight(1f).padding(bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 lines.filter { it.isNotBlank() }.forEach {

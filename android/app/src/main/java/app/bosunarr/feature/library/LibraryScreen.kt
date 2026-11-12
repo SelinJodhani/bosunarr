@@ -65,6 +65,7 @@ import androidx.navigation.NavController
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.nav.ArtistRoute
 import app.bosunarr.nav.LibraryAddRoute
 import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
@@ -81,7 +82,7 @@ import app.bosunarr.ui.common.rememberLoader
 import java.util.Locale
 
 /** Adult (Whisparr) titles never mix into All/Movies; they only show under their own chip. */
-private enum class KindFilter(val label: String) { All("All"), Series("Series"), Movies("Movies"), Adult("Adult") }
+private enum class KindFilter(val label: String) { All("All"), Series("Series"), Movies("Movies"), Music("Music"), Adult("Adult") }
 private enum class StatusFilter(val label: String) { Any("Any"), Monitored("Monitored"), Missing("Missing"), Downloaded("Downloaded"), Unmonitored("Unmonitored") }
 private enum class SortKey(val label: String) { Title("Title"), Added("Recently added"), Year("Year"), Size("Size on disk") }
 
@@ -91,14 +92,14 @@ private fun count(n: Int) = String.format(Locale.getDefault(), "%,d", n)
 fun LibraryScreen(nav: NavController) {
     val loaded by app.state.collectAsState()
     val all by app.services.collectAsState()
-    val arrs = remember(all) { all.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Whisparr } }
+    val arrs = remember(all) { all.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Whisparr || it.serviceType == ServiceType.Lidarr } }
     when {
         loaded == null -> AppScaffold("Library") { p -> LoadingBox(Modifier.padding(p)) }
         arrs.isEmpty() -> AppScaffold("Library") { p ->
             FullScreenScroll(Modifier.padding(p)) { m ->
                 MessageBox(
-                    Icons.Rounded.Dns, "No Sonarr or Radarr yet", m,
-                    hint = "Add a Sonarr or Radarr service to browse your series and movies here.",
+                    Icons.Rounded.Dns, "No Sonarr, Radarr or Lidarr yet", m,
+                    hint = "Add a Sonarr, Radarr or Lidarr service to browse your series, movies and music here.",
                     action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
                     scene = SeaScene.Harbor,
                 )
@@ -135,9 +136,10 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
     val hasSonarr = arrs.any { it.serviceType == ServiceType.Sonarr }
     val hasRadarr = arrs.any { it.serviceType == ServiceType.Radarr }
     val hasWhisparr = arrs.any { it.serviceType == ServiceType.Whisparr }
+    val hasLidarr = arrs.any { it.serviceType == ServiceType.Lidarr }
     val adultIds = remember(arrs) { arrs.filter { it.serviceType == ServiceType.Whisparr }.map { it.id }.toSet() }
     // With only Whisparr configured there's nothing else to show, so "All" includes it.
-    val allIncludesAdult = !hasSonarr && !hasRadarr
+    val allIncludesAdult = !hasSonarr && !hasRadarr && !hasLidarr
     val byId = remember(arrs) { arrs.associateBy { it.id } }
 
     val data = state.value
@@ -157,6 +159,7 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                 KindFilter.All, KindFilter.Adult -> true
                 KindFilter.Series -> i.kind == LibKind.Series
                 KindFilter.Movies -> i.kind == LibKind.Movie
+                KindFilter.Music -> i.kind == LibKind.Music
             } &&
                 when (status) {
                     StatusFilter.Any -> true
@@ -181,6 +184,7 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
         else -> listOfNotNull(
             if (hasSonarr) "${count(everything.count { it.kind == LibKind.Series })} series" else null,
             if (hasRadarr) everything.count { it.kind == LibKind.Movie }.let { "${count(it)} ${if (it == 1) "movie" else "movies"}" } else null,
+            if (hasLidarr) everything.count { it.kind == LibKind.Music }.let { "${count(it)} ${if (it == 1) "artist" else "artists"}" } else null,
         ).joinToString(" · ")
     }
 
@@ -199,8 +203,10 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
         kind == KindFilter.Adult -> "adult"
         kind == KindFilter.Movies -> "movie"
         kind == KindFilter.Series -> "series"
+        kind == KindFilter.Music -> "music"
         hasSonarr -> "series"
-        else -> "movie"
+        hasRadarr || !hasLidarr -> "movie"
+        else -> "music"
     }
     val keyboard = LocalSoftwareKeyboardController.current
 
@@ -266,6 +272,7 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                         KindFilter.All -> true
                         KindFilter.Series -> hasSonarr
                         KindFilter.Movies -> hasRadarr
+                        KindFilter.Music -> hasLidarr
                         KindFilter.Adult -> hasWhisparr
                     }
                 }
@@ -316,7 +323,7 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                     shown.isEmpty() && everything.isEmpty() -> FullScreenScroll { m ->
                         MessageBox(
                             Icons.Rounded.VideoLibrary, "Your library is empty", m,
-                            hint = "Add a series or movie to start building it.",
+                            hint = if (kind == KindFilter.Music) "Add an artist to start building it." else "Add a series or movie to start building it.",
                             action = "Add", onAction = { nav.navigate(LibraryAddRoute(addKind)) },
                             scene = SeaScene.Harbor,
                         )
@@ -353,8 +360,11 @@ private fun LibraryContent(nav: NavController, arrs: List<ServiceConfig>) {
                                 item, byId[item.serviceId],
                                 onClick = {
                                     keyboard?.hide()
-                                    if (item.kind == LibKind.Series) nav.navigate(SeriesRoute(item.serviceId, item.id))
-                                    else nav.navigate(MovieRoute(item.serviceId, item.id))
+                                    when (item.kind) {
+                                        LibKind.Series -> nav.navigate(SeriesRoute(item.serviceId, item.id))
+                                        LibKind.Movie -> nav.navigate(MovieRoute(item.serviceId, item.id))
+                                        LibKind.Music -> nav.navigate(ArtistRoute(item.serviceId, item.id))
+                                    }
                                 },
                                 modifier = Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null),
                             )

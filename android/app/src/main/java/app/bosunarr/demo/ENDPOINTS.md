@@ -149,4 +149,7 @@ Legend: **F** = static fixture, **G** = generated, **W** = write that changes th
 
 - "Open in Sonarr/Radarr/Jellyseerr" buttons open the service's own web UI in the browser; the `.invalid` demo
   hosts don't exist there, so the browser shows its own error page.
-- Whisparr and Overseerr have no demo instance (Jellyseerr stands in for requests).
+- Whisparr and Overseerr have no demo instance (Jellyseerr stands in for requests; both show as "Seerr").
+- Lidarr (`DemoLidarr`, `/api/v1`) is held in memory with no fixtures or artwork: three artists (Kevin MacLeod, CC-BY;
+  Beethoven and Satie, public domain), library/detail/monitor/delete, search + add, calendar, queue (a download
+  finishes after two minutes), history, commands and the service screen's status/health/disk endpoints.

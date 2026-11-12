@@ -94,7 +94,7 @@ fun currentSeerr(list: List<ServiceConfig>): ServiceConfig? {
 fun NoSeerr(nav: NavController, modifier: Modifier = Modifier) {
     MessageBox(
         Icons.Rounded.Explore, "No request service yet", modifier,
-        hint = "Add Jellyseerr or Overseerr in Settings to discover and request movies and series.",
+        hint = "Add Seerr in Settings to discover and request movies and series.",
         action = "Open Settings", onAction = { nav.navigate(SettingsRoute) },
         scene = SeaScene.Harbor,
     )

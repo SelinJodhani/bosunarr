@@ -42,8 +42,7 @@ fun serviceLogo(type: ServiceType?): Int? = when (type) {
     ServiceType.Radarr -> R.drawable.svc_radarr
     ServiceType.Prowlarr -> R.drawable.svc_prowlarr
     ServiceType.Bazarr -> R.drawable.svc_bazarr
-    ServiceType.Jellyseerr -> R.drawable.svc_jellyseerr
-    ServiceType.Overseerr -> R.drawable.svc_overseerr
+    ServiceType.Jellyseerr, ServiceType.Overseerr -> R.drawable.svc_seerr
     ServiceType.QBittorrent -> R.drawable.svc_qbittorrent
     ServiceType.Jellyfin -> R.drawable.svc_jellyfin
     ServiceType.Jellystat -> R.drawable.svc_jellystat
@@ -51,6 +50,7 @@ fun serviceLogo(type: ServiceType?): Int? = when (type) {
     ServiceType.Tautulli -> R.drawable.svc_tautulli
     ServiceType.Wizarr -> R.drawable.svc_wizarr
     ServiceType.Whisparr -> R.drawable.svc_whisparr
+    ServiceType.Lidarr -> R.drawable.svc_lidarr
     ServiceType.Sabnzbd -> R.drawable.svc_sabnzbd
     ServiceType.Nzbget -> R.drawable.svc_nzbget
     ServiceType.Transmission -> R.drawable.svc_transmission

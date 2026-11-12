@@ -18,6 +18,11 @@ import androidx.navigation.toRoute
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.feature.music.AlbumScreen
+import app.bosunarr.feature.music.ArtistScreen
+import app.bosunarr.feature.music.MusicAddScreen
+import app.bosunarr.nav.AlbumRoute
+import app.bosunarr.nav.ArtistRoute
 import app.bosunarr.nav.LibraryAddRoute
 import app.bosunarr.nav.LibraryRoute
 import app.bosunarr.nav.MovieRoute
@@ -31,7 +36,7 @@ import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.MessageBox
 import app.bosunarr.ui.common.back
 
-/** Registers Library, SeriesRoute, MovieRoute and LibraryAddRoute. [tabFrame] wraps the tab root (adds the nav bar). */
+/** Registers Library, SeriesRoute, MovieRoute, ArtistRoute, AlbumRoute and LibraryAddRoute ("music" → Lidarr). [tabFrame] wraps the tab root (adds the nav bar). */
 fun NavGraphBuilder.libraryGraph(nav: NavController, tabFrame: @Composable (@Composable () -> Unit) -> Unit) {
     composable<LibraryRoute> { tabFrame { LibraryScreen(nav) } }
     composable<SeriesRoute> { entry ->
@@ -42,7 +47,18 @@ fun NavGraphBuilder.libraryGraph(nav: NavController, tabFrame: @Composable (@Com
         val r = entry.toRoute<MovieRoute>()
         WithArrService(nav, r.serviceId, setOf(ServiceType.Radarr, ServiceType.Whisparr), "Movie") { s -> MovieScreen(nav, entry, s, r.id) }
     }
-    composable<LibraryAddRoute> { entry -> LibraryAddScreen(nav, entry.toRoute<LibraryAddRoute>()) }
+    composable<ArtistRoute> { entry ->
+        val r = entry.toRoute<ArtistRoute>()
+        WithArrService(nav, r.serviceId, setOf(ServiceType.Lidarr), "Artist") { s -> ArtistScreen(nav, entry, s, r.id) }
+    }
+    composable<AlbumRoute> { entry ->
+        val r = entry.toRoute<AlbumRoute>()
+        WithArrService(nav, r.serviceId, setOf(ServiceType.Lidarr), "Album") { s -> AlbumScreen(nav, s, r.id) }
+    }
+    composable<LibraryAddRoute> { entry ->
+        val r = entry.toRoute<LibraryAddRoute>()
+        if (r.kind == "music") MusicAddScreen(nav, r.term) else LibraryAddScreen(nav, r)
+    }
     composable<ReleaseSearchRoute> { entry ->
         val r = entry.toRoute<ReleaseSearchRoute>()
         val types = if (r.movieId > 0) setOf(ServiceType.Radarr, ServiceType.Whisparr) else setOf(ServiceType.Sonarr)

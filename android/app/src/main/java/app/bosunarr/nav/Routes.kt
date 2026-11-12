@@ -28,7 +28,7 @@ import kotlinx.serialization.Serializable
     val seasonNumber: Int = -1,
 )
 
-// Discover (Jellyseerr/Overseerr). mediaType = "movie" | "tv".
+// Discover (Seerr). mediaType = "movie" | "tv".
 @Serializable data class MediaRoute(val mediaType: String, val tmdbId: Int)
 @Serializable object RequestsRoute
 
@@ -42,3 +42,7 @@ import kotlinx.serialization.Serializable
 
 /** First-run setup: welcome → pick services → connect each → done. */
 @Serializable object OnboardingRoute
+
+// Music (Lidarr). serviceId = ServiceConfig.id, id = Lidarr's own artist/album id. Adding uses LibraryAddRoute("music").
+@Serializable data class ArtistRoute(val serviceId: String, val id: Int)
+@Serializable data class AlbumRoute(val serviceId: String, val id: Int)
