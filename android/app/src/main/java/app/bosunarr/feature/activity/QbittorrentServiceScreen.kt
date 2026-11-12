@@ -54,11 +54,12 @@ import androidx.navigation.NavController
 import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
-import app.bosunarr.feature.activity.qbit.Qbit
 import app.bosunarr.feature.activity.qbit.QbitServer
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.qbit.categoryLabel
 import app.bosunarr.feature.library.horizontalFadingEdges
+import app.bosunarr.feature.torrent.TorrentClients
+import app.bosunarr.data.ServiceType
 import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.feature.services.ServiceFrame
 import app.bosunarr.ui.common.SectionTitle
@@ -72,14 +73,17 @@ import kotlinx.coroutines.launch
 /** Marks "no category" in the category filter. */
 private const val UNCATEGORIZED = "\u0000none"
 
-/** qBittorrent's own screen (opened from ServiceScreen dispatch). */
+/**
+ * A torrent client's own screen (opened from ServiceScreen dispatch): qBittorrent, and Transmission and Deluge, whose
+ * data is mapped onto the same model by [TorrentClients].
+ */
 @Composable
 fun QbittorrentServiceScreen(service: ServiceConfig, nav: NavController) {
     val services by app.services.collectAsState()
     // The latest saved config (it may have been edited since the route was opened).
     val s = services.firstOrNull { it.id == service.id } ?: service
     val loader = rememberLoader("qbit:${service.id}", refreshMs = 2_500) {
-        val snap = Qbit.snapshot(s)
+        val snap = TorrentClients.snapshot(s)
         TorrentData(listOf(snap), listOfNotNull(snap.error?.let { ServiceError(snap.serviceName, it) }))
     }
     val controller = rememberTorrentController { loader.refresh() }
@@ -101,7 +105,7 @@ fun QbittorrentServiceScreen(service: ServiceConfig, nav: NavController) {
         val token = ++altToken
         scope.launch {
             try {
-                Qbit.setAltSpeed(s, enabled)
+                TorrentClients.setAltSpeed(s, enabled)
                 controller.show(if (enabled) "Alternative speed limits on" else "Alternative speed limits off")
                 loader.refresh()
                 delay(8_000) // give up waiting for the poll to confirm
@@ -156,8 +160,8 @@ fun QbittorrentServiceScreen(service: ServiceConfig, nav: NavController) {
                 onResetFilter = { category = null },
                 header = {
                     if (c != null) {
-                        item("transfer") { TransferCard(c.server, Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
-                        item("alt") {
+                        item("transfer") { TransferCard(c.server, s.serviceType, Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+                        if (TorrentClients.supportsAltSpeed(s.serviceType)) item("alt") {
                             AltSpeedCard(
                                 on = altPending ?: c.server.altSpeed,
                                 busy = altPending != null,
@@ -231,7 +235,7 @@ private fun CountChip(label: String, count: Int, selected: Boolean, onClick: () 
 }
 
 @Composable
-private fun TransferCard(sv: QbitServer, modifier: Modifier = Modifier) {
+private fun TransferCard(sv: QbitServer, type: ServiceType?, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
     Card(modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)) {
         Column(Modifier.padding(16.dp)) {
@@ -240,12 +244,13 @@ private fun TransferCard(sv: QbitServer, modifier: Modifier = Modifier) {
                 BigSpeed(false, sv.up, sv.upLimit, Modifier.weight(1f))
             }
             HorizontalDivider(Modifier.padding(vertical = 14.dp), color = cs.outlineVariant.copy(alpha = 0.6f))
-            val stats = listOf(
+            // Deluge has no all-time totals or global ratio; Transmission reports no DHT node count.
+            val stats = listOfNotNull(
                 "Session" to "↓ ${bytes(sv.sessionDown)}  ↑ ${bytes(sv.sessionUp)}",
-                "All-time" to "↓ ${bytes(sv.allTimeDown)}  ↑ ${bytes(sv.allTimeUp)}",
-                "Ratio" to (sv.ratio?.let { ratio(it) } ?: "—"),
+                ("All-time" to "↓ ${bytes(sv.allTimeDown)}  ↑ ${bytes(sv.allTimeUp)}").takeIf { type != ServiceType.Deluge },
+                ("Ratio" to (sv.ratio?.let { ratio(it) } ?: "—")).takeIf { type != ServiceType.Deluge },
                 "Free space" to (sv.freeSpace?.let { bytes(it) } ?: "—"),
-                "DHT nodes" to sv.dhtNodes.toString(),
+                ("DHT nodes" to sv.dhtNodes.toString()).takeIf { type != ServiceType.Transmission },
                 "Peers" to sv.peers.toString(),
             )
             stats.chunked(2).forEach { pair ->
@@ -258,7 +263,8 @@ private fun TransferCard(sv: QbitServer, modifier: Modifier = Modifier) {
                     }
                 }
             }
-            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Transmission's RPC has no connection status: say nothing rather than "unknown" forever.
+            if (sv.connection != "unknown" || type == ServiceType.QBittorrent) Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 val (color, label) = when (sv.connection) {
                     "connected" -> cs.tertiary to "Connected"
                     "firewalled" -> Color(0xFFE0A030) to "Firewalled — incoming connections are blocked"

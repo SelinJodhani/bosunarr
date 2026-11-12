@@ -64,10 +64,18 @@ class ServiceClient(base: OkHttpClient) {
     private val qbitLocks = ConcurrentHashMap<String, Mutex>()
     /** Which address last worked for a service with a fallback (`altUrl`). */
     private val preferredBase = ConcurrentHashMap<String, String>()
+    /** Transmission's CSRF token (`X-Transmission-Session-Id`), learned from its 409 answer. */
+    private val trSessions = ConcurrentHashMap<String, String>()
+    /** Deluge Web UI `_session_id` cookies, plus login back-off and locks like qBittorrent's. */
+    private val delugeCookies = ConcurrentHashMap<String, String>()
+    private val delugeFailures = ConcurrentHashMap<String, Pair<Long, String>>()
+    private val delugeLocks = ConcurrentHashMap<String, Mutex>()
 
     /** Forget cached sessions and failures when a service's settings change. */
     fun reset(id: String) {
         qbitSids.remove(id); qbitFailures.remove(id); preferredBase.remove(id)
+        trSessions.remove(id); delugeCookies.remove(id); delugeFailures.remove(id)
+        app.bosunarr.feature.torrent.Transmission.reset(id)
     }
 
     fun baseUrl(s: ServiceConfig): String = preferredBase[s.id] ?: s.url
@@ -84,6 +92,11 @@ class ServiceClient(base: OkHttpClient) {
             // SABnzbd only reads `apikey` from the query string (added in requestAt); NZBGet uses HTTP basic auth.
             ServiceType.Sabnzbd -> emptyMap()
             ServiceType.Nzbget -> mapOf("Authorization" to okhttp3.Credentials.basic(s.username.orEmpty(), s.password.orEmpty(), Charsets.UTF_8))
+            // Transmission: HTTP basic auth only when RPC authentication is set up. Deluge: cookie (see requestAt).
+            ServiceType.Transmission ->
+                if (s.username.isNullOrEmpty() && s.password.isNullOrEmpty()) emptyMap()
+                else mapOf("Authorization" to okhttp3.Credentials.basic(s.username.orEmpty(), s.password.orEmpty(), Charsets.UTF_8))
+            ServiceType.Deluge -> emptyMap()
             else -> mapOf("X-Api-Key" to key)
         }
     }
@@ -136,6 +149,11 @@ class ServiceClient(base: OkHttpClient) {
         val type = s.serviceType ?: throw ServiceException("Unknown service type")
         // Server is SSH, not HTTP: connect + authenticate against the pinned host key.
         if (type == ServiceType.Server) return TestResult(null, app.bosunarr.feature.server.ServerProbe.status(s))
+        // JSON-RPC over POST (Transmission session handshake, Deluge login + daemon connection).
+        if (type == ServiceType.Transmission || type == ServiceType.Deluge) {
+            val v = app.bosunarr.feature.torrent.TorrentClients.probe(s)
+            return TestResult(v, ((System.nanoTime() - started) / 1_000_000).toInt())
+        }
         val probe = PROBES.getValue(type)
         val text = request(s, probe.path)
         if (text.trimStart().startsWith("<")) throw ServiceException("${s.name} answered with a web page instead of its API — check the address")
@@ -181,6 +199,8 @@ class ServiceClient(base: OkHttpClient) {
             builder.header("Cookie", qbitSids[s.id] ?: qbitLogin(s, base))
             builder.header("Referer", base)
         }
+        if (s.serviceType == ServiceType.Transmission) trSessions[s.id]?.let { builder.header(TR_SESSION, it) }
+        if (s.serviceType == ServiceType.Deluge) builder.header("Cookie", delugeCookies[s.id] ?: delugeLogin(s, base))
         val res = try {
             http.newCall(builder.build()).await()
         } catch (e: IOException) {
@@ -190,6 +210,19 @@ class ServiceClient(base: OkHttpClient) {
             val text = it.body?.string().orEmpty()
             if (isQbit && it.code == 403 && !retried) {
                 qbitSids.remove(s.id)
+                return requestAt(s, base, path, method, body, true)
+            }
+            // Transmission answers 409 with a fresh session id until the request carries it.
+            if (s.serviceType == ServiceType.Transmission && it.code == 409 && !retried) {
+                val sid = it.header(TR_SESSION)
+                if (!sid.isNullOrBlank()) {
+                    trSessions[s.id] = sid
+                    return requestAt(s, base, path, method, body, true)
+                }
+            }
+            // Deluge answers 200 with error code 1 once the session cookie expired: log in again once.
+            if (s.serviceType == ServiceType.Deluge && it.isSuccessful && !retried && delugeUnauthenticated(text)) {
+                delugeCookies.remove(s.id)
                 return requestAt(s, base, path, method, body, true)
             }
             if (it.code in 300..399) throw ServiceException("${s.name} redirected to another page (a login?) — check the URL")
@@ -267,9 +300,55 @@ class ServiceClient(base: OkHttpClient) {
         }
     }
 
+    /** Deluge Web UI login (`auth.login` with the password only); the answer sets a `_session_id` cookie. */
+    private suspend fun delugeLogin(s: ServiceConfig, base: String): String {
+        val lock = delugeLocks.getOrPut(s.id) { Mutex() }
+        return lock.withLock {
+            delugeCookies[s.id]?.let { return@withLock it }
+            delugeFailures[s.id]?.let { (at, msg) -> if (System.currentTimeMillis() - at < 15_000) throw ServiceException(msg, 401) }
+            val payload = kotlinx.serialization.json.buildJsonObject {
+                put("method", kotlinx.serialization.json.JsonPrimitive("auth.login"))
+                put("params", kotlinx.serialization.json.JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive(s.password.orEmpty()))))
+                put("id", kotlinx.serialization.json.JsonPrimitive(0))
+            }
+            val req = Request.Builder().url("$base/json").post(payload.toString().toRequestBody(JSON_TYPE)).header("Accept", "application/json").build()
+            val res = try {
+                http.newCall(req).await()
+            } catch (e: IOException) {
+                throw Unreachable(if (e is SocketTimeoutException) "${s.name} timed out" else "${s.name} is unreachable")
+            }
+            res.use {
+                val text = it.body?.string().orEmpty()
+                if (it.code in 300..399) throw ServiceException("${s.name} redirected to another page (a login?) — check the URL")
+                if (text.trimStart().startsWith("<")) throw ServiceException("${s.name} answered with a web page instead of its API — check the address")
+                if (!it.isSuccessful) throw ServiceException("${s.name} returned HTTP ${it.code}", it.code)
+                val ok = runCatching { (AppJson.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject)?.get("result")?.toString() == "true" }.getOrDefault(false)
+                val cookie = it.headers("Set-Cookie").firstNotNullOfOrNull { c -> DELUGE_COOKIE.find(c) }
+                if (ok && cookie != null) {
+                    delugeFailures.remove(s.id)
+                    val value = "_session_id=${cookie.groupValues[1]}"
+                    delugeCookies[s.id] = value
+                    return@withLock value
+                }
+                val message = if (ok) "Deluge accepted the login but sent no session cookie" else "Deluge login failed — check the password"
+                delugeFailures[s.id] = System.currentTimeMillis() to message
+                throw ServiceException(message, 401)
+            }
+        }
+    }
+
+    /** `{"result": null, "error": {"message": "Not authenticated", "code": 1}, "id": …}` */
+    private fun delugeUnauthenticated(text: String): Boolean {
+        if (text.length > 1_000 || !text.contains("\"error\"")) return false
+        val err = runCatching { ((AppJson.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject)?.get("error") as? kotlinx.serialization.json.JsonObject) }.getOrNull()
+        return (err?.get("code") as? kotlinx.serialization.json.JsonPrimitive)?.content == "1"
+    }
+
     companion object {
         /** qBittorrent ≤4.x names its cookie `SID`; 5.x uses `QBT_SID_<port>`. */
         private val SID_COOKIE = Regex("""(?:^|[\s,;])((?:QBT_)?SID(?:_\d+)?)=([^;,\s]+)""")
+        private val DELUGE_COOKIE = Regex("""(?:^|[\s,;])_session_id=([^;,\s]+)""")
+        private const val TR_SESSION = "X-Transmission-Session-Id"
     }
 }
 

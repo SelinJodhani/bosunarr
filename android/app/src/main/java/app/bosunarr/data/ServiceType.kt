@@ -2,8 +2,11 @@ package app.bosunarr.data
 
 import androidx.compose.ui.graphics.Color
 
-/** How a service authenticates. [Ssh]: host + user, then a private key (default) or a password. */
-enum class Credentials { ApiKey, UserPass, None, Ssh }
+/**
+ * How a service authenticates. [Ssh]: host + user, then a private key (default) or a password.
+ * [Password]: a password and no username (Deluge's Web UI).
+ */
+enum class Credentials { ApiKey, UserPass, None, Ssh, Password }
 
 enum class ServiceCategory(val label: String) {
     Media("Media managers"), Requests("Requests"), Indexers("Indexers"), Subtitles("Subtitles"),
@@ -37,7 +40,10 @@ enum class ServiceType(
     Sabnzbd("sabnzbd", "SABnzbd", ServiceCategory.Downloads, Credentials.ApiKey, 8080, "SABnzbd → Config → General → Security → API Key", Color(0xFFFFB300), "Usenet"),
     Nzbget("nzbget", "NZBGet", ServiceCategory.Downloads, Credentials.UserPass, 6789, "NZBGet → Settings → Security → ControlUsername and ControlPassword", Color(0xFF35CC35), "Usenet"),
     /** The machine the stack runs on, over SSH: health and Docker containers. `url` is `ssh://host:port`. */
-    Server("server", "Server", ServiceCategory.Host, Credentials.Ssh, 22, "An SSH login on the machine running your stack", Color(0xFF7C8DA6), "SSH");
+    Server("server", "Server", ServiceCategory.Host, Credentials.Ssh, 22, "An SSH login on the machine running your stack", Color(0xFF7C8DA6), "SSH"),
+    /** RPC at `/transmission/rpc` (or the full RPC URL when `url` ends in `/rpc`). Username/password only if RPC auth is on. */
+    Transmission("transmission", "Transmission", ServiceCategory.Downloads, Credentials.UserPass, 9091, "Leave both empty unless RPC authentication is on in Transmission", Color(0xFFB50D0D), "Downloads"),
+    Deluge("deluge", "Deluge", ServiceCategory.Downloads, Credentials.Password, 8112, "Your Deluge Web UI password (default: deluge)", Color(0xFF4A90D9), "Downloads");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }

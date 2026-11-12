@@ -67,6 +67,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import app.bosunarr.ui.common.toggleRow
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.feature.activity.qbit.Qbit
+import app.bosunarr.feature.torrent.TorrentClients
 import app.bosunarr.feature.activity.qbit.categoryLabel
 import app.bosunarr.ui.common.friendlyMessage
 import kotlinx.coroutines.CancellationException
@@ -113,7 +114,7 @@ fun AddTorrentSheet(
     LaunchedEffect(client?.id) {
         categories = emptyList()
         val s = client ?: return@LaunchedEffect
-        categories = runCatching { Qbit.categories(s) }.getOrDefault(emptyList())
+        categories = runCatching { TorrentClients.categories(s) }.getOrDefault(emptyList())
         if (category.isNotEmpty() && category !in categories) category = ""
     }
     LaunchedEffect(links, clientId) { error = null }
@@ -159,7 +160,7 @@ fun AddTorrentSheet(
         busy = true
         scope.launch {
             try {
-                Qbit.add(s, parsed, files.toList(), category.ifEmpty { null }, savePath.ifBlank { null }, paused)
+                TorrentClients.add(s, parsed, files.toList(), category.ifEmpty { null }, savePath.ifBlank { null }, paused)
                 val n = parsed.size + files.size
                 onAdded(if (n > 1) "Added $n torrents" else "Torrent added")
                 sheet.hide()

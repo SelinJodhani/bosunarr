@@ -70,16 +70,17 @@ import app.bosunarr.ui.common.MessageBox
 import app.bosunarr.ui.common.OnTabReselected
 import app.bosunarr.feature.usenet.UsenetQueueList
 import app.bosunarr.feature.usenet.isUsenet
+import app.bosunarr.feature.torrent.isTorrentClient
 import app.bosunarr.ui.common.rememberLoader
 import kotlinx.coroutines.launch
 
-/** Activity tab: Sonarr/Radarr queues and every qBittorrent's torrents, live. */
+/** Activity tab: Sonarr/Radarr queues and every torrent client's torrents (qBittorrent, Transmission, Deluge), live. */
 @Composable
 fun ActivityScreen(nav: NavController) {
     val appState by app.state.collectAsState()
     val services by app.services.collectAsState()
     val arrs = remember(services) { services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Whisparr } }
-    val qbits = remember(services) { services.filter { it.serviceType == ServiceType.QBittorrent } }
+    val qbits = remember(services) { services.filter { isTorrentClient(it.serviceType) } }
     val usenet = remember(services) { services.filter { isUsenet(it.serviceType) } }
     val snackbar = LocalSnackbar.current
     val scope = rememberCoroutineScope()
@@ -107,7 +108,7 @@ fun ActivityScreen(nav: NavController) {
         if (appState == null) return@LaunchedEffect
         app.pendingTorrent.value = null
         if (qbits.isEmpty()) {
-            snackbar.showSnackbar("Add a qBittorrent service in Settings to add torrents")
+            snackbar.showSnackbar("Add a torrent client (qBittorrent, Transmission or Deluge) in Settings to add torrents")
             return@LaunchedEffect
         }
         addInitial = link
@@ -156,7 +157,7 @@ fun ActivityScreen(nav: NavController) {
                 noServices -> MessageBox(
                     Icons.Rounded.Download,
                     "Nothing to show yet",
-                    hint = "Add Sonarr, Radarr or qBittorrent in Settings to see downloads here.",
+                    hint = "Add Sonarr, Radarr or a download client in Settings to see downloads here.",
                     action = "Open Settings",
                     onAction = { nav.navigate(SettingsRoute) },
                     scene = SeaScene.Harbor,
@@ -316,7 +317,7 @@ private fun TorrentsPage(
         MessageBox(
             Icons.Rounded.Dns,
             "No download client",
-            hint = "Add a qBittorrent service in Settings to manage torrents here.",
+            hint = "Add qBittorrent, Transmission or Deluge in Settings to manage torrents here.",
             action = "Open Settings",
             onAction = { nav.navigate(SettingsRoute) },
             scene = SeaScene.Harbor,

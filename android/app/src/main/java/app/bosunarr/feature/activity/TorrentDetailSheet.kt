@@ -68,7 +68,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import app.bosunarr.ui.common.plural
 import app.bosunarr.app
 import app.bosunarr.feature.activity.qbit.FILE_PRIORITIES
-import app.bosunarr.feature.activity.qbit.Qbit
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.qbit.TorrentDetails
 import app.bosunarr.feature.activity.qbit.TorrentFile
@@ -76,6 +75,7 @@ import app.bosunarr.feature.activity.qbit.TorrentGroup
 import app.bosunarr.feature.activity.qbit.TorrentTracker
 import app.bosunarr.feature.activity.qbit.categoryLabel
 import app.bosunarr.feature.activity.qbit.filePriorityLabel
+import app.bosunarr.feature.torrent.TorrentClients
 import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.Tag
@@ -120,7 +120,7 @@ fun TorrentDetailSheet(
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 try {
-                    val d = Qbit.details(s, torrent.hash)
+                    val d = TorrentClients.details(s, torrent.hash)
                     details = d
                     detailError = null
                     d.files.forEach { f -> if (prioOverrides[f.index] == f.priority) prioOverrides.remove(f.index) }
@@ -199,7 +199,7 @@ fun TorrentDetailSheet(
                             prioOverrides[f.index] = p
                             scope.launch {
                                 try {
-                                    Qbit.setFilePriority(s, torrent.hash, listOf(f.index), p)
+                                    TorrentClients.setFilePriority(s, torrent.hash, listOf(f.index), p)
                                     refreshTick++
                                 } catch (e: CancellationException) {
                                     throw e
@@ -324,8 +324,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.infoItems(t: Torrent,
         row("Downloaded", bytes(p?.totalDownloaded ?: t.downloaded) + (p?.totalWasted?.takeIf { it > 0 }?.let { " (${bytes(it)} wasted)" } ?: ""))
         row("Uploaded", bytes(p?.totalUploaded ?: t.uploaded))
         row("Ratio", ratio(p?.shareRatio ?: t.ratio))
-        row("Seeds", "${t.seeds} connected (${t.seedsTotal} in swarm)")
-        row("Peers", "${t.peers} connected (${t.peersTotal} in swarm)")
+        // Transmission doesn't report swarm sizes in its list (-1).
+        row("Seeds", "${t.seeds} connected" + if (t.seedsTotal >= 0) " (${t.seedsTotal} in swarm)" else "")
+        row("Peers", "${t.peers} connected" + if (t.peersTotal >= 0) " (${t.peersTotal} in swarm)" else "")
         if (t.availability >= 0 && !t.isDone) row("Availability", String.format(java.util.Locale.US, "%.2f", t.availability))
         p?.let { row("Average speed", "↓ ${speed(it.dlSpeedAvg)}  ↑ ${speed(it.upSpeedAvg)}") }
         p?.connections?.takeIf { it > 0 }?.let { row("Connections", if (p.connectionsLimit > 0) "$it of ${p.connectionsLimit}" else "$it") }

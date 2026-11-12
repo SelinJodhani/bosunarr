@@ -123,7 +123,9 @@ internal class ServiceForm(
     val ready: Boolean
         get() = when (type.credentials) {
             Credentials.ApiKey -> url.isNotBlank() && apiKey.isNotBlank()
-            Credentials.UserPass -> url.isNotBlank() && username.isNotBlank()
+            // Transmission only has a login when RPC authentication is turned on.
+            Credentials.UserPass -> url.isNotBlank() && (username.isNotBlank() || type == ServiceType.Transmission)
+            Credentials.Password -> url.isNotBlank() && password.isNotEmpty()
             Credentials.None -> url.isNotBlank()
             // Server: the address is host + port (the form's `url` isn't used).
             Credentials.Ssh -> sshTarget != null && username.isNotBlank() &&
@@ -138,7 +140,7 @@ internal class ServiceForm(
         altUrl = normalizeUrl(altUrl).ifEmpty { null },
         apiKey = apiKey.trim().ifEmpty { null }.takeIf { type.credentials == Credentials.ApiKey },
         username = username.trim().ifEmpty { null }.takeIf { type.credentials == Credentials.UserPass },
-        password = password.ifEmpty { null }.takeIf { type.credentials == Credentials.UserPass },
+        password = password.ifEmpty { null }.takeIf { type.credentials == Credentials.UserPass || type.credentials == Credentials.Password },
         sort = sort,
     )
 
@@ -270,7 +272,7 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
             Credentials.UserPass -> {
                 OutlinedTextField(
                     form.username, { form.username = it; onEdited() },
-                    label = { Text("Username") },
+                    label = { Text(if (type == ServiceType.Transmission) "Username (optional)" else "Username") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next),
                     modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Username },
@@ -287,6 +289,17 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
                     modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
                 )
             }
+            Credentials.Password -> OutlinedTextField(
+                form.password, { form.password = it; onEdited() },
+                label = { Text("Password") },
+                supportingText = { Text(type.keyHint) },
+                singleLine = true,
+                visualTransformation = secretTransform,
+                trailingIcon = eye,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+                modifier = Modifier.fillMaxWidth().semantics { contentType = ContentType.Password },
+            )
             Credentials.None, Credentials.Ssh -> Unit
         }
 
@@ -351,7 +364,7 @@ private fun FailurePanel(msg: String, type: ServiceType, onSaveAnyway: (() -> Un
                 type.credentials == Credentials.Ssh -> sshHelp(msg)
                 msg.contains("timed out") || msg.contains("unreachable") ->
                     "Check the address and port, and that this phone can reach it — same Wi-Fi, or your VPN (e.g. Tailscale) is on."
-                msg.contains("credentials") || msg.contains("login failed") -> "Double-check the ${if (type.credentials == Credentials.UserPass) "username and password" else "API key"}."
+                msg.contains("credentials") || msg.contains("login failed") -> "Double-check the ${when (type.credentials) { Credentials.UserPass -> "username and password"; Credentials.Password -> "password"; else -> "API key" }}."
                 msg.contains("web page") || msg.contains("redirected") -> "That address serves a web page, not the ${type.label} API. Check the port and any base path (like /${type.id})."
                 else -> null
             }

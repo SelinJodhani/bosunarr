@@ -83,7 +83,7 @@ fun CategoryDialog(categories: List<String>, current: String?, onPick: (String) 
         title = { Text("Set category") },
         text = {
             if (categories.isEmpty()) {
-                Text("This qBittorrent has no categories yet. Create them in qBittorrent first.")
+                Text("This client has no categories or labels yet. Create them in the client first.")
             } else {
                 LazyColumn(Modifier.heightIn(max = 360.dp)) {
                     items(options, key = { it }) { c ->

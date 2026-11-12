@@ -74,6 +74,8 @@ fun ServiceScreen(id: String, nav: NavController) {
         ServiceType.Wizarr -> WizarrServiceScreen(s, nav)
         ServiceType.Jellyseerr, ServiceType.Overseerr -> SeerrServiceScreen(s, nav)
         ServiceType.QBittorrent -> QbittorrentServiceScreen(s, nav)
+        // Transmission and Deluge are mapped onto the qBittorrent model and share its screen.
+        ServiceType.Transmission, ServiceType.Deluge -> QbittorrentServiceScreen(s, nav)
         ServiceType.Server -> ServerServiceScreen(s, nav)
         ServiceType.Sabnzbd -> SabnzbdServiceScreen(s, nav)
         ServiceType.Nzbget -> NzbgetServiceScreen(s, nav)

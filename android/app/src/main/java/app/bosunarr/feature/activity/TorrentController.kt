@@ -7,11 +7,11 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import app.bosunarr.app
-import app.bosunarr.feature.activity.qbit.Qbit
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.qbit.TorrentGroup
 import app.bosunarr.feature.activity.qbit.categoryLabel
+import app.bosunarr.feature.torrent.TorrentClients
 import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.LocalSnackbar
 import app.bosunarr.ui.common.plural
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Runs torrent actions with optimistic UI: the change shows at once (a paused torrent looks paused, a deleted one
- * disappears) and is rolled back with a snackbar if qBittorrent refuses. The override stays until a poll confirms
+ * disappears) and is rolled back with a snackbar if the client refuses. The override stays until a poll confirms
  * it or it times out, so a poll that was already in flight can't make the row flicker back.
  */
 @Stable
@@ -75,24 +75,24 @@ class TorrentController internal constructor(
 
     fun isBusy(t: Torrent): Boolean = pending.containsKey(t.key)
 
-    fun stop(ts: List<Torrent>) = run(ts, Kind.Stop, { s, h -> Qbit.stop(s, h) }) { n ->
+    fun stop(ts: List<Torrent>) = run(ts, Kind.Stop, { s, h -> TorrentClients.stop(s, h) }) { n ->
         if (ts.all { it.isDone }) "Stopped seeding" + count(n) else "Paused" + count(n)
     }
 
-    fun start(ts: List<Torrent>) = run(ts, Kind.Start, { s, h -> Qbit.start(s, h) }) { n ->
+    fun start(ts: List<Torrent>) = run(ts, Kind.Start, { s, h -> TorrentClients.start(s, h) }) { n ->
         if (ts.all { it.isDone }) "Seeding started" + count(n) else "Resumed" + count(n)
     }
 
-    fun recheck(ts: List<Torrent>) = run(ts, Kind.Recheck, { s, h -> Qbit.recheck(s, h) }) { n -> "Checking files" + count(n) }
+    fun recheck(ts: List<Torrent>) = run(ts, Kind.Recheck, { s, h -> TorrentClients.recheck(s, h) }) { n -> "Checking files" + count(n) }
 
-    fun reannounce(ts: List<Torrent>) = run(ts, null, { s, h -> Qbit.reannounce(s, h) }) { n -> "Reannounced" + count(n) }
+    fun reannounce(ts: List<Torrent>) = run(ts, null, { s, h -> TorrentClients.reannounce(s, h) }) { n -> "Reannounced" + count(n) }
 
-    fun delete(ts: List<Torrent>, deleteFiles: Boolean) = run(ts, Kind.Delete, { s, h -> Qbit.delete(s, h, deleteFiles) }) { n ->
+    fun delete(ts: List<Torrent>, deleteFiles: Boolean) = run(ts, Kind.Delete, { s, h -> TorrentClients.delete(s, h, deleteFiles) }) { n ->
         val what = if (n == 1) "torrent" else plural(n, "torrent")
         if (deleteFiles) "Deleted $what and files" else "Deleted $what"
     }
 
-    fun setCategory(ts: List<Torrent>, category: String) = run(ts, Kind.Category, { s, h -> Qbit.setCategory(s, h, category) }, category) {
+    fun setCategory(ts: List<Torrent>, category: String) = run(ts, Kind.Category, { s, h -> TorrentClients.setCategory(s, h, category) }, category) {
         if (category.isEmpty()) "Category removed" else "Category set to ${categoryLabel(category)}"
     }
 
@@ -100,13 +100,13 @@ class TorrentController internal constructor(
     fun stopAll(ts: List<Torrent>) {
         val running = ts.filter { !it.isStopped }
         if (running.isEmpty()) return show("Nothing to pause")
-        run(running, Kind.Stop, { s, _ -> Qbit.stopAll(s) }) { "Paused all torrents" }
+        run(running, Kind.Stop, { s, _ -> TorrentClients.stopAll(s) }) { "Paused all torrents" }
     }
 
     fun startAll(ts: List<Torrent>) {
         val stopped = ts.filter { it.isStopped || it.group == TorrentGroup.Errored }
         if (stopped.isEmpty()) return show("Nothing to resume")
-        run(stopped, Kind.Start, { s, _ -> Qbit.startAll(s) }) { "Resumed all torrents" }
+        run(stopped, Kind.Start, { s, _ -> TorrentClients.startAll(s) }) { "Resumed all torrents" }
     }
 
     private fun count(n: Int) = if (n > 1) " $n torrents" else ""

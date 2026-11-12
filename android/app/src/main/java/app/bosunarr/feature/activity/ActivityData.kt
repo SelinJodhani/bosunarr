@@ -16,11 +16,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.bosunarr.data.ServiceConfig
-import app.bosunarr.feature.activity.qbit.Qbit
 import app.bosunarr.feature.activity.qbit.QbitSnapshot
 import app.bosunarr.feature.activity.qbit.Torrent
 import app.bosunarr.feature.activity.queue.ArrQueue
 import app.bosunarr.feature.activity.queue.QueueEntry
+import app.bosunarr.feature.torrent.TorrentClients
 import app.bosunarr.net.fanOut
 import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.ErrorBox
@@ -53,7 +53,7 @@ suspend fun loadQueue(services: List<ServiceConfig>): QueueData = withContext(Di
 }
 
 suspend fun loadTorrents(services: List<ServiceConfig>): TorrentData {
-    val results = fanOut(services) { Qbit.snapshot(it) }
+    val results = fanOut(services) { TorrentClients.snapshot(it) }
     val clients = results.mapNotNull { it.second.getOrNull() }
     return TorrentData(
         clients = clients,
