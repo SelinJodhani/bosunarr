@@ -40,7 +40,9 @@ import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.feature.activity.QbittorrentServiceScreen
+import app.bosunarr.feature.plex.PlexServiceScreen
 import app.bosunarr.feature.server.ServerServiceScreen
+import app.bosunarr.feature.tautulli.TautulliServiceScreen
 import app.bosunarr.feature.usenet.NzbgetServiceScreen
 import app.bosunarr.feature.usenet.SabnzbdServiceScreen
 import app.bosunarr.nav.DiscoverRoute
@@ -71,6 +73,8 @@ fun ServiceScreen(id: String, nav: NavController) {
         ServiceType.Bazarr -> BazarrServiceScreen(s, nav)
         ServiceType.Jellyfin -> JellyfinServiceScreen(s, nav)
         ServiceType.Jellystat -> JellystatServiceScreen(s, nav)
+        ServiceType.Plex -> PlexServiceScreen(s, nav)
+        ServiceType.Tautulli -> TautulliServiceScreen(s, nav)
         ServiceType.Wizarr -> WizarrServiceScreen(s, nav)
         ServiceType.Jellyseerr, ServiceType.Overseerr -> SeerrServiceScreen(s, nav)
         ServiceType.QBittorrent -> QbittorrentServiceScreen(s, nav)

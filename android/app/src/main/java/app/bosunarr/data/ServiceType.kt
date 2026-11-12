@@ -35,7 +35,10 @@ enum class ServiceType(
     Overseerr("overseerr", "Overseerr", ServiceCategory.Requests, Credentials.ApiKey, 5055, "Overseerr → Settings → General → API Key", Color(0xFF6366F1), "Requests"),
     QBittorrent("qbittorrent", "qBittorrent", ServiceCategory.Downloads, Credentials.UserPass, 8080, "Your qBittorrent Web UI username and password", Color(0xFF2F67BA), "Downloads"),
     Jellyfin("jellyfin", "Jellyfin", ServiceCategory.Server, Credentials.ApiKey, 8096, "Jellyfin → Dashboard → API Keys", Color(0xFFAA5CC3), "Media server"),
+    /** The credential is an X-Plex-Token: typed in, or filled by the plex.tv PIN sign-in on the setup form. */
+    Plex("plex", "Plex", ServiceCategory.Server, Credentials.ApiKey, 32400, "Sign in with Plex below, or in Plex Web: any item → ⋯ → Get Info → View XML, then copy X-Plex-Token from the address", Color(0xFFE5A00D), "Media server"),
     Jellystat("jellystat", "Jellystat", ServiceCategory.Stats, Credentials.ApiKey, 3000, "Jellystat → Settings → API Keys", Color(0xFFF472B6), "Watch stats"),
+    Tautulli("tautulli", "Tautulli", ServiceCategory.Stats, Credentials.ApiKey, 8181, "Tautulli → Settings → Web Interface → API Key", Color(0xFFF0A030), "Watch stats"),
     Wizarr("wizarr", "Wizarr", ServiceCategory.Users, Credentials.ApiKey, 5690, "Wizarr → Settings → API Keys", Color(0xFFF59E0B), "Invites"),
     Sabnzbd("sabnzbd", "SABnzbd", ServiceCategory.Downloads, Credentials.ApiKey, 8080, "SABnzbd → Config → General → Security → API Key", Color(0xFFFFB300), "Usenet"),
     Nzbget("nzbget", "NZBGet", ServiceCategory.Downloads, Credentials.UserPass, 6789, "NZBGet → Settings → Security → ControlUsername and ControlPassword", Color(0xFF35CC35), "Usenet"),

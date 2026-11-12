@@ -67,6 +67,7 @@ import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
 import app.bosunarr.data.normalizeUrl
 import app.bosunarr.feature.server.HostKeyDialog
+import app.bosunarr.feature.plex.PlexSignIn
 import app.bosunarr.feature.server.HostKeyMismatch
 import app.bosunarr.feature.server.HostKeyUnknown
 import app.bosunarr.feature.server.ServerProbe
@@ -260,7 +261,7 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
         when (type.credentials) {
             Credentials.ApiKey -> OutlinedTextField(
                 form.apiKey, { form.apiKey = it; onEdited() },
-                label = { Text("API key") },
+                label = { Text(if (type == ServiceType.Plex) "Plex token" else "API key") },
                 supportingText = { Text(type.keyHint) },
                 singleLine = true,
                 visualTransformation = secretTransform,
@@ -302,6 +303,11 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
             )
             Credentials.None, Credentials.Ssh -> Unit
         }
+        if (type == ServiceType.Plex) PlexSignIn(onSignedIn = { token, url ->
+            form.apiKey = token
+            if (url != null && form.url.isBlank()) form.url = url
+            onEdited()
+        })
 
         TextButton(onClick = { form.more = !form.more }, contentPadding = PaddingValues(horizontal = 4.dp)) {
             Icon(if (form.more) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)

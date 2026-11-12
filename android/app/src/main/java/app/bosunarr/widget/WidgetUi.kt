@@ -181,6 +181,8 @@ internal fun serviceIcon(type: String): Int? = when (ServiceType.of(type)) {
     ServiceType.QBittorrent -> R.drawable.svc_qbittorrent
     ServiceType.Jellyfin -> R.drawable.svc_jellyfin
     ServiceType.Jellystat -> R.drawable.svc_jellystat
+    ServiceType.Plex -> R.drawable.svc_plex
+    ServiceType.Tautulli -> R.drawable.svc_tautulli
     ServiceType.Wizarr -> R.drawable.svc_wizarr
     else -> null
 }

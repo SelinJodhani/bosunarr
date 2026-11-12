@@ -88,6 +88,9 @@ class ServiceClient(base: OkHttpClient) {
                 "Authorization" to "MediaBrowser Client=\"Bosunarr\", Device=\"Android\", DeviceId=\"bosunarr-android\", Version=\"1.0\", Token=\"$key\"",
             )
             ServiceType.Jellystat -> mapOf("x-api-token" to key)
+            ServiceType.Plex -> app.bosunarr.feature.plex.PlexHeaders.server(key)
+            // Tautulli only reads `apikey` from the query string (added in requestAt).
+            ServiceType.Tautulli -> emptyMap()
             ServiceType.QBittorrent, null -> emptyMap()
             // SABnzbd only reads `apikey` from the query string (added in requestAt); NZBGet uses HTTP basic auth.
             ServiceType.Sabnzbd -> emptyMap()
@@ -228,6 +231,7 @@ class ServiceClient(base: OkHttpClient) {
             if (it.code in 300..399) throw ServiceException("${s.name} redirected to another page (a login?) — check the URL")
             if (it.code == 401 || it.code == 403) throw ServiceException("${s.name} rejected the credentials", 401)
             if (it.isSuccessful && s.serviceType == ServiceType.Sabnzbd) sabError(s, text)?.let { e -> throw e }
+            if (it.isSuccessful && s.serviceType == ServiceType.Tautulli) app.bosunarr.feature.tautulli.tautulliError(s.name, text)?.let { e -> throw e }
             if (!it.isSuccessful) {
                 val detail = runCatching {
                     val el = AppJson.parseToJsonElement(text)
@@ -243,9 +247,9 @@ class ServiceClient(base: OkHttpClient) {
         }
     }
 
-    /** SABnzbd takes its key only as the `apikey` query parameter. The URL is never logged. */
+    /** SABnzbd and Tautulli take their key only as the `apikey` query parameter. The URL is never logged. */
     private fun withQueryAuth(s: ServiceConfig, url: String): String {
-        if (s.serviceType != ServiceType.Sabnzbd) return url
+        if (s.serviceType != ServiceType.Sabnzbd && s.serviceType != ServiceType.Tautulli) return url
         val parsed = url.toHttpUrlOrNull() ?: return url
         return parsed.newBuilder().setQueryParameter("apikey", s.apiKey.orEmpty()).build().toString()
     }
@@ -379,6 +383,10 @@ private val PROBES = mapOf(
     ServiceType.Sabnzbd to Probe("/api?mode=queue&limit=1&output=json", { it.obj()?.get("queue")?.obj() != null }, { it.obj()?.get("queue")?.obj()?.get("version").str() }),
     // JSON-RPC over GET (`version` is a "safe" method); basic auth is checked on every call.
     ServiceType.Nzbget to Probe("/jsonrpc/version", { it.obj()?.get("result").str() != null }, { it.obj()?.get("result").str() }),
+    // `/identity` is public; the root answers only with a valid token (a MediaContainer with the server's details).
+    ServiceType.Plex to Probe("/", { it.obj()?.get("MediaContainer")?.obj()?.get("machineIdentifier").str() != null }, { it.obj()?.get("MediaContainer")?.obj()?.get("version").str() }),
+    // A bad key comes back as HTTP 200 + {"response": {"result": "error"}}: turned into an error in requestAt.
+    ServiceType.Tautulli to Probe("/api/v2?cmd=get_tautulli_info", { it.obj()?.get("response")?.obj()?.get("data")?.obj() != null }, { it.obj()?.get("response")?.obj()?.get("data")?.obj()?.get("tautulli_version").str()?.removePrefix("v") }),
     ServiceType.Wizarr to Probe("/api/status", { (it.obj()?.get("users") as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() != null }),
 )
 
