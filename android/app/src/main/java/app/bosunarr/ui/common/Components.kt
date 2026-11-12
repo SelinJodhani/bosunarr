@@ -172,7 +172,7 @@ fun MessageBox(
     onAction: (() -> Unit)? = null,
     scene: SeaScene? = null,
     artSize: Dp = Dp.Unspecified,
-    fullBleed: Boolean = true,
+    fullBleed: Boolean = false,
 ) = MessageBoxImpl(icon, scene, title, modifier, hint, action, onAction, artSize, fullBleed)
 
 /** [MessageBox] with an illustration and no icon. */
@@ -185,7 +185,7 @@ fun MessageBox(
     action: String? = null,
     onAction: (() -> Unit)? = null,
     artSize: Dp = Dp.Unspecified,
-    fullBleed: Boolean = true,
+    fullBleed: Boolean = false,
 ) = MessageBoxImpl(null, scene, title, modifier, hint, action, onAction, artSize, fullBleed)
 
 @Composable
@@ -223,8 +223,8 @@ private fun MessageBoxImpl(
         if (scene != null) {
             // Compact: a disc illustration above the text, smaller on short screens.
             val cfg = LocalConfiguration.current
-            val wide = (cfg.screenWidthDp - 48).coerceIn(160, 260)
-            val fit = if (cfg.screenHeightDp < 640) minOf(wide, 160) else wide
+            val wide = (cfg.screenWidthDp - 48).coerceIn(200, 360)
+            val fit = if (cfg.screenHeightDp < 640) minOf(wide, 220) else wide
             SeaArt(scene, size = if (artSize != Dp.Unspecified) artSize else fit.dp)
         } else if (icon != null) {
             Box(Modifier.size(72.dp).clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
@@ -343,7 +343,7 @@ fun ErrorBox(
     modifier: Modifier = Modifier,
     onRetry: (() -> Unit)? = null,
     scene: SeaScene? = null,
-    fullBleed: Boolean = true,
+    fullBleed: Boolean = false,
 ) {
     val e = remember(message) { friendlyError(message) }
     val art = scene ?: remember(message) { if (isUnreachable(message)) SeaScene.Fog else SeaScene.Storm }
