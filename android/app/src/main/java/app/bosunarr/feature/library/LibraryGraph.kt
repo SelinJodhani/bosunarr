@@ -21,6 +21,8 @@ import app.bosunarr.data.ServiceType
 import app.bosunarr.nav.LibraryAddRoute
 import app.bosunarr.nav.LibraryRoute
 import app.bosunarr.nav.MovieRoute
+import app.bosunarr.nav.ReleaseSearchRoute
+import app.bosunarr.feature.library.release.ReleaseSearchScreen
 import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.ui.art.SeaScene
 import app.bosunarr.ui.common.FullScreenScroll
@@ -41,6 +43,11 @@ fun NavGraphBuilder.libraryGraph(nav: NavController, tabFrame: @Composable (@Com
         WithArrService(nav, r.serviceId, setOf(ServiceType.Radarr, ServiceType.Whisparr), "Movie") { s -> MovieScreen(nav, entry, s, r.id) }
     }
     composable<LibraryAddRoute> { entry -> LibraryAddScreen(nav, entry.toRoute<LibraryAddRoute>()) }
+    composable<ReleaseSearchRoute> { entry ->
+        val r = entry.toRoute<ReleaseSearchRoute>()
+        val types = if (r.movieId > 0) setOf(ServiceType.Radarr, ServiceType.Whisparr) else setOf(ServiceType.Sonarr)
+        WithArrService(nav, r.serviceId, types, "Interactive search") { s -> ReleaseSearchScreen(nav, s, r) }
+    }
 }
 
 /** Resolve the route's service (waiting for the encrypted store on a cold start), or explain why it's gone. */

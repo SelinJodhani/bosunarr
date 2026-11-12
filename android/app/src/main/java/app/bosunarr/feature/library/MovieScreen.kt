@@ -23,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.ManageSearch
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
+import app.bosunarr.nav.ReleaseSearchRoute
 import app.bosunarr.ui.common.ErrorBox
 import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.LocalSnackbar
@@ -93,10 +95,20 @@ fun MovieScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceCo
         }) { LibraryApi.setMovieMonitored(service, id, to) }
     }
 
+    fun pickRelease() {
+        val year = (m?.year ?: cached?.year)?.takeIf { it > 0 }?.toString()
+        nav.navigate(ReleaseSearchRoute(service.id, title, year, movieId = id))
+    }
+
     val uri = LocalUriHandler.current
     DetailScaffold(
         title, list, onBack = { nav.back() },
         menu = if (m == null) null else { close ->
+            DropdownMenuItem(
+                text = { Text("Interactive search") },
+                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.ManageSearch, null) },
+                onClick = { close(); pickRelease() },
+            )
             m.titleSlug?.takeIf { it.isNotBlank() }?.let { slug ->
                 DropdownMenuItem(
                     text = { Text("Open in ${service.name}") },
@@ -152,6 +164,7 @@ fun MovieScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceCo
                                         app.scope.launch(Dispatchers.Main) { delay(5000); loader.refresh() }
                                     }
                                 }, busy = busy["refresh"] == true)
+                                DetailAction(Icons.AutoMirrored.Rounded.ManageSearch, "Pick release", ::pickRelease)
                             }
                         }
                         item("facts") {

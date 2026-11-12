@@ -26,11 +26,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.automirrored.rounded.ManageSearch
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.ui.platform.LocalUriHandler
@@ -62,6 +66,9 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
+import app.bosunarr.feature.library.seasonpass.SeasonPassChange
+import app.bosunarr.feature.library.seasonpass.SeasonPassSheet
+import app.bosunarr.nav.ReleaseSearchRoute
 import app.bosunarr.ui.common.ErrorBox
 import app.bosunarr.ui.common.LoadingBox
 import app.bosunarr.ui.common.LocalSnackbar
@@ -103,6 +110,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
     var expanded by rememberSaveable { mutableStateOf(setOf<Int>()) }
     var openEpisodes by rememberSaveable { mutableStateOf(setOf<Int>()) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var seasonPass by rememberSaveable { mutableStateOf(false) }
 
     val x = d?.series
     val title = x?.title ?: cached?.title ?: ""
@@ -154,10 +162,36 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
         }) { LibraryApi.setEpisodesMonitored(service, listOf(e.id), to) }
     }
 
+    fun saveSeasonPass(c: SeasonPassChange) {
+        val before = loader.value ?: return
+        loader.mutate { v ->
+            v.copy(
+                series = v.series.copy(monitored = c.monitored, seasons = v.series.seasons.map { s -> c.seasons[s.seasonNumber]?.let { s.copy(monitored = it) } ?: s }),
+                episodes = v.episodes.map { e -> c.seasons[e.seasonNumber]?.let { e.copy(monitored = it) } ?: e },
+            )
+        }
+        LibraryStore.setMonitored(key, c.monitored)
+        runAction(snackbar, "Season pass saved", onError = {
+            loader.mutate { before }
+            LibraryStore.setMonitored(key, before.series.monitored)
+        }) {
+            LibraryApi.setSeasonPass(service, id, c.monitored, c.seasons, c.monitorNewItems)
+            loader.refresh() // statistics change with monitoring
+        }
+    }
+
+    fun interactive(subtitle: String, seasonNumber: Int = -1, episodeId: Int = 0) =
+        nav.navigate(ReleaseSearchRoute(service.id, title, subtitle, seriesId = id, episodeId = episodeId, seasonNumber = seasonNumber))
+
     val uri = LocalUriHandler.current
     DetailScaffold(
         title, list, onBack = { nav.back() },
         menu = if (x == null) null else { close ->
+            DropdownMenuItem(
+                text = { Text("Season pass") },
+                leadingIcon = { Icon(Icons.Rounded.Checklist, null) },
+                onClick = { close(); seasonPass = true },
+            )
             x.titleSlug?.takeIf { it.isNotBlank() }?.let { slug ->
                 DropdownMenuItem(
                     text = { Text("Open in ${service.name}") },
@@ -213,6 +247,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                                         app.scope.launch(Dispatchers.Main) { delay(5000); loader.refresh() }
                                     }
                                 }, busy = busy["refresh"] == true)
+                                DetailAction(Icons.Rounded.Checklist, "Seasons", { seasonPass = true })
                             }
                         }
                         item("facts") {
@@ -267,6 +302,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                                     onToggleMonitored = { toggleSeason(n, !season.monitored) },
                                     searching = busy["season-$n"] == true,
                                     onSearch = { busyAction("season-$n", "Searching ${seasonName(n).lowercase()}") { LibraryApi.searchSeason(service, id, n) } },
+                                    onInteractive = { interactive(seasonName(n), seasonNumber = n) },
                                 )
                             }
                             if (open) {
@@ -283,6 +319,7 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                                         onToggleMonitored = { toggleEpisode(e) },
                                         searching = busy["ep-${e.id}"] == true,
                                         onSearch = { busyAction("ep-${e.id}", "Searching S${pad(e.seasonNumber)}E${pad(e.episodeNumber)}") { LibraryApi.searchEpisodes(service, listOf(e.id)) } },
+                                        onInteractive = { interactive("S${pad(e.seasonNumber)}E${pad(e.episodeNumber)}", episodeId = e.id) },
                                     )
                                 }
                                 item("s$n-end") { HorizontalDivider(Modifier.animateItem().padding(start = 16.dp, top = 4.dp)) }
@@ -292,6 +329,10 @@ fun SeriesScreen(nav: NavController, entry: NavBackStackEntry, service: ServiceC
                 }
             }
         }
+    }
+
+    if (seasonPass && x != null && d != null) {
+        SeasonPassSheet(service, x, d.episodes, onDismiss = { seasonPass = false }, onSave = ::saveSeasonPass)
     }
 
     if (confirmDelete) {
@@ -326,6 +367,7 @@ private fun SeasonRow(
     onToggleMonitored: () -> Unit,
     searching: Boolean,
     onSearch: () -> Unit,
+    onInteractive: () -> Unit,
 ) {
     val st = season.statistics
     val now = Instant.now()
@@ -369,6 +411,7 @@ private fun SeasonRow(
         IconButton(onClick = onSearch, enabled = !searching) {
             if (searching) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Icon(Icons.Rounded.Search, "Search season")
         }
+        RowMenu("More for ${seasonName(season.seasonNumber).lowercase()}", onInteractive)
         Icon(Icons.Rounded.ExpandMore, if (open) "Collapse" else "Expand", Modifier.padding(end = 8.dp).rotate(rotation), tint = cs.onSurfaceVariant)
     }
 }
@@ -384,6 +427,7 @@ private fun EpisodeRow(
     onToggleMonitored: () -> Unit,
     searching: Boolean,
     onSearch: () -> Unit,
+    onInteractive: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val air = parseInstant(e.airDateUtc)
@@ -428,6 +472,23 @@ private fun EpisodeRow(
         }
         IconButton(onClick = onSearch, enabled = !searching) {
             if (searching) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Icon(Icons.Rounded.Search, "Search episode")
+        }
+        RowMenu("More for episode ${e.episodeNumber}", onInteractive)
+    }
+}
+
+/** ⋮ on a season / episode row: "Interactive search" (pick a release by hand). */
+@Composable
+private fun RowMenu(description: String, onInteractive: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreVert, description, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        DropdownMenu(open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("Interactive search") },
+                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.ManageSearch, null) },
+                onClick = { open = false; onInteractive() },
+            )
         }
     }
 }

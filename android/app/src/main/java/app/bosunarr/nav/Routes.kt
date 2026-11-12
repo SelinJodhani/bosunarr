@@ -14,6 +14,19 @@ import kotlinx.serialization.Serializable
 @Serializable data class MovieRoute(val serviceId: String, val id: Int)
 /** Add a new series/movie found by search ("movie" or "series"); term pre-fills the search. */
 @Serializable data class LibraryAddRoute(val kind: String, val term: String = "")
+/**
+ * Interactive (manual) release search on an arr. Radarr/Whisparr: [movieId]. Sonarr: [episodeId], or [seriesId] +
+ * [seasonNumber] for a season (packs). [title]/[subtitle] label the screen ("Show" / "S01E05").
+ */
+@Serializable data class ReleaseSearchRoute(
+    val serviceId: String,
+    val title: String,
+    val subtitle: String? = null,
+    val movieId: Int = 0,
+    val seriesId: Int = 0,
+    val episodeId: Int = 0,
+    val seasonNumber: Int = -1,
+)
 
 // Discover (Jellyseerr/Overseerr). mediaType = "movie" | "tv".
 @Serializable data class MediaRoute(val mediaType: String, val tmdbId: Int)

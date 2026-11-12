@@ -315,4 +315,27 @@ object LibraryApi {
         LibraryStore.invalidate()
         id
     }
+
+    /* ------------------------------------------------------------ season pass */
+
+    /** Sonarr v4's "monitor new seasons" setting (`all` / `none`); null on v3, which doesn't have it. */
+    suspend fun monitorNewItems(s: ServiceConfig, id: Int): String? =
+        ((app.client.json(s, "/api/v3/series/$id") as? JsonObject)?.get("monitorNewItems") as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+    /**
+     * Season pass: the series' monitored flag, every listed season's monitoring and (v4 only, when [monitorNewItems] is
+     * set) new-season monitoring, in one series PUT. Sonarr re-monitors / unmonitors the episodes of changed seasons.
+     */
+    suspend fun setSeasonPass(s: ServiceConfig, id: Int, monitored: Boolean, seasons: Map<Int, Boolean>, monitorNewItems: String?) =
+        edit(s, "/api/v3/series/$id") { o ->
+            val list = (o["seasons"] as? JsonArray)?.map { el ->
+                val so = el as? JsonObject ?: return@map el
+                val n = (so["seasonNumber"] as? JsonPrimitive)?.content?.toIntOrNull()
+                val to = n?.let { seasons[it] }
+                if (to != null) so.with("monitored", JsonPrimitive(to)) else so
+            } ?: throw ServiceException("${s.name} gave an unexpected answer")
+            var r = o.with("monitored", JsonPrimitive(monitored)).with("seasons", JsonArray(list))
+            if (monitorNewItems != null && o.containsKey("monitorNewItems")) r = r.with("monitorNewItems", JsonPrimitive(monitorNewItems))
+            r
+        }
 }
