@@ -5,13 +5,19 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import app.bosunarr.security.AppLock
+import app.bosunarr.security.LockGate
+import kotlinx.coroutines.launch
 import app.bosunarr.notify.NotifyLinks
 import app.bosunarr.ui.AppRoot
 import app.bosunarr.widget.DeepLink
@@ -19,7 +25,8 @@ import app.bosunarr.ui.common.CrashReporter
 import app.bosunarr.update.Updater
 import app.bosunarr.ui.theme.BosunarrTheme
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity (a ComponentActivity) because androidx.biometric's BiometricPrompt needs one for the app lock.
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         CrashReporter.install(this)
         val splash = installSplashScreen()
@@ -29,12 +36,16 @@ class MainActivity : ComponentActivity() {
         splash.setKeepOnScreenCondition { app.state.value == null && SystemClock.uptimeMillis() - started < 1_500 }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // App lock: settings are read synchronously, so a locked app's first frame is already the lock screen.
+        AppLock.init(this)
+        AppLock.applyWindowProtection(this)
+        lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.CREATED) { AppLock.settings.collect { AppLock.applyWindowProtection(this@MainActivity, it) } } }
         if (savedInstanceState == null) handleIntent(intent)
         setContent {
             val state by app.state.collectAsState()
             val mode = state?.themeMode
             LaunchedEffect(mode) { if (mode != null) applyNightMode(mode) }
-            BosunarrTheme(mode = mode ?: "system") { AppRoot() }
+            BosunarrTheme(mode = mode ?: "system") { LockGate { AppRoot() } }
         }
     }
 
@@ -52,6 +63,16 @@ class MainActivity : ComponentActivity() {
             else -> UiModeManager.MODE_NIGHT_AUTO
         }
         runCatching { ui.setApplicationNightMode(night) }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        AppLock.onStart()
+    }
+
+    override fun onStop() {
+        AppLock.onStop(isChangingConfigurations)
+        super.onStop()
     }
 
     override fun onResume() {

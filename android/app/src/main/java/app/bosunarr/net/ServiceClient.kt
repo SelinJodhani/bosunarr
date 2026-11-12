@@ -2,6 +2,7 @@ package app.bosunarr.net
 
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.security.ProxyAuth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -80,7 +81,29 @@ class ServiceClient(base: OkHttpClient) {
 
     fun baseUrl(s: ServiceConfig): String = preferredBase[s.id] ?: s.url
 
+    /**
+     * Every header that authenticates a request to [s]: the service's own auth ([serviceAuthHeaders]) plus the
+     * user's reverse-proxy extras (custom headers, basic auth) — see [ProxyAuth] for precedence. Used for API calls
+     * and, on the service's own origin only, for images.
+     */
     fun authHeaders(s: ServiceConfig): Map<String, String> {
+        if (s.headers.isEmpty() && s.basicUser.isNullOrEmpty()) return serviceAuthHeaders(s)
+        var own = serviceAuthHeaders(s)
+        // Jellyfin also reads its token from X-Emby-Authorization, which frees `Authorization` for the proxy.
+        if (s.serviceType == ServiceType.Jellyfin && !s.basicUser.isNullOrEmpty()) {
+            own = own.mapKeys { (k, _) -> if (k == "Authorization") "X-Emby-Authorization" else k }
+        }
+        return ProxyAuth.merge(own, s.headers, s.basicUser, s.basicPassword)
+    }
+
+    /**
+     * Proxy extras alone, for requests that carry no service auth: login/session calls (qBittorrent's login; any
+     * other type with its own session handshake should add these too, or a Cloudflare Access/basic-auth proxy
+     * blocks the login).
+     */
+    fun proxyHeaders(s: ServiceConfig): Map<String, String> = ProxyAuth.merge(emptyMap(), s.headers, s.basicUser, s.basicPassword)
+
+    private fun serviceAuthHeaders(s: ServiceConfig): Map<String, String> {
         val key = s.apiKey.orEmpty()
         return when (s.serviceType) {
             ServiceType.Bazarr -> mapOf("X-API-KEY" to key)
@@ -277,6 +300,7 @@ class ServiceClient(base: OkHttpClient) {
             val req = Request.Builder().url("$base/api/v2/auth/login")
                 .post(FormBody.Builder().add("username", s.username.orEmpty()).add("password", s.password.orEmpty()).build())
                 .header("Referer", base).header("Origin", base)
+                .apply { proxyHeaders(s).forEach { (k, v) -> header(k, v) } }
                 .build()
             val res = try {
                 http.newCall(req).await()
@@ -315,7 +339,9 @@ class ServiceClient(base: OkHttpClient) {
                 put("params", kotlinx.serialization.json.JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive(s.password.orEmpty()))))
                 put("id", kotlinx.serialization.json.JsonPrimitive(0))
             }
-            val req = Request.Builder().url("$base/json").post(payload.toString().toRequestBody(JSON_TYPE)).header("Accept", "application/json").build()
+            val req = Request.Builder().url("$base/json").post(payload.toString().toRequestBody(JSON_TYPE)).header("Accept", "application/json")
+                .apply { proxyHeaders(s).forEach { (k, v) -> header(k, v) } } // reverse-proxy auth must reach the login too
+                .build()
             val res = try {
                 http.newCall(req).await()
             } catch (e: IOException) {

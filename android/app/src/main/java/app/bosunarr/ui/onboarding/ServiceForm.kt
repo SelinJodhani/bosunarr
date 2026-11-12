@@ -77,6 +77,9 @@ import app.bosunarr.feature.server.SshTarget
 import app.bosunarr.feature.server.sshHelp
 import app.bosunarr.feature.services.okColor
 import app.bosunarr.net.userMessage
+import app.bosunarr.security.ProxyAuth
+import app.bosunarr.security.ProxyAuthFields
+import app.bosunarr.security.ProxyExtras
 import app.bosunarr.ui.settings.ServiceBadge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -99,6 +102,7 @@ internal class ServiceForm(
     sshAuth: String = "key",
     sshKey: String = "",
     sshHostKey: String = "",
+    proxy: ProxyExtras = ProxyExtras(),
 ) {
     var url by mutableStateOf(url)
     var altUrl by mutableStateOf(altUrl)
@@ -119,15 +123,26 @@ internal class ServiceForm(
     /** Pinned host key ("<type> SHA256:..."), set when the user trusts it in the test dialog. */
     var sshHostKey by mutableStateOf(sshHostKey)
 
+    /** Reverse-proxy extras (HTTP services): custom header rows (name to value) and basic auth. */
+    var headers by mutableStateOf(proxy.headers.map { it.first to it.second })
+    var basicUser by mutableStateOf(proxy.user)
+    var basicPassword by mutableStateOf(proxy.password)
+
+    /** Problems with the proxy extras (shown under the fields; saving is blocked until they're fixed). */
+    val proxyErrors: List<String>
+        get() = if (type.credentials == Credentials.Ssh) emptyList() else
+            ProxyAuth.headerErrors(headers.filterNot { (n, v) -> n.isBlank() && v.isBlank() }) +
+                listOfNotNull(ProxyAuth.basicUserError(basicUser.trim()), ProxyAuth.basicPasswordError(basicPassword))
+
     private val sshTarget get() = SshTarget.parse(sshHost, sshPort.trim().toIntOrNull() ?: 22)
 
     val ready: Boolean
         get() = when (type.credentials) {
-            Credentials.ApiKey -> url.isNotBlank() && apiKey.isNotBlank()
+            Credentials.ApiKey -> url.isNotBlank() && apiKey.isNotBlank() && proxyErrors.isEmpty()
             // Transmission only has a login when RPC authentication is turned on.
-            Credentials.UserPass -> url.isNotBlank() && (username.isNotBlank() || type == ServiceType.Transmission)
-            Credentials.Password -> url.isNotBlank() && password.isNotEmpty()
-            Credentials.None -> url.isNotBlank()
+            Credentials.UserPass -> url.isNotBlank() && (username.isNotBlank() || type == ServiceType.Transmission) && proxyErrors.isEmpty()
+            Credentials.Password -> url.isNotBlank() && password.isNotEmpty() && proxyErrors.isEmpty()
+            Credentials.None -> url.isNotBlank() && proxyErrors.isEmpty()
             // Server: the address is host + port (the form's `url` isn't used).
             Credentials.Ssh -> sshTarget != null && username.isNotBlank() &&
                 (if (sshAuth == "password") password.isNotEmpty() else sshKey.isNotBlank())
@@ -143,6 +158,9 @@ internal class ServiceForm(
         username = username.trim().ifEmpty { null }.takeIf { type.credentials == Credentials.UserPass },
         password = password.ifEmpty { null }.takeIf { type.credentials == Credentials.UserPass || type.credentials == Credentials.Password },
         sort = sort,
+        headers = headers.filterNot { (n, v) -> n.isBlank() && v.isBlank() }.associate { (n, v) -> n.trim() to v.trim() },
+        basicUser = basicUser.trim().ifEmpty { null },
+        basicPassword = basicPassword.takeIf { basicUser.isNotBlank() }?.ifEmpty { null },
     )
 
     private fun sshConfig(id: String, sort: Int): ServiceConfig {
@@ -169,12 +187,18 @@ internal class ServiceForm(
          * rotation but not process death — then [savedKey] (the key already in the encrypted store) is used, or a
          * key generated in an unsaved form has to be generated again.
          */
-        fun saver(type: ServiceType, savedKey: String = "") = listSaver<ServiceForm, Any>(
-            save = { listOf(it.url, it.altUrl, it.name, it.apiKey, it.username, it.password, it.more, it.sshHost, it.sshPort, it.sshAuth, PendingKeys.put(it.sshKey), it.sshHostKey) },
+        fun saver(type: ServiceType, savedKey: String = "", savedProxy: ProxyExtras = ProxyExtras()) = listSaver<ServiceForm, Any>(
+            save = {
+                // Proxy header values and basic-auth password are secrets: in-memory token only, like the SSH key.
+                val proxy = ProxyExtras(it.headers, it.basicUser, it.basicPassword)
+                listOf(it.url, it.altUrl, it.name, it.apiKey, it.username, it.password, it.more, it.sshHost, it.sshPort, it.sshAuth, PendingKeys.put(it.sshKey), it.sshHostKey,
+                    if (proxy.isEmpty()) "" else PendingKeys.put(proxy.encode()))
+            },
             restore = {
                 ServiceForm(
                     type, it[0] as String, it[1] as String, it[2] as String, it[3] as String, it[4] as String, it[5] as String, it[6] as Boolean,
                     it[7] as String, it[8] as String, it[9] as String, PendingKeys.get(it[10] as String, savedKey), it[11] as String,
+                    ProxyExtras.decode(PendingKeys.get(it.getOrNull(12) as? String ?: "", savedProxy.encode())),
                 )
             },
         )
@@ -202,7 +226,7 @@ private object PendingKeys {
 /** Form for [type], pre-filled from [existing] when editing. Survives rotation and process death. */
 @Composable
 internal fun rememberServiceForm(type: ServiceType, existing: ServiceConfig? = null): ServiceForm =
-    rememberSaveable(type.id, existing?.id, saver = ServiceForm.saver(type, existing?.sshPrivateKey?.trim().orEmpty())) {
+    rememberSaveable(type.id, existing?.id, saver = ServiceForm.saver(type, existing?.sshPrivateKey?.trim().orEmpty(), ProxyExtras.of(existing))) {
         ServiceForm(
             type = type,
             url = existing?.url.orEmpty(),
@@ -211,12 +235,13 @@ internal fun rememberServiceForm(type: ServiceType, existing: ServiceConfig? = n
             apiKey = existing?.apiKey.orEmpty(),
             username = existing?.username.orEmpty(),
             password = existing?.password.orEmpty(),
-            more = existing != null && (!existing.altUrl.isNullOrBlank() || existing.name != type.label),
+            more = existing != null && (!existing.altUrl.isNullOrBlank() || existing.name != type.label || existing.headers.isNotEmpty() || !existing.basicUser.isNullOrEmpty()),
             sshHost = existing?.takeIf { type.credentials == Credentials.Ssh }?.let { SshTarget.parse(it.url)?.host }.orEmpty(),
             sshPort = existing?.takeIf { type.credentials == Credentials.Ssh }?.let { SshTarget.parse(it.url)?.port?.toString() } ?: "22",
             sshAuth = existing?.sshAuth ?: "key",
             sshKey = existing?.sshPrivateKey?.trim().orEmpty(),
             sshHostKey = existing?.sshHostKey.orEmpty(),
+            proxy = ProxyExtras.of(existing),
         )
     }
 
@@ -326,6 +351,7 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (type.credentials != Credentials.Ssh) ProxyAuthFields(form, onEdited)
             }
         }
     }

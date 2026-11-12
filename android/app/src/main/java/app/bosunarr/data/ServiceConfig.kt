@@ -30,6 +30,15 @@ data class ServiceConfig(
     val sshHostKey: String? = null,
     /** Saved commands for the Server screen's Commands tab. */
     val sshCommands: List<SshCommand> = emptyList(),
+    /*
+     * Reverse-proxy extras (HTTP services only), sent with every request to this service and with its images.
+     * See [app.bosunarr.security.ProxyAuth] for how they combine with the service's own auth headers.
+     */
+    /** Custom request headers, e.g. Cloudflare Access `CF-Access-Client-Id` / `CF-Access-Client-Secret`. */
+    val headers: Map<String, String> = emptyMap(),
+    /** HTTP basic auth in front of the service (the proxy's, not the service's own login). */
+    val basicUser: String? = null,
+    val basicPassword: String? = null,
 ) {
     val serviceType: ServiceType? get() = ServiceType.of(type)
 }

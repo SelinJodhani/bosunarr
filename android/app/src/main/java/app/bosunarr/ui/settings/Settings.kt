@@ -77,6 +77,8 @@ import app.bosunarr.demo.DemoCreditsLine
 import app.bosunarr.demo.DemoSettingsCard
 import app.bosunarr.BuildConfig
 import app.bosunarr.app
+import app.bosunarr.backup.BackupSettingsRows
+import app.bosunarr.security.SecuritySettingsRows
 import app.bosunarr.update.UpdateSettingsRow
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Gavel
@@ -195,7 +197,7 @@ fun SettingsScreen(nav: NavController) {
                 GroupRow(services.size, rows, onClick = { picking = true }) {
                     ListItem(
                         headlineContent = { Text("Add service", fontWeight = FontWeight.Medium) },
-                        supportingContent = if (services.isEmpty()) ({ Text("Sonarr, Radarr, qBittorrent, Jellyseerr and more. Everything stays on this phone, encrypted.") }) else null,
+                        supportingContent = if (services.isEmpty()) ({ Text("Sonarr, Radarr, qBittorrent, Seerr and more. Everything stays on this phone, encrypted.") }) else null,
                         leadingContent = {
                             Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(40.dp)) {
                                 Icon(Icons.Rounded.Add, null, modifier = Modifier.padding(8.dp))
@@ -231,6 +233,19 @@ fun SettingsScreen(nav: NavController) {
                             }
                         }
                     }
+                }
+            }
+
+            item("security") {
+                Column {
+                    GroupHeader("Security")
+                    SecuritySettingsRows(row = { i, n, click, c -> GroupRow(i, n, click, c) }, icon = { RowIcon(it) }, colors = TransparentListItem)
+                }
+            }
+            item("backup") {
+                Column {
+                    GroupHeader("Backup & restore")
+                    BackupSettingsRows(row = { i, n, click, c -> GroupRow(i, n, click, c) }, icon = { RowIcon(it) }, colors = TransparentListItem)
                 }
             }
 

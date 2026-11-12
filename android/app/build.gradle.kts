@@ -90,6 +90,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.tink.android)
+    // App lock (BiometricPrompt: strong biometric or the device PIN/pattern/password).
+    implementation(libs.androidx.biometric)
     // SSH (Server type): JSch fork + BouncyCastle for Ed25519 / curve25519 / chacha20 on every Android version.
     implementation(libs.jsch)
     implementation(libs.bouncycastle.prov)

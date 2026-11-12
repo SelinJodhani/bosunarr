@@ -20,6 +20,7 @@ junit = "4.13.2"
 jsch = "2.28.8"
 bouncycastle = "1.86"
 sshdTest = "2.20.1"
+biometric = "1.4.0-alpha07"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -51,6 +52,7 @@ androidx-startup-runtime = { module = "androidx.startup:startup-runtime", versio
 junit = { module = "junit:junit", version.ref = "junit" }
 jsch = { module = "com.github.mwiede:jsch", version.ref = "jsch" }
 bouncycastle-prov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 sshd-core = { module = "org.apache.sshd:sshd-core", version.ref = "sshdTest" }
 
 [plugins]
