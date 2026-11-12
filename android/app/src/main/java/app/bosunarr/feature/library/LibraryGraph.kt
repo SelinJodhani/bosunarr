@@ -1,5 +1,6 @@
 package app.bosunarr.feature.library
 
+import app.bosunarr.ui.common.screen
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -38,28 +39,28 @@ import app.bosunarr.ui.common.back
 
 /** Registers Library, SeriesRoute, MovieRoute, ArtistRoute, AlbumRoute and LibraryAddRoute ("music" → Lidarr). [tabFrame] wraps the tab root (adds the nav bar). */
 fun NavGraphBuilder.libraryGraph(nav: NavController, tabFrame: @Composable (@Composable () -> Unit) -> Unit) {
-    composable<LibraryRoute> { tabFrame { LibraryScreen(nav) } }
-    composable<SeriesRoute> { entry ->
+    screen<LibraryRoute> { tabFrame { LibraryScreen(nav) } }
+    screen<SeriesRoute> { entry ->
         val r = entry.toRoute<SeriesRoute>()
         WithArrService(nav, r.serviceId, setOf(ServiceType.Sonarr), "Series") { s -> SeriesScreen(nav, entry, s, r.id) }
     }
-    composable<MovieRoute> { entry ->
+    screen<MovieRoute> { entry ->
         val r = entry.toRoute<MovieRoute>()
         WithArrService(nav, r.serviceId, setOf(ServiceType.Radarr, ServiceType.Whisparr), "Movie") { s -> MovieScreen(nav, entry, s, r.id) }
     }
-    composable<ArtistRoute> { entry ->
+    screen<ArtistRoute> { entry ->
         val r = entry.toRoute<ArtistRoute>()
         WithArrService(nav, r.serviceId, setOf(ServiceType.Lidarr), "Artist") { s -> ArtistScreen(nav, entry, s, r.id) }
     }
-    composable<AlbumRoute> { entry ->
+    screen<AlbumRoute> { entry ->
         val r = entry.toRoute<AlbumRoute>()
         WithArrService(nav, r.serviceId, setOf(ServiceType.Lidarr), "Album") { s -> AlbumScreen(nav, s, r.id) }
     }
-    composable<LibraryAddRoute> { entry ->
+    screen<LibraryAddRoute> { entry ->
         val r = entry.toRoute<LibraryAddRoute>()
         if (r.kind == "music") MusicAddScreen(nav, r.term) else LibraryAddScreen(nav, r)
     }
-    composable<ReleaseSearchRoute> { entry ->
+    screen<ReleaseSearchRoute> { entry ->
         val r = entry.toRoute<ReleaseSearchRoute>()
         val types = if (r.movieId > 0) setOf(ServiceType.Radarr, ServiceType.Whisparr) else setOf(ServiceType.Sonarr)
         WithArrService(nav, r.serviceId, types, "Interactive search") { s -> ReleaseSearchScreen(nav, s, r) }

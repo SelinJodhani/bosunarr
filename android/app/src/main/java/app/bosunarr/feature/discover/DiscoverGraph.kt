@@ -1,5 +1,6 @@
 package app.bosunarr.feature.discover
 
+import app.bosunarr.ui.common.screen
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -11,10 +12,10 @@ import app.bosunarr.nav.RequestsRoute
 
 /** Registers Discover, MediaRoute and RequestsRoute. [tabFrame] wraps the tab root (adds the nav bar). */
 fun NavGraphBuilder.discoverGraph(nav: NavController, tabFrame: @Composable (@Composable () -> Unit) -> Unit) {
-    composable<DiscoverRoute> { tabFrame { DiscoverScreen(nav) } }
-    composable<MediaRoute> {
+    screen<DiscoverRoute> { tabFrame { DiscoverScreen(nav) } }
+    screen<MediaRoute> {
         val r = it.toRoute<MediaRoute>()
         MediaScreen(nav, r.mediaType, r.tmdbId)
     }
-    composable<RequestsRoute> { RequestsScreen(nav) }
+    screen<RequestsRoute> { RequestsScreen(nav) }
 }

@@ -1,5 +1,6 @@
 package app.bosunarr.ui.settings
 
+import app.bosunarr.ui.common.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -123,8 +124,8 @@ private const val GITHUB_URL = "https://github.com/SelinJodhani/bosunarr"
 private const val WEBSITE_URL = "https://selinjodhani.github.io/bosunarr/"
 
 fun NavGraphBuilder.settingsGraph(nav: NavController) {
-    composable<SettingsRoute> { SettingsScreen(nav) }
-    composable<ServiceEditRoute> {
+    screen<SettingsRoute> { SettingsScreen(nav) }
+    screen<ServiceEditRoute> {
         val r = it.toRoute<ServiceEditRoute>()
         ServiceEditScreen(nav, r.id, r.type)
     }

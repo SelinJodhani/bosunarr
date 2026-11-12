@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,6 +81,7 @@ import app.bosunarr.ui.common.CrashReportPrompt
 import app.bosunarr.ui.common.LicencesRoute
 import app.bosunarr.ui.common.LicencesScreen
 import app.bosunarr.ui.common.LocalSnackbar
+import app.bosunarr.ui.common.screen
 import app.bosunarr.ui.common.TabReselect
 import app.bosunarr.ui.onboarding.OnboardingScreen
 import app.bosunarr.ui.settings.settingsGraph
@@ -113,10 +115,19 @@ private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 // Pixel-style horizontal navigation (like the Settings app): forward, the new page slides in from the right while
 // the old one drifts left; back, the page slides off to the right, tracking the finger (predictive back seeks
 // these, hence linear easing), and the previous page slides back in from the left.
+// Forward: the new page slides in from the right while the old one drifts left (Pixel Settings style).
 private val ForwardEnter = slideInHorizontally(tween(380, easing = Emphasized)) { it }
 private val ForwardExit = slideOutHorizontally(tween(380, easing = Emphasized)) { -it / 4 }
-private val BackEnter = slideInHorizontally(tween(320, easing = LinearEasing)) { -it / 4 }
-private val BackExit = slideOutHorizontally(tween(320, easing = LinearEasing)) { it }
+
+// Back = Android's predictive back. The gesture seeks these transitions: for the first 70% of the swipe the page
+// lifts into a card (scales to 90%, rounded corners from PredictiveBackCard) and shifts a little toward the finger;
+// releasing completes the rest, sliding it off to the right. The previous page sits behind, dimmed, and settles in.
+private val BackShift = Easing { t -> if (t < 0.7f) t / 0.7f * 0.08f else 0.08f + (t - 0.7f) / 0.3f * 0.92f }
+private val BackLift = Easing { t -> (t / 0.7f).coerceAtMost(1f) }
+private val BackExit = slideOutHorizontally(tween(400, easing = BackShift)) { it } +
+    scaleOut(tween(400, easing = BackLift), targetScale = 0.9f)
+private val BackEnter = slideInHorizontally(tween(400, easing = LinearEasing)) { -it / 10 } +
+    fadeIn(tween(400, easing = LinearEasing), initialAlpha = 0.45f)
 
 @Composable
 fun AppRoot() {
@@ -194,8 +205,8 @@ fun AppRoot() {
                 tab<ActivityRoute>(nav) { ActivityScreen(nav) }
                 settingsGraph(nav)
                 notificationsGraph(nav)
-                composable<ServiceRoute> { ServiceScreen(it.toRoute<ServiceRoute>().id, nav) }
-                composable<LicencesRoute> { LicencesScreen(nav) }
+                screen<ServiceRoute> { ServiceScreen(it.toRoute<ServiceRoute>().id, nav) }
+                screen<LicencesRoute> { LicencesScreen(nav) }
             }
         }
     }

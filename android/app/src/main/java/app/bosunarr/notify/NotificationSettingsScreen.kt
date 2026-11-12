@@ -1,5 +1,6 @@
 package app.bosunarr.notify
 
+import app.bosunarr.ui.common.screen
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -81,7 +82,7 @@ import kotlinx.serialization.Serializable
 @Serializable object NotificationSettingsRoute
 
 fun NavGraphBuilder.notificationsGraph(nav: NavController) {
-    composable<NotificationSettingsRoute> { NotificationSettingsScreen(nav) }
+    screen<NotificationSettingsRoute> { NotificationSettingsScreen(nav) }
 }
 
 /** Icon for the Settings row. */
