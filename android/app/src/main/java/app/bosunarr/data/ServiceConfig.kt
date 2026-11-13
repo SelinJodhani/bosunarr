@@ -39,6 +39,11 @@ data class ServiceConfig(
     /** HTTP basic auth in front of the service (the proxy's, not the service's own login). */
     val basicUser: String? = null,
     val basicPassword: String? = null,
+    /**
+     * Wizarr only: the public address invitees open (e.g. `https://invite.example.com`). Invite links are built on it,
+     * since the address the app talks to is often private (LAN or Tailscale) and useless to the person invited.
+     */
+    val inviteUrl: String? = null,
 ) {
     val serviceType: ServiceType? get() = ServiceType.of(type)
 }

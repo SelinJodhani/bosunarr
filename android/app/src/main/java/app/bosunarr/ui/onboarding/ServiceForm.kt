@@ -103,8 +103,11 @@ internal class ServiceForm(
     sshKey: String = "",
     sshHostKey: String = "",
     proxy: ProxyExtras = ProxyExtras(),
+    inviteUrl: String = "",
 ) {
     var url by mutableStateOf(url)
+    /** Wizarr: public address for invite links (see [ServiceConfig.inviteUrl]). */
+    var inviteUrl by mutableStateOf(inviteUrl)
     var altUrl by mutableStateOf(altUrl)
     var name by mutableStateOf(name)
     var apiKey by mutableStateOf(apiKey)
@@ -161,6 +164,7 @@ internal class ServiceForm(
         headers = headers.filterNot { (n, v) -> n.isBlank() && v.isBlank() }.associate { (n, v) -> n.trim() to v.trim() },
         basicUser = basicUser.trim().ifEmpty { null },
         basicPassword = basicPassword.takeIf { basicUser.isNotBlank() }?.ifEmpty { null },
+        inviteUrl = normalizeUrl(inviteUrl).ifEmpty { null }.takeIf { type == ServiceType.Wizarr },
     )
 
     private fun sshConfig(id: String, sort: Int): ServiceConfig {
@@ -192,13 +196,14 @@ internal class ServiceForm(
                 // Proxy header values and basic-auth password are secrets: in-memory token only, like the SSH key.
                 val proxy = ProxyExtras(it.headers, it.basicUser, it.basicPassword)
                 listOf(it.url, it.altUrl, it.name, it.apiKey, it.username, it.password, it.more, it.sshHost, it.sshPort, it.sshAuth, PendingKeys.put(it.sshKey), it.sshHostKey,
-                    if (proxy.isEmpty()) "" else PendingKeys.put(proxy.encode()))
+                    if (proxy.isEmpty()) "" else PendingKeys.put(proxy.encode()), it.inviteUrl)
             },
             restore = {
                 ServiceForm(
                     type, it[0] as String, it[1] as String, it[2] as String, it[3] as String, it[4] as String, it[5] as String, it[6] as Boolean,
                     it[7] as String, it[8] as String, it[9] as String, PendingKeys.get(it[10] as String, savedKey), it[11] as String,
                     ProxyExtras.decode(PendingKeys.get(it.getOrNull(12) as? String ?: "", savedProxy.encode())),
+                    it.getOrNull(13) as? String ?: "",
                 )
             },
         )
@@ -242,6 +247,7 @@ internal fun rememberServiceForm(type: ServiceType, existing: ServiceConfig? = n
             sshKey = existing?.sshPrivateKey?.trim().orEmpty(),
             sshHostKey = existing?.sshHostKey.orEmpty(),
             proxy = ProxyExtras.of(existing),
+            inviteUrl = existing?.inviteUrl.orEmpty(),
         )
     }
 
@@ -333,6 +339,16 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
             if (url != null && form.url.isBlank()) form.url = url
             onEdited()
         })
+
+        if (type == ServiceType.Wizarr) OutlinedTextField(
+            form.inviteUrl, { form.inviteUrl = it },
+            label = { Text("Invite link address") },
+            placeholder = { Text("https://invite.example.com") },
+            supportingText = { Text("The public address people you invite can open. Leave empty to use the address above") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         TextButton(onClick = { form.more = !form.more }, contentPadding = PaddingValues(horizontal = 4.dp)) {
             Icon(if (form.more) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)

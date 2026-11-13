@@ -234,9 +234,14 @@ private suspend fun loadWizarr(s: ServiceConfig): WizarrOverview = coroutineScop
     )
 }
 
-/** Public base for invite links: prefer an https address (the one invitees can reach), else the main URL. */
-private fun inviteBase(s: ServiceConfig): String =
-    listOfNotNull(s.url, s.altUrl).firstOrNull { it.startsWith("https://") } ?: s.url
+/**
+ * Public base for invite links: the service's invite address if set, else an https address (more likely the one
+ * invitees can reach), else the main URL.
+ */
+internal fun inviteBase(s: ServiceConfig): String =
+    s.inviteUrl?.takeIf { it.isNotBlank() }
+        ?: listOfNotNull(s.url, s.altUrl).firstOrNull { it.startsWith("https://") }
+        ?: s.url
 
 private fun copy(ctx: Context, label: String, text: String): Boolean = runCatching {
     ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(label, text))
