@@ -260,6 +260,27 @@ class DemoEndpointsTest {
         assertEquals("Movies → radarr · TV → tv-sonarr", app.bosunarr.feature.services.mappingSummary(after.last().categories))
         client.send(p, "/api/v1/downloadclient/${after.last().id}", "DELETE")
         assertEquals(1, arr(ServiceType.Prowlarr, "/api/v1/downloadclient").size)
+        // Cleanuparr: decoded with the app's own models; strikes sit on real demo torrents; forgive + resolve work.
+        val cl = s(ServiceType.Cleanuparr)
+        assertEquals("2.11.0.0", client.get<app.bosunarr.feature.cleanuparr.ClStatus>(cl, "/api/status").application.version)
+        val st = client.get<app.bosunarr.feature.cleanuparr.ClStats>(cl, "/api/v2/stats?hours=168")
+        assertTrue(st.strikes.total > 0 && st.removals.total == 1 && st.searches.total == 1)
+        assertTrue(client.get<List<app.bosunarr.feature.cleanuparr.ClJob>>(cl, "/api/jobs").isNotEmpty())
+        val strikes = client.get<app.bosunarr.feature.cleanuparr.ClPage<app.bosunarr.feature.cleanuparr.ClStrikeItem>>(cl, "/api/strikes?page=1&pageSize=100").items
+        val torrents = arr(ServiceType.QBittorrent, "/api/v2/torrents/info").map { (it as JsonObject)["hash"].str() }
+        val live = strikes.filter { !it.isRemoved }
+        assertTrue(live.isNotEmpty() && live.all { it.downloadId in torrents })
+        val limits = app.bosunarr.feature.cleanuparr.strikeLimits(objAt(ServiceType.Cleanuparr, "/api/configuration/queue_cleaner"), arr(ServiceType.Cleanuparr, "/api/queue-rules/stall"), arr(ServiceType.Cleanuparr, "/api/queue-rules/slow"))
+        assertEquals("2 of 3 strikes · Stuck on metadata", app.bosunarr.feature.cleanuparr.badgeFor(live.first(), limits)!!.text)
+        val strikeEvents = client.get<app.bosunarr.feature.cleanuparr.ClPage<app.bosunarr.feature.cleanuparr.ClEvent>>(cl, "/api/events?page=1&pageSize=50&eventType=DownloadingMetadataStrike")
+        assertTrue(strikeEvents.items.isNotEmpty() && strikeEvents.items.all { it.eventType == "DownloadingMetadataStrike" })
+        client.send(cl, "/api/strikes/${live.first().downloadItemId}", "DELETE")
+        assertEquals(strikes.size - 1, client.get<app.bosunarr.feature.cleanuparr.ClPage<app.bosunarr.feature.cleanuparr.ClStrikeItem>>(cl, "/api/strikes").items.size)
+        val open = client.get<app.bosunarr.feature.cleanuparr.ClPage<app.bosunarr.feature.cleanuparr.ClManualEvent>>(cl, "/api/manualevents?page=1&pageSize=50&isResolved=false").items
+        assertEquals(1, open.size)
+        client.send(cl, "/api/manualevents/${open.single().id}/resolve", "POST")
+        assertTrue(client.get<app.bosunarr.feature.cleanuparr.ClPage<app.bosunarr.feature.cleanuparr.ClManualEvent>>(cl, "/api/manualevents?page=1&pageSize=50&isResolved=false").items.isEmpty())
+        client.send(cl, "/api/jobs/QueueCleaner/trigger", "POST")
         // Bazarr
         val b = s(ServiceType.Bazarr)
         objAt(ServiceType.Bazarr, "/api/system/status")

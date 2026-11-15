@@ -71,6 +71,7 @@ import app.bosunarr.feature.usenet.isUsenet
 import app.bosunarr.feature.torrent.isTorrentClient
 import app.bosunarr.ui.common.rememberLoader
 import kotlinx.coroutines.launch
+import app.bosunarr.feature.cleanuparr.StrikeBadgesEffect
 
 /** Activity tab: Sonarr/Radarr queues and every torrent client's torrents (qBittorrent, Transmission, Deluge), live. */
 @Composable
@@ -365,6 +366,7 @@ fun TorrentListBody(
     header: LazyListScope.() -> Unit = {},
 ) {
     LaunchedEffect(data) { controller.prune(data.torrents) }
+    StrikeBadgesEffect()
     val all = controller.apply(data.torrents)
     val base = remember(all, filter) { if (filter != null) all.filter(filter) else all }
     val searched = remember(base, state.query) { state.searched(base) }

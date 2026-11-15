@@ -67,6 +67,13 @@ import app.bosunarr.feature.library.horizontalFadingEdges
 import app.bosunarr.ui.common.bytes
 import app.bosunarr.ui.common.eta
 import java.util.Locale
+import app.bosunarr.feature.services.warnColor
+import androidx.compose.material.icons.rounded.Gavel
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import app.bosunarr.feature.cleanuparr.StrikeBadge
+import app.bosunarr.feature.cleanuparr.StrikeBadges
 
 enum class TorrentFilter(val label: String, val test: (Torrent) -> Boolean) {
     All("All", { true }),
@@ -269,8 +276,10 @@ fun LazyListScope.torrentRows(
     onOpen: (Torrent) -> Unit,
 ) {
     items(list, key = { it.key }, contentType = { "torrent" }) { t ->
+        val strikes by StrikeBadges.badges.collectAsState()
         TorrentRow(
             t = t,
+            strike = strikes[t.hash.lowercase()],
             selected = t.key in state.selection,
             selecting = state.selecting,
             showClient = showClient,
@@ -295,6 +304,8 @@ fun TorrentRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Cleanuparr's strikes on this download, when it's being watched. */
+    strike: StrikeBadge? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     val cs = MaterialTheme.colorScheme
@@ -354,6 +365,20 @@ fun TorrentRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (strike != null) {
+                Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val tint = if (strike.critical) cs.error else warnColor()
+                    Icon(Icons.Rounded.Gavel, null, Modifier.size(14.dp), tint = tint)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "Cleanuparr: " + strike.text + if (strike.marked) " · being removed" else "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = tint,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
     }
 }

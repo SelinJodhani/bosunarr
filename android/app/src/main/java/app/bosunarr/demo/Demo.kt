@@ -42,6 +42,7 @@ object Demo {
         svc(ServiceType.Jellyfin),
         svc(ServiceType.Jellystat),
         svc(ServiceType.Wizarr),
+        svc(ServiceType.Cleanuparr),
     )
 
     fun isDemoUrl(url: String?): Boolean =

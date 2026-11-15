@@ -413,6 +413,8 @@ private val PROBES = mapOf(
     ServiceType.Plex to Probe("/", { it.obj()?.get("MediaContainer")?.obj()?.get("machineIdentifier").str() != null }, { it.obj()?.get("MediaContainer")?.obj()?.get("version").str() }),
     // A bad key comes back as HTTP 200 + {"response": {"result": "error"}}: turned into an error in requestAt.
     ServiceType.Tautulli to Probe("/api/v2?cmd=get_tautulli_info", { it.obj()?.get("response")?.obj()?.get("data")?.obj() != null }, { it.obj()?.get("response")?.obj()?.get("data")?.obj()?.get("tautulli_version").str()?.removePrefix("v") }),
+    // /api/status needs the key and carries the version ("2.11.0.0").
+    ServiceType.Cleanuparr to Probe("/api/status", { it.obj()?.get("application")?.obj() != null }, { it.obj()?.get("application")?.obj()?.get("version").str()?.removeSuffix(".0") }),
     ServiceType.Wizarr to Probe("/api/status", { (it.obj()?.get("users") as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() != null }),
 )
 

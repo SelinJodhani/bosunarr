@@ -111,6 +111,8 @@ import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 import app.bosunarr.feature.torrent.isTorrentClient
+import androidx.compose.material.icons.rounded.Gavel
+import app.bosunarr.feature.cleanuparr.loadCleanupSummary
 
 private fun greeting(): String = when (LocalTime.now().hour) {
     in 5..11 -> "Good morning"
@@ -185,6 +187,7 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
     val media = arrs + services.filter { it.serviceType == ServiceType.Lidarr }
     val seerrs = services.filter { it.serviceType == ServiceType.Jellyseerr || it.serviceType == ServiceType.Overseerr }
     val jellyfins = services.filter { it.serviceType == ServiceType.Jellyfin }
+    val cleaners = services.filter { it.serviceType == ServiceType.Cleanuparr }
     val healthServices = services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Prowlarr }
 
     val scroll = rememberScrollState()
@@ -198,6 +201,7 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
             Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (services.isNotEmpty()) StatusCard(hub, services, healthServices, nav)
                 if (qbits.isNotEmpty() || arrs.isNotEmpty()) DownloadsCard(hub, qbits, arrs, nav)
+                if (cleaners.isNotEmpty()) CleanupCard(hub, cleaners, nav)
                 if (media.isNotEmpty()) UpNextCard(hub, media, nav)
                 if (media.isNotEmpty() || jellyfins.isNotEmpty()) RecentCard(hub, media, jellyfins, nav)
                 if (seerrs.isNotEmpty()) RequestsCard(hub, seerrs, nav)
@@ -522,6 +526,33 @@ private fun RecentCard(hub: RefreshHub, arrs: List<ServiceConfig>, jellyfins: Li
                 }
             }
             PartialErrors(r.errors)
+        }
+    }
+}
+
+/* ---------------------------------------------------------------- cleanup (Cleanuparr) */
+
+@Composable
+private fun CleanupCard(hub: RefreshHub, cleaners: List<ServiceConfig>, nav: NavController) {
+    val loader = rememberHubLoader(hub, "dash:cleanup:${signature(cleaners)}", refreshMs = 2 * 60_000) { loadCleanupSummary(cleaners) }
+    SectionCard("Cleanup · last 7 days", icon = Icons.Rounded.Gavel, onClick = { nav.navigate(ServiceRoute(cleaners.first().id)) }) {
+        CardLoad(loader, placeholder = {
+            StatRow { repeat(3) { SkeletonBox(Modifier.weight(1f).height(68.dp), RoundedCornerShape(16.dp)) } }
+        }) { c ->
+            StatRow {
+                StatTile("Strikes", c.strikes.toString(), Modifier.weight(1f), tint = if (c.strikes > 0) warnColor() else MaterialTheme.colorScheme.onSurface)
+                StatTile("Removed", c.removed.toString(), Modifier.weight(1f), tint = if (c.removed > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                StatTile("Replaced", c.replacements.toString(), Modifier.weight(1f))
+            }
+            if (c.atRisk > 0) {
+                Text(
+                    "${plural(c.atRisk, "download")} one strike from removal",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                )
+            }
+            PartialErrors(c.errors)
         }
     }
 }

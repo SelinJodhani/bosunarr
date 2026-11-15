@@ -156,3 +156,14 @@ Legend: **F** = static fixture, **G** = generated, **W** = write that changes th
 - Lidarr (`DemoLidarr`, `/api/v1`) is held in memory with no fixtures or artwork: three artists (Kevin MacLeod, CC-BY;
   Beethoven and Satie, public domain), library/detail/monitor/delete, search + add, calendar, queue (a download
   finishes after two minutes), history, commands and the service screen's status/health/disk endpoints.
+
+## Cleanuparr (`DemoCleanuparr`)
+
+| Endpoint | Behaviour |
+|---|---|
+| `GET /api/status`, `/api/v2/stats?hours`, `/api/jobs` | G (stats counted from the demo events in the window) |
+| `GET /api/events?eventType&page&pageSize` | G (strikes on real demo torrents, one removal + replacement search, one clean-up) |
+| `GET /api/strikes`, `DELETE /api/strikes/{id}` | W (forgiving removes the item, so its torrent badge goes away) |
+| `GET /api/manualevents?isResolved`, `POST /api/manualevents/{id}/resolve` | W |
+| `POST /api/jobs/{type}/trigger` | G |
+| `GET /api/configuration/queue_cleaner`, `/api/queue-rules/stall`, `/api/queue-rules/slow` | G (limits 3 / 3 / 5) |

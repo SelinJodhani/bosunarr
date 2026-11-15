@@ -299,6 +299,7 @@ internal object DemoWorld {
                 "prowlarr" -> DemoProwlarr.handle(w, r)
                 "bazarr" -> DemoBazarr.handle(w, r)
                 "wizarr" -> DemoWizarr.handle(w, r)
+                "cleanuparr" -> DemoCleanuparr.handle(w, r)
                 else -> null
             } ?: DemoResponse.notFound("The demo ${r.service} doesn't know ${r.method} ${r.path}")
         }
