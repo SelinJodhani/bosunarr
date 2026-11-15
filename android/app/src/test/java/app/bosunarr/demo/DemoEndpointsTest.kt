@@ -235,6 +235,31 @@ class DemoEndpointsTest {
         arr(ServiceType.Prowlarr, "/api/v1/health")
         objAt(ServiceType.Prowlarr, "/api/v1/indexerstats?startDate=x&endDate=y")
         assertTrue(arr(ServiceType.Prowlarr, "/api/v1/search?query=metropolis&type=search&limit=100&offset=0&categories=2000").isNotEmpty())
+        // Prowlarr download clients: the add flow end to end (defaults from the arrs, schema, create, list, delete).
+        val p = s(ServiceType.Prowlarr)
+        assertEquals(1, arr(ServiceType.Prowlarr, "/api/v1/downloadclient").size)
+        val defaults = app.bosunarr.feature.services.clientDefaults(
+            "QBittorrent", "http://demo",
+            listOf(
+                app.bosunarr.feature.services.ArrClients(ServiceType.Radarr, "Radarr", arr(ServiceType.Radarr, "/api/v3/downloadclient")),
+                app.bosunarr.feature.services.ArrClients(ServiceType.Sonarr, "Sonarr", arr(ServiceType.Sonarr, "/api/v3/downloadclient")),
+            ),
+        )
+        assertEquals("qbittorrent", defaults.host)
+        assertEquals("radarr", defaults.movies)
+        assertEquals("tv-sonarr", defaults.tv)
+        val payload = app.bosunarr.feature.services.buildClientPayload(
+            arr(ServiceType.Prowlarr, "/api/v1/downloadclient/schema"), "Transmission", "Transmission",
+            mapOf("host" to kotlinx.serialization.json.JsonPrimitive("transmission"), "port" to kotlinx.serialization.json.JsonPrimitive(9091)),
+            app.bosunarr.feature.services.categoryMappings(defaults.movies, null, defaults.tv),
+        )!!
+        client.send(p, "/api/v1/downloadclient/test", "POST", payload)
+        client.send(p, "/api/v1/downloadclient", "POST", payload)
+        val after = client.get<List<app.bosunarr.feature.services.PDownloadClient>>(p, "/api/v1/downloadclient")
+        assertEquals(2, after.size)
+        assertEquals("Movies → radarr · TV → tv-sonarr", app.bosunarr.feature.services.mappingSummary(after.last().categories))
+        client.send(p, "/api/v1/downloadclient/${after.last().id}", "DELETE")
+        assertEquals(1, arr(ServiceType.Prowlarr, "/api/v1/downloadclient").size)
         // Bazarr
         val b = s(ServiceType.Bazarr)
         objAt(ServiceType.Bazarr, "/api/system/status")

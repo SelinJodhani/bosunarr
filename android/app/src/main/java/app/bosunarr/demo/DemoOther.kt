@@ -36,7 +36,64 @@ internal object DemoProwlarr {
             else obj("id" to id, "isValid" to true, "validationFailures" to emptyList<Any>())
         }), 400)
         "/api/v1/search" -> if (r.method == "POST") grab(w, r) else search(w, r)
-        else -> null
+        "/api/v1/downloadclient" -> if (r.method == "POST") addClient(w, r) else DemoResponse.json(arr(clients(w)))
+        "/api/v1/downloadclient/schema" -> DemoResponse.json(arr(SCHEMA.map { (impl, fields) -> clientSchema(impl, fields) }))
+        "/api/v1/downloadclient/test" -> testClient(r)
+        else -> if (r.path.startsWith("/api/v1/downloadclient/") && r.method == "DELETE") removeClient(w, r) else null
+    }
+
+    /* ------------------------------------------------------------ download clients */
+
+    private val SCHEMA = listOf(
+        "QBittorrent" to listOf("host", "port", "useSsl", "urlBase", "username", "password", "category"),
+        "Transmission" to listOf("host", "port", "useSsl", "urlBase", "username", "password", "category"),
+        "Deluge" to listOf("host", "port", "useSsl", "urlBase", "password", "category"),
+        "Sabnzbd" to listOf("host", "port", "useSsl", "urlBase", "apiKey", "username", "password", "category"),
+        "Nzbget" to listOf("host", "port", "useSsl", "urlBase", "username", "password", "category"),
+    )
+
+    private fun clientSchema(impl: String, fields: List<String>) = obj(
+        "implementation" to impl, "implementationName" to if (impl == "QBittorrent") "qBittorrent" else impl, "configContract" to "${impl}Settings",
+        "protocol" to if (impl == "Sabnzbd" || impl == "Nzbget") "usenet" else "torrent", "enable" to true, "priority" to 1, "categories" to emptyList<Any>(),
+        "fields" to fields.mapIndexed { i, n -> obj("order" to i, "name" to n, "value" to null) },
+    )
+
+    /** One qBittorrent already set up, mapped like the demo arrs' categories (grabs are imported). */
+    @Suppress("UNCHECKED_CAST")
+    private fun clients(w: World): MutableList<JsonObject> = w.misc.bag.getOrPut("prowlarr:clients") {
+        mutableListOf(
+            obj(
+                "id" to 1, "name" to "qBittorrent", "implementation" to "QBittorrent", "implementationName" to "qBittorrent",
+                "protocol" to "torrent", "enable" to true, "priority" to 1, "fields" to emptyList<Any>(),
+                "categories" to listOf(obj("clientCategory" to "radarr", "categories" to listOf(2000, 2040, 2045)), obj("clientCategory" to "tv-sonarr", "categories" to listOf(5000, 5040))),
+            ),
+        )
+    } as MutableList<JsonObject>
+
+    private fun fieldValue(o: JsonObject?, name: String): String? = (o?.get("fields") as? JsonArray)
+        ?.firstOrNull { (it as? JsonObject)?.get("name").str() == name }?.let { ((it as JsonObject)["value"] as? kotlinx.serialization.json.JsonPrimitive)?.content }
+
+    private fun testClient(r: DemoRequest): DemoResponse {
+        val host = fieldValue(r.json as? JsonObject, "host").orEmpty()
+        return if (host.isBlank() || host == "null") DemoResponse.json(arr(listOf(obj("propertyName" to "Host", "errorMessage" to "Host can't be empty"))), 400)
+        else DemoResponse.json(obj())
+    }
+
+    private fun addClient(w: World, r: DemoRequest): DemoResponse {
+        val body = r.json as? JsonObject ?: return DemoResponse.notFound("Bad body")
+        testClient(r).takeIf { it.code >= 400 }?.let { return it }
+        val list = clients(w)
+        val name = body["name"].str().orEmpty()
+        if (list.any { it["name"].str().equals(name, ignoreCase = true) }) return DemoResponse.json(arr(listOf(obj("propertyName" to "Name", "errorMessage" to "Should be unique"))), 400)
+        val created = JsonObject(body + ("id" to kotlinx.serialization.json.JsonPrimitive((list.maxOfOrNull { (it["id"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() ?: 0 } ?: 0) + 1)))
+        list += created
+        return DemoResponse.json(created, 201)
+    }
+
+    private fun removeClient(w: World, r: DemoRequest): DemoResponse {
+        val id = r.path.substringAfterLast('/').toIntOrNull()
+        clients(w).removeAll { (it["id"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() == id }
+        return DemoResponse.json(obj())
     }
 
     private fun search(w: World, r: DemoRequest): DemoResponse {

@@ -160,24 +160,34 @@ private suspend fun loadProwlarr(s: ServiceConfig): ProwlarrOverview = coroutine
 fun ProwlarrServiceScreen(s: ServiceConfig, nav: NavController) {
     val hub = rememberRefreshHub()
     val overview = rememberHubLoader(hub, "svc:prowlarr:${s.id}") { loadProwlarr(s) }
+    val clients = rememberHubLoader(hub, "svc:prowlarr:clients:${s.id}") { prowlarrClients(s) }
+    var addingClient by rememberSaveable { mutableStateOf(false) }
+    val snackbarRunner = rememberActionRunner()
     val version = overview.value?.version
     ServiceFrame(s, nav, subtitle = listOfNotNull(s.serviceType?.label, version?.let { "v$it" }).joinToString(" · ")) { p ->
         HubRefreshBox(hub, Modifier.padding(p)) {
             TabbedBody(listOf("Indexers", "Search", "Stats")) { tab ->
                 when (tab) {
-                    0 -> IndexersTab(s, overview)
-                    1 -> SearchTab(s, hub)
+                    0 -> IndexersTab(s, overview, clients) { addingClient = true }
+                    1 -> SearchTab(s, hub, clients) { addingClient = true }
                     else -> StatsTab(s, hub)
                 }
             }
         }
+    }
+    if (addingClient) {
+        AddDownloadClientSheet(
+            s,
+            onDismiss = { addingClient = false },
+            onSaved = { msg -> clients.refresh(); snackbarRunner.run("prowlarr:${s.id}:dc:added") { msg } },
+        )
     }
 }
 
 /* ================================================================ indexers */
 
 @Composable
-private fun IndexersTab(s: ServiceConfig, loader: Loader<ProwlarrOverview>) {
+private fun IndexersTab(s: ServiceConfig, loader: Loader<ProwlarrOverview>, clients: Loader<List<PDownloadClient>>, onAddClient: () -> Unit) {
     val runner = rememberActionRunner()
     val o = loader.value
     CardList {
@@ -220,6 +230,7 @@ private fun IndexersTab(s: ServiceConfig, loader: Loader<ProwlarrOverview>) {
                 }
             }
         }
+        item("clients") { DownloadClientsCard(s, clients, onAddClient) }
     }
 }
 
@@ -288,7 +299,7 @@ private suspend fun search(s: ServiceConfig, query: String, cat: Cat): List<Rele
 }
 
 @Composable
-private fun SearchTab(s: ServiceConfig, hub: RefreshHub) {
+private fun SearchTab(s: ServiceConfig, hub: RefreshHub, clients: Loader<List<PDownloadClient>>, onAddClient: () -> Unit) {
     var input by rememberSaveable { mutableStateOf("") }
     var submitted by rememberSaveable { mutableStateOf("") }
     var cat by rememberSaveable { mutableStateOf(Cat.All) }
@@ -374,10 +385,26 @@ private fun SearchTab(s: ServiceConfig, hub: RefreshHub) {
         }
     }
 
-    grab?.let { r ->
+    val known = clients.value
+    if (grab != null && known != null && known.none { it.enable }) {
+        // Prowlarr would only answer "download client is not configured": offer to set one up instead.
+        ConfirmDialog(
+            title = "No download client in ${s.name}",
+            text = "${s.name} has nowhere to send this release yet. Add a download client: Bosunarr can set one up from the clients you've added here, pointed at the categories Radarr and Sonarr import from.",
+            confirm = "Add download client",
+            onConfirm = onAddClient,
+            onDismiss = { grab = null },
+        )
+    } else grab?.let { r ->
+        val movieOrTv = r.categories.any { it.id / 1000 == 2 || it.id / 1000 == 5 }
+        val note = when {
+            !movieOrTv -> "${s.name} will send it to its download client."
+            known != null && !mapsMoviesOrTv(known) -> "${s.name}'s download client has no Radarr or Sonarr category set, so this won't be imported into your library. Map the categories under Indexers → Download clients."
+            else -> "It goes to the Radarr or Sonarr category and is imported when it finishes, if the movie or show is already in Radarr or Sonarr."
+        }
         ConfirmDialog(
             title = "Grab this release?",
-            text = "${r.title ?: "Untitled"}\n\n${listOfNotNull(r.indexer, bytes(r.size).takeIf { r.size > 0 }).joinToString(" · ")}\n\nProwlarr will send it to its download client.",
+            text = "${r.title ?: "Untitled"}\n\n${listOfNotNull(r.indexer, bytes(r.size).takeIf { r.size > 0 }).joinToString(" · ")}\n\n$note",
             confirm = "Grab",
             onConfirm = {
                 runner.run("prowlarr:${s.id}:grab:${r.guid}") {

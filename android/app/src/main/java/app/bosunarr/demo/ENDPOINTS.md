@@ -47,6 +47,7 @@ Legend: **F** = static fixture, **G** = generated, **W** = write that changes th
 | `POST /api/v3/movie` | Library → Add | W (+ torrent when "search") |
 | `GET /api/v3/qualityprofile`, `/rootfolder` | Library, Add, service screen | F |
 | `GET /api/v3/calendar?start&end[&unmonitored][&includeSeries]` | Calendar, dashboard Up next | G (dates relative to today) |
+| `GET /api/v3/downloadclient` | release grab toast, Prowlarr "Add download client" defaults | G (qBittorrent at `qbittorrent:8080`, own category) |
 | `GET /api/v3/queue?page&pageSize&include…` | Activity → Queue | G from the simulated torrents |
 | `DELETE /api/v3/queue/{id}?removeFromClient&blocklist` | remove queue item | W |
 | `GET /api/v3/queue/status` | dashboard Downloads, service screen | G |
@@ -122,6 +123,8 @@ Legend: **F** = static fixture, **G** = generated, **W** = write that changes th
 | `POST /api/v1/indexer/testall` | G (400 with one failing indexer, like Prowlarr) |
 | `GET /api/v1/search?query&categories` | G (releases for matching catalog titles) |
 | `POST /api/v1/search` (grab) | W (adds a torrent) |
+| `GET/POST /api/v1/downloadclient`, `DELETE /api/v1/downloadclient/{id}` | W (starts with one mapped qBittorrent) |
+| `GET /api/v1/downloadclient/schema`, `POST /api/v1/downloadclient/test` | G (test fails without a host) |
 
 ## Bazarr (`DemoBazarr`)
 

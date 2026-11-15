@@ -247,6 +247,13 @@ fun AddTorrentSheet(
                 listOf("" to "None") + categories.map { it to categoryLabel(it) },
                 enabled = categories.isNotEmpty(),
             ) { category = it }
+            Text(
+                if (category.isEmpty()) "No category: it just downloads. Pick Radarr's or Sonarr's category (e.g. radarr, sonarr) to have it imported into your library."
+                else "Imported into your library when it finishes if this is a Radarr or Sonarr category and the movie or show is already there.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
 
             OutlinedTextField(
                 value = savePath,

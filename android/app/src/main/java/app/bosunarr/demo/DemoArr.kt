@@ -40,10 +40,23 @@ internal object DemoArr {
             p == "/api/v3/wanted/cutoff" -> DemoResponse.json(obj("page" to 1, "pageSize" to 1, "totalRecords" to if (sonarr) 3 else 2, "records" to emptyList<Any>()))
             p == "/api/v3/history" -> DemoResponse.json(history(w, r, sonarr))
             p == "/api/v3/calendar" -> DemoResponse.json(if (sonarr) episodeCalendar(w, r) else movieCalendar(w, r))
+            p == "/api/v3/downloadclient" && r.method == "GET" -> DemoResponse.json(arr(listOf(downloadClient(sonarr))))
             sonarr -> sonarrRoutes(w, r)
             else -> radarrRoutes(w, r)
         }
     }
+
+    /** The demo qBittorrent, as the arrs see it from the server (container name, their own category). */
+    private fun downloadClient(sonarr: Boolean) = obj(
+        "id" to 1, "name" to "qBittorrent", "implementation" to "QBittorrent", "implementationName" to "qBittorrent",
+        "protocol" to "torrent", "enable" to true, "priority" to 1,
+        "fields" to listOf(
+            obj("name" to "host", "value" to "qbittorrent"), obj("name" to "port", "value" to 8080),
+            obj("name" to "useSsl", "value" to false), obj("name" to "username", "value" to "demo"),
+            obj("name" to "password", "value" to "********"),
+            if (sonarr) obj("name" to "tvCategory", "value" to "tv-sonarr") else obj("name" to "movieCategory", "value" to "radarr"),
+        ),
+    )
 
     /* ------------------------------------------------------------ images */
 
