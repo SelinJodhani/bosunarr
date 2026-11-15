@@ -30,9 +30,9 @@ import app.bosunarr.ui.theme.BosunarrTheme
 import app.bosunarr.widget.DeepLink
 
 /**
- * Long-press target for both tiles (QS_TILE_PREFERENCES). No qBittorrent → Settings, so one can be added.
- * Alt speed tile with several qBittorrents → pick which one the tile controls. Otherwise → the qBittorrent
- * screen (Alt speed) or Activity (Pause downloads).
+ * Long-press target for both tiles (QS_TILE_PREFERENCES). No suitable torrent client → Settings, so one can be
+ * added. Alt speed tile with several clients that have alt speed → pick which one the tile controls. Otherwise →
+ * that client's screen (Alt speed) or Activity (Pause downloads).
  */
 class TileSettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,7 +46,7 @@ class TileSettingsActivity : ComponentActivity() {
         setContent {
             var qbits by remember { mutableStateOf<List<ServiceConfig>?>(null) }
             LaunchedEffect(Unit) {
-                val all = TileQbit.services()
+                val all = if (isAltTile) TileQbit.altServices() else TileQbit.services()
                 when {
                     all.isEmpty() -> go(DeepLink.SETTINGS)
                     !isAltTile -> go(DeepLink.ACTIVITY)
@@ -62,7 +62,7 @@ class TileSettingsActivity : ComponentActivity() {
                     title = { Text("Alt speed tile") },
                     text = {
                         Column {
-                            Text("Which qBittorrent should the tile switch?", style = MaterialTheme.typography.bodyMedium)
+                            Text("Which torrent client should the tile switch?", style = MaterialTheme.typography.bodyMedium)
                             list.forEach { s ->
                                 Row(
                                     Modifier.fillMaxWidth().clickable { chosen = s.id }.padding(vertical = 4.dp),
@@ -81,7 +81,7 @@ class TileSettingsActivity : ComponentActivity() {
                             finish()
                         }) { Text("Done") }
                     },
-                    dismissButton = { TextButton(onClick = { go(DeepLink.service(chosen)) }) { Text("Open qBittorrent") } },
+                    dismissButton = { TextButton(onClick = { go(DeepLink.service(chosen)) }) { Text("Open it") } },
                 )
             }
         }

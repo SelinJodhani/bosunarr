@@ -11,6 +11,8 @@ import androidx.core.content.edit
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.feature.torrent.TorrentClients
+import app.bosunarr.feature.torrent.isTorrentClient
 import app.bosunarr.net.AppJson
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -21,21 +23,28 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 
-/** qBittorrent access and small persisted settings shared by the Quick Settings tiles. */
+/**
+ * Torrent-client access and small persisted settings shared by the Quick Settings tiles. qBittorrent uses its cheap
+ * dedicated endpoints; Transmission and Deluge read the regular sync ([TorrentClients.snapshot]), which already
+ * speaks qBittorrent's state names.
+ */
 internal object TileQbit {
     private const val PREFS = "bosunarr_tiles"
     private const val KEY_ALT_SERVICE = "alt_service"
     private const val KEY_PAUSED = "paused"
 
-    /** Every configured qBittorrent (waits briefly for the encrypted store on a cold start). */
+    /** Every configured torrent client (waits briefly for the encrypted store on a cold start). */
     suspend fun services(): List<ServiceConfig> {
         withTimeoutOrNull(5_000) { app.state.filterNotNull().first() }
-        return app.services.value.filter { it.serviceType == ServiceType.QBittorrent }
+        return app.services.value.filter { isTorrentClient(it.serviceType) }
     }
 
-    /** The qBittorrent the Alt speed tile controls: the one picked on long-press, else the first. */
+    /** The clients with alternative speed limits (qBittorrent and Transmission; Deluge has none). */
+    suspend fun altServices(): List<ServiceConfig> = services().filter { TorrentClients.supportsAltSpeed(it.serviceType) }
+
+    /** The client the Alt speed tile controls: the one picked on long-press, else the first. */
     suspend fun altTarget(context: Context): ServiceConfig? {
-        val all = services()
+        val all = altServices()
         val chosen = prefs(context).getString(KEY_ALT_SERVICE, null)
         return all.firstOrNull { it.id == chosen } ?: all.firstOrNull()
     }
@@ -55,12 +64,21 @@ internal object TileQbit {
     @Serializable
     data class LightTorrent(val hash: String = "", val state: String = "")
 
-    suspend fun transfer(s: ServiceConfig): TransferInfo = app.client.get(s, "/api/v2/transfer/info")
+    private fun isQbit(s: ServiceConfig) = s.serviceType == ServiceType.QBittorrent
 
-    /** "1" when alternative speed limits are on. */
-    suspend fun altEnabled(s: ServiceConfig): Boolean = app.client.text(s, "/api/v2/transfer/speedLimitsMode").trim() == "1"
+    /** Download speed and the download limit in force (the alternative one while alt speed is on). */
+    suspend fun transfer(s: ServiceConfig): TransferInfo =
+        if (isQbit(s)) app.client.get(s, "/api/v2/transfer/info")
+        else TorrentClients.snapshot(s).server.let { TransferInfo(it.down, it.downLimit) }
 
-    suspend fun torrents(s: ServiceConfig): List<LightTorrent> = app.client.get(s, "/api/v2/torrents/info")
+    /** Whether alternative speed limits are on (qBittorrent: speedLimitsMode "1"). */
+    suspend fun altEnabled(s: ServiceConfig): Boolean =
+        if (isQbit(s)) app.client.text(s, "/api/v2/transfer/speedLimitsMode").trim() == "1"
+        else TorrentClients.snapshot(s).server.altSpeed
+
+    suspend fun torrents(s: ServiceConfig): List<LightTorrent> =
+        if (isQbit(s)) app.client.get(s, "/api/v2/torrents/info")
+        else TorrentClients.snapshot(s).torrents.map { LightTorrent(it.hash, it.state) }
 
     // ------------------------------------------------------------ what the Pause tile paused (service id → hashes)
 

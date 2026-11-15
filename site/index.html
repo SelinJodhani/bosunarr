@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Bosunarr · your *arr stack, in your pocket</title>
-  <meta name="description" content="Bosunarr is a native Material You app for Android that runs Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, qBittorrent, SABnzbd, NZBGet, Jellyfin and the server underneath them over SSH, straight from your phone. Notifications and widgets without a server, a built-in demo, no account and no cloud.">
+  <meta name="description" content="Bosunarr is a native Material You app for Android that runs Sonarr, Radarr, Lidarr, Prowlarr, Bazarr, Seerr, qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, Jellyfin, Plex and the server underneath them over SSH, straight from your phone. Notifications and widgets without a server, a built-in demo, no account and no cloud.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#fcf8ff">
   <link rel="canonical" href="https://selinjodhani.github.io/bosunarr/">
@@ -13,7 +13,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Bosunarr">
   <meta property="og:title" content="Bosunarr · your *arr stack, in your pocket">
-  <meta property="og:description" content="A native Material You app for Android to run Sonarr, Radarr, qBittorrent, SABnzbd, Jellyfin and your server over SSH. Try the built-in demo, no server needed. No account, no cloud: your keys stay on your phone.">
+  <meta property="og:description" content="A native Material You app for Android to run Sonarr, Radarr, Lidarr, qBittorrent, SABnzbd, Jellyfin, Plex and your server over SSH. Try the built-in demo, no server needed. No account, no cloud: your keys stay on your phone.">
   <meta property="og:url" content="https://selinjodhani.github.io/bosunarr/">
   <meta property="og:image" content="https://selinjodhani.github.io/bosunarr/assets/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -51,7 +51,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wdth,wght,ROND@6..144,25..151,1..1000,0..100&display=swap">
   <!-- Icon font subset: icon_names must stay alphabetically sorted. Add a name here when you use a new icon. -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&icon_names=arrow_forward,auto_awesome,brightness_auto,calendar_month,check,cloud_off,colors,dark_mode,dashboard,dns,download,downloading,encrypted,expand_more,explore,fingerprint,key,light_mode,lock,movie,no_accounts,notifications,palette,pause,play_arrow,play_circle,policy,router,sailing,smartphone,star,swipe,terminal,toggle_on,tv,update,verified_user,video_library,vpn_lock,waves,widgets,wifi&display=block">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&icon_names=arrow_forward,auto_awesome,backup,brightness_auto,calendar_month,check,cloud_off,colors,dark_mode,dashboard,dns,download,downloading,encrypted,expand_more,explore,fingerprint,key,light_mode,lock,movie,no_accounts,notifications,palette,pause,play_arrow,play_circle,policy,router,sailing,smartphone,star,swipe,terminal,toggle_on,tv,update,verified_user,video_library,vpn_lock,waves,widgets,wifi&display=block">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -114,7 +114,7 @@
         <div class="hero__copy">
           <p class="chip chip--tonal"><span class="ms" aria-hidden="true">sailing</span> Early access · Free for Android</p>
           <h1 id="hero-title">Your <span class="hl">*arr stack</span>, in&nbsp;your&nbsp;pocket.</h1>
-          <p class="lead">Bosunarr is a native Material You app for your self-hosted media crew, from Sonarr and Radarr to qBittorrent, SABnzbd and Jellyfin, plus the server they all run on. No account. No cloud. Just you and your server.</p>
+          <p class="lead">Bosunarr is a native Material You app for your self-hosted media crew, from Sonarr, Radarr and Lidarr to qBittorrent, SABnzbd, Jellyfin and Plex, plus the server they all run on. No account. No cloud. Just you and your server.</p>
           <div class="actions" id="hero-actions">
             <a class="btn btn--filled btn--lg" href="https://github.com/SelinJodhani/bosunarr/releases/latest" data-apk>
               <span class="ms" aria-hidden="true">download</span>
@@ -136,7 +136,7 @@
             <img class="orbit__logo" style="--x:44%;--y:-36%;--d:1.2" src="assets/logos/radarr.webp" alt="" width="64" height="64">
             <img class="orbit__logo" style="--x:52%;--y:6%;--d:2" src="assets/logos/qbittorrent.webp" alt="" width="64" height="64">
             <img class="orbit__logo" style="--x:-54%;--y:14%;--d:1.4" src="assets/logos/jellyfin.webp" alt="" width="64" height="64">
-            <img class="orbit__logo" style="--x:-40%;--y:44%;--d:1.8" src="assets/logos/jellyseerr.webp" alt="" width="64" height="64">
+            <img class="orbit__logo" style="--x:-40%;--y:44%;--d:1.8" src="assets/logos/seerr.webp" alt="" width="64" height="64">
             <img class="orbit__logo" style="--x:42%;--y:40%;--d:1.1" src="assets/logos/prowlarr.webp" alt="" width="64" height="64">
           </div>
           <div class="device-wrap device-wrap--hero" data-tilt>
@@ -210,34 +210,37 @@
             <div class="tour__panels">
               <div class="tour__panel" role="tabpanel" id="panel-dashboard" aria-labelledby="tab-dashboard" tabindex="0">
                 <h3>Your whole stack at a glance</h3>
-                <p>Open the app and it's all there: which services are healthy, what's downloading, what's airing next, how full your disks are and who's watching right now.</p>
+                <p>Open the app and it's all there: which services are healthy, what's downloading, what's airing or releasing next, how full your disks are and who's watching right now.</p>
                 <ul class="ticks" role="list">
                   <li>Health checks for every connected service</li>
                   <li>Live downloads, queue and pending requests</li>
-                  <li>Upcoming episodes, disk space and now playing</li>
+                  <li>Upcoming episodes, movies and albums</li>
+                  <li>Recently added, disk space and now playing</li>
                 </ul>
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-library" aria-labelledby="tab-library" tabindex="0" hidden>
                 <h3>One library for every instance</h3>
-                <p>Series and movies from Sonarr and Radarr in a single poster grid, with filters for what's missing, monitored or still to come. Search for something new and add it in a couple of taps.</p>
+                <p>Series, movies and music from Sonarr, Radarr and Lidarr in a single poster grid, with filters for what's missing, monitored or still to come. Search for something new and add it in a couple of taps.</p>
                 <ul class="ticks" role="list">
                   <li>Every Sonarr and Radarr instance, incl. 4K</li>
+                  <li>Artists, albums and tracks from Lidarr</li>
                   <li>Filter, sort and search instantly</li>
                   <li>Search &amp; add with quality profiles</li>
                 </ul>
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-detail" aria-labelledby="tab-detail" tabindex="0" hidden>
                 <h3>Every season, every file</h3>
-                <p>See what's on disk and what isn't, season by season. Monitor an episode or a whole season, kick off a search for what's missing, or jump into the service's own web UI.</p>
+                <p>See what's on disk and what isn't, season by season. Monitor an episode, a season or a whole season pass, search for what's missing, or pick the exact release yourself.</p>
                 <ul class="ticks" role="list">
-                  <li>Monitor episodes and seasons</li>
+                  <li>Monitor episodes, seasons or a season pass</li>
+                  <li>Interactive search: see every release and grab the one you want</li>
                   <li>Missing and cutoff-unmet searches</li>
                   <li>File and quality details at a glance</li>
                 </ul>
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-discover" aria-labelledby="tab-discover" tabindex="0" hidden>
                 <h3>Find the next thing to watch</h3>
-                <p>Trending, popular and upcoming picks from Jellyseerr or Overseerr, with the request status right on every poster so you never ask twice.</p>
+                <p>Trending, popular and upcoming picks from Seerr (Jellyseerr or Overseerr), with the request status right on every poster so you never ask twice.</p>
                 <ul class="ticks" role="list">
                   <li>Trending, popular series and movies</li>
                   <li>Request status on every title</li>
@@ -255,9 +258,9 @@
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" tabindex="0" hidden>
                 <h3>What's coming, in order</h3>
-                <p>Upcoming episodes and movie releases from all your Sonarr and Radarr instances on one timeline, with today front and centre.</p>
+                <p>Upcoming episodes, movie releases and albums from all your Sonarr, Radarr and Lidarr instances on one timeline, with today front and centre.</p>
                 <ul class="ticks" role="list">
-                  <li>Episodes and releases together</li>
+                  <li>Episodes, movies and albums together</li>
                   <li>Jump to today, peek at last week</li>
                   <li>Tap through to the title</li>
                 </ul>
@@ -273,8 +276,8 @@
                 </ul>
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-torrents" aria-labelledby="tab-torrents" tabindex="0" hidden>
-                <h3>A proper qBittorrent remote</h3>
-                <p>Live torrents with speeds and ETAs. Pause, resume, recheck or delete one or many, set categories and speed limits, and share magnet links into Bosunarr from any app.</p>
+                <h3>A proper torrent remote</h3>
+                <p>qBittorrent, Transmission and Deluge in one live list, with speeds and ETAs. Pause, resume, recheck or delete one or many, set categories and speed limits, and share magnet links into Bosunarr from any app.</p>
                 <ul class="ticks" role="list">
                   <li>Pause, resume and recheck in bulk</li>
                   <li>Categories and speed limits</li>
@@ -284,10 +287,11 @@
               </div>
               <div class="tour__panel" role="tabpanel" id="panel-service" aria-labelledby="tab-service" tabindex="0" hidden>
                 <h3>A real home for every service</h3>
-                <p>Each service gets its own screen: Sonarr and Radarr health and disks, Prowlarr indexers, Bazarr subtitles, SABnzbd and NZBGet queues, Jellyfin sessions, Jellystat stats and Wizarr invites.</p>
+                <p>Each service gets its own screen: Sonarr and Radarr health and disks, Prowlarr indexers, Bazarr subtitles, SABnzbd and NZBGet queues, Jellyfin and Plex sessions, Jellystat and Tautulli stats, and Wizarr invites.</p>
                 <ul class="ticks" role="list">
                   <li>Indexers, subtitles, sessions, stats</li>
                   <li>Usenet queues, speed limits and NZB uploads</li>
+                  <li>Plex sign-in with plex.tv, no token to copy</li>
                   <li>Create and share Wizarr invites</li>
                   <li>One tap to the service's web UI</li>
                 </ul>
@@ -324,7 +328,10 @@
           <ul class="extras__grid reveal-stagger" role="list">
             <li><span class="ms" aria-hidden="true">notifications</span><div><h4>Notifications, no server needed</h4><p>Background checks every 15, 30 or 60 minutes for finished downloads, failed imports, new requests, service health and completed torrents. Tap one to open the item.</p></div></li>
             <li><span class="ms" aria-hidden="true">widgets</span><div><h4>Home-screen widgets</h4><p>Downloads, Up next and Services status, drawn in your wallpaper colours.</p></div></li>
-            <li><span class="ms" aria-hidden="true">toggle_on</span><div><h4>Quick Settings tiles</h4><p>Switch qBittorrent to its alternative speed limits, or pause every download, from the notification shade.</p></div></li>
+            <li><span class="ms" aria-hidden="true">toggle_on</span><div><h4>Quick Settings tiles</h4><p>Switch qBittorrent or Transmission to their alternative speed limits, or pause every torrent, from the notification shade.</p></div></li>
+            <li><span class="ms" aria-hidden="true">backup</span><div><h4>Backup &amp; restore</h4><p>Save your whole setup to one passphrase-encrypted file and restore it on a new phone.</p></div></li>
+            <li><span class="ms" aria-hidden="true">fingerprint</span><div><h4>App lock</h4><p>Ask for your fingerprint or screen lock before Bosunarr opens.</p></div></li>
+            <li><span class="ms" aria-hidden="true">router</span><div><h4>Reverse-proxy friendly</h4><p>Custom headers (such as Cloudflare Access) and basic auth, set per service.</p></div></li>
             <li><span class="ms" aria-hidden="true">play_circle</span><div><h4>A demo you can poke at</h4><p>A live, offline sample stack of Blender open movies and public-domain classics. Downloads progress, requests can be approved, and your own services are untouched.</p></div></li>
             <li><span class="ms" aria-hidden="true">waves</span><div><h4>Calm seas on empty screens</h4><p>Nothing to show? You get a small animated sea scene in your Material You colours instead: a lighthouse, calm water, a message in a bottle.</p></div></li>
             <li><span class="ms" aria-hidden="true">update</span><div><h4>Updates you can trust</h4><p>Bosunarr checks GitHub Releases, verifies the checksum before it installs, and Android checks the signature.</p></div></li>
@@ -410,6 +417,11 @@
             <ul class="svc__caps" role="list"><li>Library &amp; releases</li><li>Calendar &amp; queue</li><li>Cutoff-unmet searches</li></ul>
           </li>
           <li class="svc" tabindex="0">
+            <img src="assets/logos/lidarr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Lidarr</h3><p class="svc__kind">Music</p>
+            <ul class="svc__caps" role="list"><li>Artists &amp; albums</li><li>Calendar &amp; queue</li><li>Add new artists</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
             <img src="assets/logos/prowlarr.webp" alt="" width="56" height="56" loading="lazy">
             <h3>Prowlarr</h3><p class="svc__kind">Indexers</p>
             <ul class="svc__caps" role="list"><li>Indexer list &amp; status</li><li>Health warnings</li><li>Usage stats</li></ul>
@@ -420,19 +432,24 @@
             <ul class="svc__caps" role="list"><li>Wanted subtitles</li><li>Series &amp; movies</li><li>Health</li></ul>
           </li>
           <li class="svc" tabindex="0">
-            <img src="assets/logos/jellyseerr.webp" alt="" width="56" height="56" loading="lazy">
-            <h3>Jellyseerr</h3><p class="svc__kind">Discover &amp; requests</p>
-            <ul class="svc__caps" role="list"><li>Trending &amp; popular</li><li>Request HD or 4K</li><li>Approve or decline</li></ul>
-          </li>
-          <li class="svc" tabindex="0">
-            <img src="assets/logos/overseerr.webp" alt="" width="56" height="56" loading="lazy">
-            <h3>Overseerr</h3><p class="svc__kind">Discover &amp; requests</p>
-            <ul class="svc__caps" role="list"><li>Trending &amp; popular</li><li>Request HD or 4K</li><li>Approve or decline</li></ul>
+            <img src="assets/logos/seerr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Seerr</h3><p class="svc__kind">Discover &amp; requests</p>
+            <ul class="svc__caps" role="list"><li>Jellyseerr or Overseerr</li><li>Request HD or 4K</li><li>Approve or decline</li></ul>
           </li>
           <li class="svc" tabindex="0">
             <img src="assets/logos/qbittorrent.webp" alt="" width="56" height="56" loading="lazy">
             <h3>qBittorrent</h3><p class="svc__kind">Downloads</p>
             <ul class="svc__caps" role="list"><li>Live torrents</li><li>Pause, resume, recheck</li><li>Magnets from any app</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/transmission.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Transmission</h3><p class="svc__kind">Downloads</p>
+            <ul class="svc__caps" role="list"><li>Live torrents</li><li>Labels &amp; file priorities</li><li>Alternative speed</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/deluge.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Deluge</h3><p class="svc__kind">Downloads</p>
+            <ul class="svc__caps" role="list"><li>Live torrents</li><li>Pause, resume, recheck</li><li>Labels</li></ul>
           </li>
           <li class="svc" tabindex="0">
             <img src="assets/logos/sabnzbd.webp" alt="" width="56" height="56" loading="lazy">
@@ -450,9 +467,19 @@
             <ul class="svc__caps" role="list"><li>Who's watching now</li><li>Direct play or transcode</li><li>Libraries</li></ul>
           </li>
           <li class="svc" tabindex="0">
+            <img src="assets/logos/plex.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Plex</h3><p class="svc__kind">Media server</p>
+            <ul class="svc__caps" role="list"><li>Who's watching now</li><li>Libraries &amp; scans</li><li>Sign in with plex.tv</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
             <img src="assets/logos/jellystat.webp" alt="" width="56" height="56" loading="lazy">
             <h3>Jellystat</h3><p class="svc__kind">Statistics</p>
             <ul class="svc__caps" role="list"><li>Plays &amp; watch time</li><li>Top users &amp; titles</li><li>Recent activity</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/tautulli.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Tautulli</h3><p class="svc__kind">Statistics</p>
+            <ul class="svc__caps" role="list"><li>Plays &amp; watch time</li><li>Top titles</li><li>History</li></ul>
           </li>
           <li class="svc" tabindex="0">
             <img src="assets/logos/wizarr.webp" alt="" width="56" height="56" loading="lazy">
@@ -507,7 +534,7 @@
               <img src="assets/logos/radarr.webp" alt="" width="28" height="28" loading="lazy">
               <img src="assets/logos/qbittorrent.webp" alt="" width="28" height="28" loading="lazy">
               <img src="assets/logos/jellyfin.webp" alt="" width="28" height="28" loading="lazy">
-              <img src="assets/logos/jellyseerr.webp" alt="" width="28" height="28" loading="lazy">
+              <img src="assets/logos/seerr.webp" alt="" width="28" height="28" loading="lazy">
               <img src="assets/logos/prowlarr.webp" alt="" width="28" height="28" loading="lazy">
             </span>
           </div>
@@ -581,7 +608,7 @@
           </details>
           <details name="faq">
             <summary>How does it reach my services?<span class="ms" aria-hidden="true">expand_more</span></summary>
-            <div class="faq__body"><p>Your phone connects to each service directly, using the URL and API key (or username and password, for qBittorrent) that you enter. On home Wi-Fi that's a LAN address like <code>http://192.168.1.20:8989</code>; from anywhere else, use a VPN such as Tailscale or WireGuard, or your own reverse proxy with HTTPS.</p></div>
+            <div class="faq__body"><p>Your phone connects to each service directly, using the URL and API key (or username and password, for torrent and Usenet clients) that you enter. On home Wi-Fi that's a LAN address like <code>http://192.168.1.20:8989</code>; from anywhere else, use a VPN such as Tailscale or WireGuard, or your own reverse proxy with HTTPS. Custom headers such as Cloudflare Access and basic auth can be set per service.</p></div>
           </details>
           <details name="faq">
             <summary>Do I need to host anything extra?<span class="ms" aria-hidden="true">expand_more</span></summary>
@@ -594,6 +621,10 @@
           <details name="faq">
             <summary>Can I try it without a server?<span class="ms" aria-hidden="true">expand_more</span></summary>
             <div class="faq__body"><p>Yes. Tap <strong>Try the demo</strong> on the welcome screen for a live sample stack that runs entirely offline, stocked with Blender open movies and public-domain classics. Downloads progress, requests can be approved, and your own services are never touched. The screenshots on this page come from it.</p></div>
+          </details>
+          <details name="faq">
+            <summary>What happens when I get a new phone?<span class="ms" aria-hidden="true">expand_more</span></summary>
+            <div class="faq__body"><p>In Settings, tap <strong>Export backup</strong> to save your services, keys, dashboard and settings in one file, encrypted with a passphrase you choose. On the new phone, tap <strong>Restore from backup</strong> and enter the passphrase. Without it, the file can't be read.</p></div>
           </details>
           <details name="faq">
             <summary>Does it send notifications?<span class="ms" aria-hidden="true">expand_more</span></summary>
@@ -687,7 +718,7 @@
         </ul>
       </nav>
       <div class="footer__legal">
-        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Prowlarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, SABnzbd, NZBGet, Jellyfin, Jellystat or Wizarr.</p>
+        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Lidarr, Prowlarr, Bazarr, Seerr, Jellyseerr, Overseerr, qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, Jellyfin, Plex, Jellystat, Tautulli or Wizarr.</p>
         <p>Service logos from <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> by homarr-labs; logos are trademarks of their respective projects. Android is a trademark of Google LLC. Docker is a trademark of Docker, Inc.</p>
       </div>
     </div>

@@ -4,6 +4,7 @@ import android.content.Context
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
 import app.bosunarr.data.ServiceType
+import app.bosunarr.feature.torrent.TorrentClients
 import app.bosunarr.net.fanOut
 import app.bosunarr.net.userMessage
 import kotlinx.coroutines.CancellationException
@@ -146,6 +147,7 @@ internal object Poller {
             ServiceType.Prowlarr -> snap = checkHealth(s, "/api/v1/health", snap, settings, calls, events)
             ServiceType.Jellyseerr, ServiceType.Overseerr -> snap = checkSeerr(s, snap, settings, calls, events)
             ServiceType.QBittorrent -> snap = checkQbit(s, snap, settings, calls, events)
+            ServiceType.Transmission, ServiceType.Deluge -> snap = checkTorrentClient(s, snap, settings, calls, events)
             else -> {}
         }
         // Services with nothing else to ask (Jellyfin, Bazarr…) still get a reachability probe when health is on.
@@ -415,6 +417,27 @@ internal object Poller {
     }
 
     /** Whisparr's downloads, by the category/tags people give them; kept off the shade unless Whisparr is enabled. */
+    /** Transmission and Deluge: same events as [checkQbit], from their regular sync (completion time in epoch seconds). */
+    private suspend fun checkTorrentClient(s: ServiceConfig, prev: ServiceSnapshot, settings: NotifySettings, calls: Calls, events: MutableList<NotifyEvent>): ServiceSnapshot {
+        if (!settings.torrents) return prev.copy(torrentCompletedOn = null)
+        val snap = calls.attempt { TorrentClients.snapshot(s) } ?: return prev
+        // A stale snapshot (the latest sync failed) is the last good data: report the failure, don't announce from it.
+        if (snap.error != null) { calls.ok = false; if (calls.error == null) calls.error = snap.error; return prev }
+        val done = snap.torrents.filter { it.isDone && it.completedOn > 0 }
+        val newest = done.maxOfOrNull { it.completedOn } ?: 0L
+        val last = prev.torrentCompletedOn
+        if (last != null) done.filter { it.completedOn > last }.sortedBy { it.completedOn }.forEach { t ->
+            val adult = ADULT_WORDS.any { it in "${t.category} ${t.tags.joinToString(" ")}".lowercase() }
+            if (adult && !settings.whisparr) return@forEach
+            events += NotifyEvent(
+                NotifyKind.Torrent, "tor:${s.id}:${t.hash}", t.name,
+                listOfNotNull("Download complete", t.category.takeIf { it.isNotBlank() }, s.name).joinToString(" · "),
+                NotifyLinks.ACTIVITY, adult = adult,
+            )
+        }
+        return prev.copy(torrentCompletedOn = maxOf(newest, last ?: 0L))
+    }
+
     private fun looksAdult(t: JsonElement): Boolean {
         val text = "${t.str("category").orEmpty()} ${t.str("tags").orEmpty()}".lowercase()
         return ADULT_WORDS.any { it in text }

@@ -23,6 +23,15 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.abs
 import kotlin.math.max
+import app.bosunarr.feature.torrent.TorrentClients
+import app.bosunarr.feature.torrent.isTorrentClient
+import app.bosunarr.feature.music.LidarrAlbum
+import app.bosunarr.feature.music.LidarrArtist
+import app.bosunarr.feature.music.albumCover
+import app.bosunarr.feature.music.albumStatus
+import app.bosunarr.feature.music.releaseDay
+import app.bosunarr.feature.library.LibStatus
+import app.bosunarr.nav.AlbumRoute
 
 /* ================================================================ helpers */
 
@@ -86,6 +95,15 @@ suspend fun loadDownloads(qbits: List<ServiceConfig>, arrs: List<ServiceConfig>)
             val active = app.client.get<List<QbTorrent>>(s, "/api/v2/torrents/info?filter=active")
             QbPart(
                 info.down, info.up,
+                active.count { it.state in DL_STATES || (it.progress < 1 && it.dlspeed > 0) },
+                active.count { it.state in UP_STATES && !(it.progress < 1 && it.dlspeed > 0) },
+            )
+        } else if (isTorrentClient(s.serviceType)) {
+            // Transmission and Deluge: their regular sync already uses qBittorrent's state names.
+            val snap = TorrentClients.snapshot(s)
+            val active = snap.torrents.filter { it.isActive }
+            QbPart(
+                snap.server.down, snap.server.up,
                 active.count { it.state in DL_STATES || (it.progress < 1 && it.dlspeed > 0) },
                 active.count { it.state in UP_STATES && !(it.progress < 1 && it.dlspeed > 0) },
             )
@@ -164,7 +182,27 @@ suspend fun loadUpNext(arrs: List<ServiceConfig>, days: Long = 14, limit: Int = 
     val start = today.atStartOfDay(zone).toInstant()
     val end = today.plusDays(days).atStartOfDay(zone).toInstant()
     val p = each(arrs) { s ->
-        if (s.serviceType == ServiceType.Sonarr) {
+        if (s.serviceType == ServiceType.Lidarr) {
+            // Album releases are calendar dates (UTC midnight), like movie releases: query a day either side.
+            val qs = start.minusSeconds(86_400).toString()
+            val qe = end.plusSeconds(86_400).toString()
+            val albums = app.client.get<List<LidarrAlbum>>(s, "/api/v1/calendar?start=${enc(qs)}&end=${enc(qe)}&includeArtist=true")
+            albums.filter { it.monitored }.mapNotNull { a ->
+                val day = releaseDay(a.releaseDate) ?: return@mapNotNull null
+                if (day.isBefore(today) || !day.isBefore(today.plusDays(days))) return@mapNotNull null
+                UpNextItem(
+                    key = (a.foreignAlbumId?.takeIf { it.isNotBlank() }?.let { "a:$it" } ?: "a:${s.id}:${a.id}") + ":$day",
+                    title = a.title,
+                    subtitle = albumSubtitle(a),
+                    at = day.atStartOfDay(zone).toInstant(),
+                    allDay = true,
+                    hasFile = albumStatus(a, today) == LibStatus.Downloaded,
+                    service = s,
+                    poster = albumCover(s, a.images, a.id)?.let { ImageRef(s, it) },
+                    route = AlbumRoute(s.id, a.id),
+                )
+            }
+        } else if (s.serviceType == ServiceType.Sonarr) {
             val eps = app.client.get<List<CalEpisode>>(s, "/api/v3/calendar?start=${enc(start.toString())}&end=${enc(end.toString())}&includeSeries=true")
             eps.mapNotNull { e ->
                 val at = parseInstant(e.airDateUtc) ?: return@mapNotNull null
@@ -224,6 +262,11 @@ suspend fun loadUpNext(arrs: List<ServiceConfig>, days: Long = 14, limit: Int = 
     return UpNext(items, p.errors)
 }
 
+/** "Artist · EP": who it's by, plus the release type unless it's a plain album. */
+private fun albumSubtitle(a: LidarrAlbum): String =
+    listOfNotNull(a.artist?.artistName?.takeIf { it.isNotBlank() }, a.albumType?.takeIf { it.isNotBlank() && it != "Album" })
+        .joinToString(" · ").ifEmpty { "Album release" }
+
 private enum class Release { Cinema, Digital, Physical }
 
 private fun releaseLabel(kinds: List<Release>): String {
@@ -262,6 +305,40 @@ private data class HistRecord(
 @Serializable
 private data class HistPage(val records: List<HistRecord> = emptyList())
 
+@Serializable
+private data class AlbumHistRecord(
+    val id: Int = 0,
+    val date: String? = null,
+    val albumId: Int = 0,
+    val album: LidarrAlbum? = null,
+    val artist: LidarrArtist? = null,
+)
+
+@Serializable
+private data class AlbumHistPage(val records: List<AlbumHistRecord> = emptyList())
+
+/** Lidarr imports (album downloads, and single track files), one entry per album. */
+private suspend fun recentAlbums(s: ServiceConfig): List<RecentItem> {
+    // downloadImported (8) + trackFileImported (3).
+    val page = app.client.get<AlbumHistPage>(
+        s, "/api/v1/history?page=1&pageSize=50&sortKey=date&sortDirection=descending&includeArtist=true&includeAlbum=true&eventType=8&eventType=3",
+    )
+    return page.records.filter { (it.album?.id ?: it.albumId) > 0 }
+        .distinctBy { it.album?.id ?: it.albumId }
+        .map { h ->
+            val id = h.album?.id?.takeIf { it > 0 } ?: h.albumId
+            RecentItem(
+                key = "a:${s.id}:$id",
+                title = h.album?.title?.takeIf { it.isNotBlank() } ?: "Album",
+                subtitle = (h.artist ?: h.album?.artist)?.artistName?.takeIf { it.isNotBlank() },
+                at = parseInstant(h.date),
+                service = s,
+                poster = albumCover(s, h.album?.images.orEmpty(), id)?.let { ImageRef(s, it) },
+                route = AlbumRoute(s.id, id),
+            )
+        }
+}
+
 data class RecentItem(
     val key: String,
     val title: String,
@@ -275,9 +352,10 @@ data class RecentItem(
 
 data class Recent(val items: List<RecentItem>, val errors: List<String>)
 
-/** Imports from Sonarr/Radarr history (grouped per series), newest first. */
+/** Imports from Sonarr/Radarr/Lidarr history (grouped per series or album), newest first. */
 suspend fun loadRecentFromArrs(arrs: List<ServiceConfig>, limit: Int = 16): Recent {
     val p = each(arrs) { s ->
+        if (s.serviceType == ServiceType.Lidarr) return@each recentAlbums(s)
         val sonarr = s.serviceType == ServiceType.Sonarr
         // downloadFolderImported (3) + folder imports (Sonarr 2 / Radarr 7).
         val ev = if (sonarr) "&eventType=3&eventType=2" else "&eventType=3&eventType=7"

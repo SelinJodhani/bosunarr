@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import app.bosunarr.MainActivity
 import app.bosunarr.nav.ActivityRoute
+import app.bosunarr.nav.AlbumRoute
 import app.bosunarr.nav.CalendarRoute
 import app.bosunarr.nav.DashboardRoute
 import app.bosunarr.nav.MovieRoute
@@ -18,7 +19,7 @@ import app.bosunarr.nav.SettingsRoute
  *
  * - `dashboard` · `activity` · `calendar` · `settings`
  * - `service:<serviceId>` (a service's own screen, e.g. qBittorrent)
- * - `series:<serviceId>:<seriesId>` · `movie:<serviceId>:<movieId>` (library detail)
+ * - `series:<serviceId>:<seriesId>` · `movie:<serviceId>:<movieId>` · `album:<serviceId>:<albumId>` (library detail)
  *
  * The intent has no action (MainActivity's magnet/share handling ignores it) and a `bosunarr://open/<target>`
  * data URI only so PendingIntents for different targets stay distinct. [route] turns the extra into a nav route.
@@ -33,6 +34,7 @@ object DeepLink {
     fun service(serviceId: String) = "service:$serviceId"
     fun series(serviceId: String, id: Int) = "series:$serviceId:$id"
     fun movie(serviceId: String, id: Int) = "movie:$serviceId:$id"
+    fun album(serviceId: String, id: Int) = "album:$serviceId:$id"
 
     fun intent(context: Context, target: String): Intent = Intent(context, MainActivity::class.java)
         .putExtra(EXTRA, target)
@@ -52,6 +54,7 @@ object DeepLink {
             "service" -> parts.getOrNull(1)?.takeIf { it.isNotBlank() }?.let { ServiceRoute(it) }
             "series" -> parts.getOrNull(2)?.toIntOrNull()?.let { SeriesRoute(parts[1], it) }
             "movie" -> parts.getOrNull(2)?.toIntOrNull()?.let { MovieRoute(parts[1], it) }
+            "album" -> parts.getOrNull(2)?.toIntOrNull()?.let { AlbumRoute(parts[1], it) }
             else -> null
         }
     }

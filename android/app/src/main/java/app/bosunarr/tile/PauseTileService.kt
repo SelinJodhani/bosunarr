@@ -6,7 +6,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import app.bosunarr.R
 import app.bosunarr.app
-import app.bosunarr.feature.activity.qbit.Qbit
+import app.bosunarr.feature.torrent.TorrentClients
 import app.bosunarr.net.fanOut
 import app.bosunarr.ui.common.speed
 import app.bosunarr.widget.DeepLink
@@ -19,7 +19,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Quick Settings "Pause downloads": one tap stops every running torrent on every qBittorrent; the next tap resumes
+ * Quick Settings "Pause downloads": one tap stops every running torrent on every torrent client (qBittorrent,
+ * Transmission, Deluge); the next tap resumes
  * exactly the torrents this tile stopped (it remembers their hashes), so torrents the user had paused on purpose
  * stay paused. Acting without a confirmation is fine here: a QS tap is deliberate, it's fully reversible, and the
  * tile shows the paused state until it's undone. On a locked phone the user has to unlock first.
@@ -81,7 +82,7 @@ class PauseTileService : TileService() {
                 val qbits = TileQbit.services()
                 last = if (resuming) {
                     val record = TileQbit.paused(context)
-                    val results = fanOut(qbits.filter { record[it.id].orEmpty().isNotEmpty() }) { s -> Qbit.start(s, record.getValue(s.id)) }
+                    val results = fanOut(qbits.filter { record[it.id].orEmpty().isNotEmpty() }) { s -> TorrentClients.start(s, record.getValue(s.id)) }
                     // Keep whatever couldn't be resumed (service unreachable) so the next tap can try again.
                     val left = record.filterKeys { id -> results.any { it.first.id == id && it.second.isFailure } }
                         .filterKeys { id -> qbits.any { it.id == id } }
@@ -90,7 +91,7 @@ class PauseTileService : TileService() {
                 } else {
                     val results = fanOut(qbits) { s ->
                         val running = TileQbit.torrents(s).filterNot { it.state.startsWith("paused") || it.state.startsWith("stopped") }.map { it.hash }
-                        if (running.isNotEmpty()) Qbit.stop(s, running)
+                        if (running.isNotEmpty()) TorrentClients.stop(s, running)
                         running
                     }
                     val record = results.mapNotNull { (s, r) -> r.getOrNull()?.takeIf { it.isNotEmpty() }?.let { s.id to it } }.toMap()
@@ -122,7 +123,7 @@ class PauseTileService : TileService() {
             !st.configured -> {
                 tile.state = Tile.STATE_UNAVAILABLE
                 tile.label = getString(R.string.tile_pause)
-                tile.subtitle = "No qBittorrent"
+                tile.subtitle = "No torrent client"
             }
             st.pausedCount > 0 -> {
                 tile.state = Tile.STATE_ACTIVE
@@ -137,7 +138,7 @@ class PauseTileService : TileService() {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             tile.stateDescription = when {
-                st != null && !st.configured -> "Set up qBittorrent in Bosunarr — long-press for settings"
+                st != null && !st.configured -> "Set up a torrent client in Bosunarr — long-press for settings"
                 (st?.pausedCount ?: 0) > 0 -> "${st!!.pausedCount} torrents paused by this tile"
                 else -> "Downloads running"
             }

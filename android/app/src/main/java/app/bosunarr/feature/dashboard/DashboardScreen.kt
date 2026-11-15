@@ -110,6 +110,7 @@ import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import app.bosunarr.feature.torrent.isTorrentClient
 
 private fun greeting(): String = when (LocalTime.now().hour) {
     in 5..11 -> "Good morning"
@@ -179,7 +180,9 @@ private fun signature(list: List<ServiceConfig>): String =
 private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
     val hub = rememberRefreshHub()
     val arrs = services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr }
-    val qbits = services.filter { it.serviceType == ServiceType.QBittorrent }
+    val qbits = services.filter { isTorrentClient(it.serviceType) }
+    // Up next and Recently added also show Lidarr's albums; the queue and disk cards stay Sonarr/Radarr.
+    val media = arrs + services.filter { it.serviceType == ServiceType.Lidarr }
     val seerrs = services.filter { it.serviceType == ServiceType.Jellyseerr || it.serviceType == ServiceType.Overseerr }
     val jellyfins = services.filter { it.serviceType == ServiceType.Jellyfin }
     val healthServices = services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Prowlarr }
@@ -195,8 +198,8 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
             Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (services.isNotEmpty()) StatusCard(hub, services, healthServices, nav)
                 if (qbits.isNotEmpty() || arrs.isNotEmpty()) DownloadsCard(hub, qbits, arrs, nav)
-                if (arrs.isNotEmpty()) UpNextCard(hub, arrs, nav)
-                if (arrs.isNotEmpty() || jellyfins.isNotEmpty()) RecentCard(hub, arrs, jellyfins, nav)
+                if (media.isNotEmpty()) UpNextCard(hub, media, nav)
+                if (media.isNotEmpty() || jellyfins.isNotEmpty()) RecentCard(hub, media, jellyfins, nav)
                 if (seerrs.isNotEmpty()) RequestsCard(hub, seerrs, nav)
                 if (arrs.isNotEmpty()) DiskCard(hub, arrs)
             }

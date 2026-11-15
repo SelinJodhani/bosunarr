@@ -95,7 +95,7 @@ private fun UpNextContent(snap: UpNextSnapshot?, refreshing: Boolean, poster: (S
         Spacer(GlanceModifier.height(6.dp))
         when {
             snap == null -> Message("Loading calendar…", null)
-            !snap.configured -> Message("No Sonarr or Radarr", "Add one in Bosunarr to see what's coming")
+            !snap.configured -> Message("No Sonarr, Radarr or Lidarr", "Add one in Bosunarr to see what's coming")
             snap.items.isEmpty() && snap.error != null -> Message("Can't reach Sonarr/Radarr", "Tap ↻ to try again")
             snap.items.isEmpty() -> Message("Nothing coming up", "Nothing monitored in the next 30 days")
             size.height < 200.dp -> Strip(snap.items, size, poster)

@@ -40,6 +40,9 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import app.bosunarr.feature.torrent.TorrentClients
+import app.bosunarr.feature.torrent.isTorrentClient
+import app.bosunarr.nav.AlbumRoute
 
 /**
  * Loads what the widgets show, straight from the user's own services (the same calls the app makes).
@@ -88,7 +91,17 @@ internal object WidgetData {
         "missingFiles" to "Files missing",
     )
 
-    private suspend fun qbit(s: ServiceConfig): QbitState = coroutineScope {
+    private suspend fun qbit(s: ServiceConfig): QbitState = if (s.serviceType == ServiceType.QBittorrent) qbitApi(s) else {
+        // Transmission and Deluge: their regular sync, already in qBittorrent's model and state names.
+        val snap = TorrentClients.snapshot(s)
+        val incomplete = snap.torrents.filter { it.progress < 1.0 }.sortedByDescending { it.dlspeed }
+        QbitState(
+            snap.server.down.coerceAtLeast(0), snap.server.up.coerceAtLeast(0),
+            incomplete.map { LightTorrent(it.hash, it.name, it.progress, it.dlspeed, it.state, it.category, it.tags.joinToString(",")) },
+        )
+    }
+
+    private suspend fun qbitApi(s: ServiceConfig): QbitState = coroutineScope {
         val info = async { app.client.get<TransferInfo>(s, "/api/v2/transfer/info") }
         // "downloading" = every incomplete torrent (stalled, queued and stopped ones too); stopped ones are dropped below.
         val list = app.client.get<List<LightTorrent>>(s, "/api/v2/torrents/info?filter=downloading&sort=dlspeed&reverse=true")
@@ -115,7 +128,7 @@ internal object WidgetData {
     suspend fun downloads(prev: DownloadsSnapshot?): DownloadsSnapshot = coroutineScope {
         val now = System.currentTimeMillis()
         val all = app.services.value
-        val qbits = all.filter { it.serviceType == ServiceType.QBittorrent }
+        val qbits = all.filter { isTorrentClient(it.serviceType) }
         val arrs = all.filter { it.serviceType in ARR }
         if (qbits.isEmpty() && arrs.isEmpty()) return@coroutineScope DownloadsSnapshot(at = now, okAt = now, configured = false)
 
@@ -153,7 +166,7 @@ internal object WidgetData {
                 link = q?.link() ?: DeepLink.ACTIVITY,
             ) to (t.dlspeed.toDouble() * 1_000 + t.progress)
         }
-        // Arr queue items that aren't a known torrent (Usenet, another client, or qBittorrent not configured here).
+        // Arr queue items that aren't a known torrent (Usenet, or a torrent client not configured here).
         for (q in queue) {
             if (q.key in matched || q.downloadId?.let { it in hidden } == true) continue
             if (q.state !in setOf("downloading", "queued", "delay", "paused") || q.progress >= 1f) continue
@@ -185,7 +198,7 @@ internal object WidgetData {
 
     suspend fun upNext(context: Context, prev: UpNextSnapshot?): UpNextSnapshot {
         val now = System.currentTimeMillis()
-        val arrs = app.services.value.filter { it.serviceType in ARR }
+        val arrs = app.services.value.filter { it.serviceType in ARR || it.serviceType == ServiceType.Lidarr }
         if (arrs.isEmpty()) return UpNextSnapshot(at = now, okAt = now, configured = false)
         val data = try {
             CalendarApi.load(arrs, pastDays = 0, aheadDays = 30)
@@ -206,6 +219,7 @@ internal object WidgetData {
             val link = when (val r = e.primary.route) {
                 is SeriesRoute -> DeepLink.series(r.serviceId, r.id)
                 is MovieRoute -> DeepLink.movie(r.serviceId, r.id)
+                is AlbumRoute -> DeepLink.album(r.serviceId, r.id)
                 else -> DeepLink.CALENDAR
             }
             val poster = e.posterService?.let { s -> e.poster?.let { p -> runCatching { posterFile(context, s, p) }.getOrNull() } }

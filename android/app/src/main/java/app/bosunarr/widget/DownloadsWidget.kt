@@ -34,7 +34,7 @@ import app.bosunarr.R
 import app.bosunarr.ui.common.plural
 import app.bosunarr.ui.common.speed
 
-/** Total ↓/↑ across qBittorrent clients, the active count and (when there's room) the busiest downloads. */
+/** Total ↓/↑ across torrent clients (qBittorrent, Transmission, Deluge), the active count and (when there's room) the busiest downloads. */
 // Kept by name: Glance maps placed widgets to this class name, which must survive R8 across app updates.
 @Keep
 class DownloadsWidget : GlanceAppWidget() {
@@ -90,7 +90,7 @@ private fun DownloadsContent(snap: DownloadsSnapshot?, refreshing: Boolean) {
     WidgetSurface(DeepLink.ACTIVITY, padding = if (compact) 10.dp else 12.dp) {
         when {
             snap == null -> Message("Loading downloads…", null)
-            !snap.configured -> Message("No download services", "Add qBittorrent, Sonarr or Radarr in Bosunarr")
+            !snap.configured -> Message("No download services", "Add a torrent client, Sonarr or Radarr in Bosunarr")
             compact -> Compact(snap, refreshing)
             size.width < 200.dp -> Square(snap, refreshing)
             else -> Full(snap, refreshing, size.height)

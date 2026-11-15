@@ -6,7 +6,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import app.bosunarr.R
 import app.bosunarr.app
-import app.bosunarr.feature.activity.qbit.Qbit
+import app.bosunarr.feature.torrent.TorrentClients
 import app.bosunarr.ui.common.speed
 import app.bosunarr.widget.DeepLink
 import kotlinx.coroutines.CancellationException
@@ -19,9 +19,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Quick Settings "Alt speed": turns qBittorrent's alternative speed limits on/off for the chosen (or first)
- * qBittorrent. Active = alt limits on; the subtitle shows the download limit now in force. Long-press opens
- * [TileSettingsActivity] (pick which qBittorrent, or set one up when there's none).
+ * Quick Settings "Alt speed": turns alternative speed limits on/off for the chosen (or first) qBittorrent or
+ * Transmission (Deluge has none). Active = alt limits on; the subtitle shows the download limit now in force.
+ * Long-press opens [TileSettingsActivity] (pick which client, or set one up when there's none).
  */
 class AltSpeedTileService : TileService() {
     private var scope: CoroutineScope? = null
@@ -73,7 +73,7 @@ class AltSpeedTileService : TileService() {
     private fun toggle() {
         val current = last ?: return // still loading
         if (current.serviceId == null) {
-            // No qBittorrent yet: take the user to where they can add one.
+            // No client with alt speed yet: take the user to where they can add one.
             openAndCollapse(DeepLink.intent(this, DeepLink.SETTINGS))
             return
         }
@@ -86,7 +86,7 @@ class AltSpeedTileService : TileService() {
             mutex.withLock {
                 val s = TileQbit.altTarget(context) ?: return@withLock
                 last = try {
-                    Qbit.setAltSpeed(s, target)
+                    TorrentClients.setAltSpeed(s, target)
                     val enabled = TileQbit.altEnabled(s)
                     val info = TileQbit.transfer(s)
                     loadedAt = System.currentTimeMillis()
@@ -113,7 +113,7 @@ class AltSpeedTileService : TileService() {
             }
             st.serviceId == null -> {
                 tile.state = Tile.STATE_UNAVAILABLE
-                tile.subtitle = "No qBittorrent"
+                tile.subtitle = "No qBittorrent or Transmission"
             }
             else -> {
                 tile.state = if (st.enabled == true) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
@@ -126,7 +126,7 @@ class AltSpeedTileService : TileService() {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             tile.stateDescription = when {
-                st?.serviceId == null && st != null -> "Set up qBittorrent in Bosunarr — long-press for settings"
+                st?.serviceId == null && st != null -> "Set up qBittorrent or Transmission in Bosunarr — long-press for settings"
                 st?.enabled == true -> "Alternative speed limits on"
                 else -> "Alternative speed limits off"
             }

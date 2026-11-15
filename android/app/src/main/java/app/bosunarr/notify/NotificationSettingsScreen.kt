@@ -293,7 +293,7 @@ fun NotificationSettingsScreen(nav: NavController) {
                     add { ToggleRow(Icons.Rounded.PersonAdd, "New requests", "Someone asked for something in Seerr (admins)", s.requests, s.enabled) { v -> toggle { it.copy(requests = v) } } }
                     add { ToggleRow(Icons.Rounded.TaskAlt, "Request available", "Something requested from this Seerr account is ready", s.available, s.enabled) { v -> toggle { it.copy(available = v) } } }
                     add { ToggleRow(Icons.Rounded.MonitorHeart, "Service health", "Health errors, and a service going offline (2 failed checks) or coming back", s.health, s.enabled) { v -> toggle { it.copy(health = v) } } }
-                    add { ToggleRow(Icons.Rounded.CloudDownload, "Torrent completed", "qBittorrent finished a download", s.torrents, s.enabled) { v -> toggle { it.copy(torrents = v) } } }
+                    add { ToggleRow(Icons.Rounded.CloudDownload, "Torrent completed", "qBittorrent, Transmission or Deluge finished a download", s.torrents, s.enabled) { v -> toggle { it.copy(torrents = v) } } }
                     if (hasWhisparr || s.whisparr) add {
                         ToggleRow(Icons.Rounded.VisibilityOff, "Include Whisparr", "Off by default. When on, these never show on the lock screen", s.whisparr, s.enabled) { v -> toggle { it.copy(whisparr = v) } }
                     }

@@ -29,7 +29,7 @@ data class DownloadItem(
 data class DownloadsSnapshot(
     val at: Long = 0,
     val okAt: Long = 0,
-    /** At least one qBittorrent, Sonarr or Radarr is configured. */
+    /** At least one torrent client, Sonarr or Radarr is configured. */
     val configured: Boolean = true,
     val hasQbit: Boolean = false,
     val down: Long = 0,
