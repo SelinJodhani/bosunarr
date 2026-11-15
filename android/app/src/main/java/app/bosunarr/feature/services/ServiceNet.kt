@@ -46,7 +46,7 @@ private suspend fun rawCallOnIo(s: ServiceConfig, path: String, method: String, 
     var res: okhttp3.Response? = null
     var failure: IOException? = null
     for (base in bases) {
-        val b = Request.Builder().url(base + path).method(method, body).header("Accept", "application/json")
+        val b = Request.Builder().url(app.client.authUrl(s, base + path)).method(method, body).header("Accept", "application/json")
         app.client.authHeaders(s).forEach { (k, v) -> b.header(k, v) }
         try {
             res = http.newCall(b.build()).await()

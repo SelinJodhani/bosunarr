@@ -119,11 +119,12 @@ fun ServiceImage(
         }
         if (url != null) {
             val request = remember(url, service) {
-                ImageRequest.Builder(ctx).data(url).apply {
-                    // Only send credentials to the service's own addresses, never to a third-party absolute URL.
-                    if (service != null && listOfNotNull(service.url, service.altUrl, app.client.baseUrl(service)).any { sameOrigin(it, url) }) {
+                // Only send credentials to the service's own addresses, never to a third-party absolute URL.
+                val owner = service?.takeIf { s -> listOfNotNull(s.url, s.altUrl, app.client.baseUrl(s)).any { sameOrigin(it, url) } }
+                ImageRequest.Builder(ctx).data(owner?.let { app.client.authUrl(it, url) } ?: url).apply {
+                    if (owner != null) {
                         val h = NetworkHeaders.Builder()
-                        app.client.authHeaders(service).forEach { (k, v) -> h[k] = v }
+                        app.client.authHeaders(owner).forEach { (k, v) -> h[k] = v }
                         httpHeaders(h.build())
                     }
                 }.build()

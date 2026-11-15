@@ -250,14 +250,15 @@ internal object WidgetData {
         val name = sha(s.id + "|" + path) + ".jpg"
         val file = File(WidgetStore.posterDir(context), name)
         if (file.exists() && file.length() > 0) return name
+        val own = listOfNotNull(s.url, s.altUrl, app.client.baseUrl(s)).any { sameOrigin(it, url) }
         val request = ImageRequest.Builder(context)
-            .data(url)
+            .data(if (own) app.client.authUrl(s, url) else url)
             .size(POSTER_W, POSTER_H)
             .scale(Scale.FILL)
             .allowHardware(false)
             .memoryCachePolicy(CachePolicy.DISABLED)
             .apply {
-                if (listOfNotNull(s.url, s.altUrl, app.client.baseUrl(s)).any { sameOrigin(it, url) }) {
+                if (own) {
                     val h = NetworkHeaders.Builder()
                     app.client.authHeaders(s).forEach { (k, v) -> h[k] = v }
                     httpHeaders(h.build())

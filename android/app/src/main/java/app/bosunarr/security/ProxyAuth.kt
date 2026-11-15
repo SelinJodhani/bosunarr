@@ -8,7 +8,8 @@ package app.bosunarr.security
  *  1. The service's own headers (API key, Jellyfin token, NZBGet basic auth) come first.
  *  2. Proxy basic auth is added as `Authorization: Basic …` **only when the service's own auth doesn't already use
  *     `Authorization`** (NZBGet sends its own login as basic auth, so its proxy credentials must be the same; for
- *     Jellyfin the caller moves the token to `X-Emby-Authorization` first, see ServiceClient).
+ *     Jellyfin the caller moves the token to `X-Emby-Authorization` first and, since Jellyfin 12 ignores that
+ *     header, also to the `ApiKey` query parameter; see `jellyfinTokenInQuery` in net/QueryAuth.kt).
  *  3. Custom headers come last. A custom header replaces a service header **only when it has exactly the same
  *     name** (case-insensitive) — e.g. a custom `X-Api-Key` deliberately overrides the configured API key. Names
  *     that merely look similar never touch the API-key header.

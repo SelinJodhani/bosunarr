@@ -19,7 +19,6 @@ import kotlinx.serialization.serializer
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.FormBody
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -82,6 +81,12 @@ class ServiceClient(base: OkHttpClient) {
     fun baseUrl(s: ServiceConfig): String = preferredBase[s.id] ?: s.url
 
     /**
+     * [url] with the key some services need in the query string (SABnzbd, Tautulli, Jellyfin behind a proxy that
+     * uses `Authorization`). Use it with [authHeaders] wherever a request to [s] is built by hand, images included.
+     */
+    fun authUrl(s: ServiceConfig, url: String): String = withQueryAuth(s, url)
+
+    /**
      * Every header that authenticates a request to [s]: the service's own auth ([serviceAuthHeaders]) plus the
      * user's reverse-proxy extras (custom headers, basic auth) — see [ProxyAuth] for precedence. Used for API calls
      * and, on the service's own origin only, for images.
@@ -89,8 +94,9 @@ class ServiceClient(base: OkHttpClient) {
     fun authHeaders(s: ServiceConfig): Map<String, String> {
         if (s.headers.isEmpty() && s.basicUser.isNullOrEmpty()) return serviceAuthHeaders(s)
         var own = serviceAuthHeaders(s)
-        // Jellyfin also reads its token from X-Emby-Authorization, which frees `Authorization` for the proxy.
-        if (s.serviceType == ServiceType.Jellyfin && !s.basicUser.isNullOrEmpty()) {
+        // The proxy needs `Authorization`: Jellyfin's token moves to X-Emby-Authorization (read by Jellyfin 10.x) and,
+        // for Jellyfin 12, which ignores that header, to the ApiKey query parameter (see withQueryAuth).
+        if (jellyfinTokenInQuery(s)) {
             own = own.mapKeys { (k, _) -> if (k == "Authorization") "X-Emby-Authorization" else k }
         }
         return ProxyAuth.merge(own, s.headers, s.basicUser, s.basicPassword)
@@ -268,13 +274,6 @@ class ServiceClient(base: OkHttpClient) {
             }
             return text
         }
-    }
-
-    /** SABnzbd and Tautulli take their key only as the `apikey` query parameter. The URL is never logged. */
-    private fun withQueryAuth(s: ServiceConfig, url: String): String {
-        if (s.serviceType != ServiceType.Sabnzbd && s.serviceType != ServiceType.Tautulli) return url
-        val parsed = url.toHttpUrlOrNull() ?: return url
-        return parsed.newBuilder().setQueryParameter("apikey", s.apiKey.orEmpty()).build().toString()
     }
 
     /** SABnzbd 4.x answers 200 with `{"status": false, "error": "…"}` (or plain `error: …`) for a bad key or call. */
