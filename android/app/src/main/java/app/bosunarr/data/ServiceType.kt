@@ -54,7 +54,12 @@ enum class ServiceType(
     Transmission("transmission", "Transmission", ServiceCategory.Downloads, Credentials.UserPass, 9091, "Leave both empty unless RPC authentication is on in Transmission", Color(0xFFB50D0D), "Downloads"),
     Deluge("deluge", "Deluge", ServiceCategory.Downloads, Credentials.Password, 8112, "Your Deluge Web UI password (default: deluge)", Color(0xFF4A90D9), "Downloads"),
     /** Removes stuck, failed and malicious downloads by striking them; the key is per user (Settings → Account). */
-    Cleanuparr("cleanuparr", "Cleanuparr", ServiceCategory.Downloads, Credentials.ApiKey, 11011, "Cleanuparr → Settings → Account → API Key", Color(0xFF7B1FA2), "Cleanup");
+    Cleanuparr("cleanuparr", "Cleanuparr", ServiceCategory.Downloads, Credentials.ApiKey, 11011, "Cleanuparr → Settings → Account → API Key", Color(0xFF7B1FA2), "Cleanup"),
+    /**
+     * Deletes library items its rules collect once a collection's timer runs out. Its API has no login of its own
+     * (as of 3.32), so there's no key: if it's exposed, put it behind a proxy and fill the proxy fields.
+     */
+    Maintainerr("maintainerr", "Maintainerr", ServiceCategory.Media, Credentials.None, 6246, "Maintainerr has no login of its own: if it's behind a proxy, add the proxy's headers or basic auth", Color(0xFFF59E0B), "Library cleanup");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }

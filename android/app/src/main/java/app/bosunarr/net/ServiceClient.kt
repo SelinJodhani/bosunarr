@@ -129,6 +129,8 @@ class ServiceClient(base: OkHttpClient) {
                 if (s.username.isNullOrEmpty() && s.password.isNullOrEmpty()) emptyMap()
                 else mapOf("Authorization" to okhttp3.Credentials.basic(s.username.orEmpty(), s.password.orEmpty(), Charsets.UTF_8))
             ServiceType.Deluge -> emptyMap()
+            // Maintainerr's API has no auth; the user's proxy extras still apply (authHeaders).
+            ServiceType.Maintainerr -> emptyMap()
             else -> mapOf("X-Api-Key" to key)
         }
     }
@@ -415,6 +417,8 @@ private val PROBES = mapOf(
     ServiceType.Tautulli to Probe("/api/v2?cmd=get_tautulli_info", { it.obj()?.get("response")?.obj()?.get("data")?.obj() != null }, { it.obj()?.get("response")?.obj()?.get("data")?.obj()?.get("tautulli_version").str()?.removePrefix("v") }),
     // /api/status needs the key and carries the version ("2.11.0.0").
     ServiceType.Cleanuparr to Probe("/api/status", { it.obj()?.get("application")?.obj() != null }, { it.obj()?.get("application")?.obj()?.get("version").str()?.removeSuffix(".0") }),
+    // Version JSON sent as a text body: {"status":1,"version":"3.32.0","commitTag":"…","updateAvailable":false}.
+    ServiceType.Maintainerr to Probe("/api/app/status", { it.obj()?.get("version").str() != null && it.obj()?.containsKey("commitTag") == true }, { it.obj()?.get("version").str() }),
     ServiceType.Wizarr to Probe("/api/status", { (it.obj()?.get("users") as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() != null }),
 )
 
