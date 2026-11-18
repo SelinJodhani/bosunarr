@@ -54,7 +54,12 @@ enum class ServiceType(
     Transmission("transmission", "Transmission", ServiceCategory.Downloads, Credentials.UserPass, 9091, "Leave both empty unless RPC authentication is on in Transmission", Color(0xFFB50D0D), "Downloads"),
     Deluge("deluge", "Deluge", ServiceCategory.Downloads, Credentials.Password, 8112, "Your Deluge Web UI password (default: deluge)", Color(0xFF4A90D9), "Downloads"),
     /** Removes stuck, failed and malicious downloads by striking them; the key is per user (Settings → Account). */
-    Cleanuparr("cleanuparr", "Cleanuparr", ServiceCategory.Downloads, Credentials.ApiKey, 11011, "Cleanuparr → Settings → Account → API Key", Color(0xFF7B1FA2), "Cleanup");
+    Cleanuparr("cleanuparr", "Cleanuparr", ServiceCategory.Downloads, Credentials.ApiKey, 11011, "Cleanuparr → Settings → Account → API Key", Color(0xFF7B1FA2), "Cleanup"),
+    /**
+     * Transcodes and health-checks the library with worker nodes. The key is optional: Tdarr only asks for one when
+     * authentication is turned on, so the setup form lets it stay empty (see ServiceForm.ready).
+     */
+    Tdarr("tdarr", "Tdarr", ServiceCategory.Media, Credentials.ApiKey, 8265, "Leave empty unless authentication is on in Tdarr; then Tdarr → Tools → API Keys", Color(0xFF1FB8D6), "Transcoding");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }

@@ -129,6 +129,8 @@ class ServiceClient(base: OkHttpClient) {
                 if (s.username.isNullOrEmpty() && s.password.isNullOrEmpty()) emptyMap()
                 else mapOf("Authorization" to okhttp3.Credentials.basic(s.username.orEmpty(), s.password.orEmpty(), Charsets.UTF_8))
             ServiceType.Deluge -> emptyMap()
+            // Tdarr reads `x-api-key` only when its auth is on; with no key configured, send none.
+            ServiceType.Tdarr -> if (key.isEmpty()) emptyMap() else mapOf("x-api-key" to key)
             else -> mapOf("X-Api-Key" to key)
         }
     }
@@ -197,6 +199,8 @@ class ServiceClient(base: OkHttpClient) {
             if (el == null || !probe.valid(el)) throw ServiceException("${s.name} gave an unexpected answer — is this really ${type.label}?")
             probe.version(el)
         }
+        // Tdarr's /status may answer without a key; get-nodes is keyed when auth is on, so a wrong key fails here.
+        if (type == ServiceType.Tdarr) request(s, "/api/v2/get-nodes")
         return TestResult(version, ((System.nanoTime() - started) / 1_000_000).toInt())
     }
 
@@ -415,6 +419,8 @@ private val PROBES = mapOf(
     ServiceType.Tautulli to Probe("/api/v2?cmd=get_tautulli_info", { it.obj()?.get("response")?.obj()?.get("data")?.obj() != null }, { it.obj()?.get("response")?.obj()?.get("data")?.obj()?.get("tautulli_version").str()?.removePrefix("v") }),
     // /api/status needs the key and carries the version ("2.11.0.0").
     ServiceType.Cleanuparr to Probe("/api/status", { it.obj()?.get("application")?.obj() != null }, { it.obj()?.get("application")?.obj()?.get("version").str()?.removeSuffix(".0") }),
+    // {"status": "good", "isProduction": true, "os": "linux", "version": "2.77.01", "uptime": 45}
+    ServiceType.Tdarr to Probe("/api/v2/status", { it.obj()?.get("status").str() != null && it.obj()?.get("version").str() != null }, version),
     ServiceType.Wizarr to Probe("/api/status", { (it.obj()?.get("users") as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() != null }),
 )
 

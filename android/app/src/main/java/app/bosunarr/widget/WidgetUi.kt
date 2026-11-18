@@ -187,5 +187,6 @@ internal fun serviceIcon(type: String): Int? = when (ServiceType.of(type)) {
     ServiceType.Plex -> R.drawable.svc_plex
     ServiceType.Tautulli -> R.drawable.svc_tautulli
     ServiceType.Wizarr -> R.drawable.svc_wizarr
+    ServiceType.Tdarr -> R.drawable.svc_tdarr
     else -> null
 }

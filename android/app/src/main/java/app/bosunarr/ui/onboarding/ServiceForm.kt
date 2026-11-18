@@ -141,7 +141,8 @@ internal class ServiceForm(
 
     val ready: Boolean
         get() = when (type.credentials) {
-            Credentials.ApiKey -> url.isNotBlank() && apiKey.isNotBlank() && proxyErrors.isEmpty()
+            // Tdarr only has a key when its authentication is turned on.
+            Credentials.ApiKey -> url.isNotBlank() && (apiKey.isNotBlank() || type == ServiceType.Tdarr) && proxyErrors.isEmpty()
             // Transmission only has a login when RPC authentication is turned on.
             Credentials.UserPass -> url.isNotBlank() && (username.isNotBlank() || type == ServiceType.Transmission) && proxyErrors.isEmpty()
             Credentials.Password -> url.isNotBlank() && password.isNotEmpty() && proxyErrors.isEmpty()
@@ -292,7 +293,7 @@ internal fun ServiceFormFields(form: ServiceForm, onEdited: () -> Unit, onSubmit
         when (type.credentials) {
             Credentials.ApiKey -> OutlinedTextField(
                 form.apiKey, { form.apiKey = it; onEdited() },
-                label = { Text(if (type == ServiceType.Plex) "Plex token" else "API key") },
+                label = { Text(when (type) { ServiceType.Plex -> "Plex token"; ServiceType.Tdarr -> "API key (optional)"; else -> "API key" }) },
                 supportingText = { Text(type.keyHint) },
                 singleLine = true,
                 visualTransformation = secretTransform,
