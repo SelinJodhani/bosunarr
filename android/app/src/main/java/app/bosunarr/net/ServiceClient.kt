@@ -116,6 +116,7 @@ class ServiceClient(base: OkHttpClient) {
             ServiceType.Jellyfin -> mapOf(
                 "Authorization" to "MediaBrowser Client=\"Bosunarr\", Device=\"Android\", DeviceId=\"bosunarr-android\", Version=\"1.0\", Token=\"$key\"",
             )
+            ServiceType.Emby -> embyAuthHeaders(key)
             ServiceType.Jellystat -> mapOf("x-api-token" to key)
             ServiceType.Plex -> app.bosunarr.feature.plex.PlexHeaders.server(key)
             // Tautulli only reads `apikey` from the query string (added in requestAt).
@@ -193,7 +194,7 @@ class ServiceClient(base: OkHttpClient) {
             return TestResult(v, ((System.nanoTime() - started) / 1_000_000).toInt())
         }
         val probe = PROBES.getValue(type)
-        val text = request(s, probe.path)
+        val text = request(s, mediaBrowserPath(s, probe.path))
         if (text.trimStart().startsWith("<")) throw ServiceException("${s.name} answered with a web page instead of its API — check the address")
         val version = if (type == ServiceType.QBittorrent) {
             text.trim().takeIf { Regex("^v?\\d+\\.\\d+").containsMatchIn(it) }
@@ -411,6 +412,13 @@ private val PROBES = mapOf(
     ServiceType.Overseerr to Probe("/api/v1/settings/about", hasVersion, version),
     ServiceType.QBittorrent to Probe("/api/v2/app/version", { true }),
     ServiceType.Jellyfin to Probe("/System/Info", { it.obj()?.get("Version").str() != null }, { it.obj()?.get("Version").str() }),
+    // Needs an admin key, like Jellyfin's. Jellyfin's answer names itself in ProductName (Emby's has none), so a
+    // Jellyfin added as Emby fails the test instead of half the screen.
+    ServiceType.Emby to Probe(
+        "/System/Info",
+        { it.obj()?.get("Version").str() != null && it.obj()?.get("ProductName").str()?.contains("Jellyfin", ignoreCase = true) != true },
+        { it.obj()?.get("Version").str() },
+    ),
     // Needs x-api-token. Jellystat has no cheap version endpoint.
     ServiceType.Jellystat to Probe("/api/getLibraries", { it is kotlinx.serialization.json.JsonArray }),
     // `queue` needs the API key (`version` doesn't), and its answer carries the version too.

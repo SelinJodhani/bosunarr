@@ -66,7 +66,9 @@ enum class ServiceType(
      * Deletes library items its rules collect once a collection's timer runs out. Its API has no login of its own
      * (as of 3.32), so there's no key: if it's exposed, put it behind a proxy and fill the proxy fields.
      */
-    Maintainerr("maintainerr", "Maintainerr", ServiceCategory.Media, Credentials.None, 6246, "Maintainerr has no login of its own: if it's behind a proxy, add the proxy's headers or basic auth", Color(0xFFF59E0B), "Library cleanup");
+    Maintainerr("maintainerr", "Maintainerr", ServiceCategory.Media, Credentials.None, 6246, "Maintainerr has no login of its own: if it's behind a proxy, add the proxy's headers or basic auth", Color(0xFFF59E0B), "Library cleanup"),
+    /** Shares Jellyfin's screen: the APIs match apart from the differences in net/MediaBrowser.kt. */
+    Emby("emby", "Emby", ServiceCategory.Server, Credentials.ApiKey, 8096, "Emby → Settings → Advanced → API Keys", Color(0xFF52B54B), "Media server");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }

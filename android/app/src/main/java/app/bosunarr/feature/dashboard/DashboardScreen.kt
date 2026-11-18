@@ -186,7 +186,8 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
     // Lidarr (music) counts everywhere Sonarr and Radarr do: queue, up next, recently added and disks.
     val media = arrs + services.filter { it.serviceType == ServiceType.Lidarr }
     val seerrs = services.filter { it.serviceType == ServiceType.Jellyseerr || it.serviceType == ServiceType.Overseerr }
-    val jellyfins = services.filter { it.serviceType == ServiceType.Jellyfin }
+    // Emby shares Jellyfin's "latest media" API, so both feed Recently added when there's no arr.
+    val jellyfins = services.filter { it.serviceType == ServiceType.Jellyfin || it.serviceType == ServiceType.Emby }
     val cleaners = services.filter { it.serviceType == ServiceType.Cleanuparr }
     val healthServices = services.filter { it.serviceType in setOf(ServiceType.Sonarr, ServiceType.Radarr, ServiceType.Lidarr, ServiceType.Prowlarr) }
 

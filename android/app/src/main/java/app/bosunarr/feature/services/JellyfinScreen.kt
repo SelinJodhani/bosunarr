@@ -44,6 +44,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import app.bosunarr.app
 import app.bosunarr.data.ServiceConfig
+import app.bosunarr.net.isMediaBrowserId
+import app.bosunarr.net.mediaBrowserLatestPath
+import app.bosunarr.net.mediaBrowserLibrariesPath
+import app.bosunarr.net.mediaBrowserList
+import app.bosunarr.net.mediaBrowserPath
+import app.bosunarr.net.mediaBrowserSessionsPath
+import app.bosunarr.net.mediaBrowserUsersPath
 import app.bosunarr.ui.common.ConfirmDialog
 import app.bosunarr.ui.common.Poster
 import app.bosunarr.ui.common.ServiceImage
@@ -60,10 +67,15 @@ import kotlinx.serialization.json.JsonPrimitive
 
 /* ================================================================ API shapes */
 
+/*
+ * Jellyfin and Emby answer with the same shapes (Jellyfin forked Emby 3.5); the paths that differ come from
+ * net/MediaBrowser.kt. Internal so the parsing is unit-tested against both servers' JSON.
+ */
+
 private const val TICKS = 10_000_000.0
 
 @Serializable
-private data class JfInfo(
+internal data class JfInfo(
     @SerialName("ServerName") val serverName: String? = null,
     @SerialName("Version") val version: String? = null,
     @SerialName("OperatingSystemDisplayName") val os: String? = null,
@@ -72,7 +84,7 @@ private data class JfInfo(
 )
 
 @Serializable
-private data class JfCounts(
+internal data class JfCounts(
     @SerialName("MovieCount") val movies: Int = 0,
     @SerialName("SeriesCount") val series: Int = 0,
     @SerialName("EpisodeCount") val episodes: Int = 0,
@@ -82,7 +94,7 @@ private data class JfCounts(
 )
 
 @Serializable
-private data class JfFolder(
+internal data class JfFolder(
     @SerialName("Name") val name: String? = null,
     @SerialName("ItemId") val itemId: String? = null,
     @SerialName("CollectionType") val collectionType: String? = null,
@@ -94,10 +106,10 @@ private data class JfFolder(
 private data class JfTotal(@SerialName("TotalRecordCount") val total: Int? = null)
 
 @Serializable
-private data class JfPolicy(@SerialName("IsAdministrator") val admin: Boolean = false, @SerialName("IsDisabled") val disabled: Boolean = false)
+internal data class JfPolicy(@SerialName("IsAdministrator") val admin: Boolean = false, @SerialName("IsDisabled") val disabled: Boolean = false)
 
 @Serializable
-private data class JfUser(
+internal data class JfUser(
     @SerialName("Id") val id: String = "",
     @SerialName("Name") val name: String? = null,
     @SerialName("LastActivityDate") val lastActivity: String? = null,
@@ -105,7 +117,7 @@ private data class JfUser(
 )
 
 @Serializable
-private data class JfItem(
+internal data class JfItem(
     @SerialName("Id") val id: String = "",
     @SerialName("Name") val name: String? = null,
     @SerialName("Type") val type: String? = null,
@@ -123,27 +135,33 @@ private data class JfItem(
 )
 
 @Serializable
-private data class JfPlayState(
+internal data class JfPlayState(
     @SerialName("PositionTicks") val position: Long? = null,
     @SerialName("IsPaused") val paused: Boolean = false,
     @SerialName("PlayMethod") val method: String? = null,
 )
 
 @Serializable
-private data class JfTranscode(
+internal data class JfTranscode(
     @SerialName("IsVideoDirect") val videoDirect: Boolean? = null,
     @SerialName("IsAudioDirect") val audioDirect: Boolean? = null,
     @SerialName("VideoCodec") val videoCodec: String? = null,
     @SerialName("AudioCodec") val audioCodec: String? = null,
     @SerialName("Container") val container: String? = null,
     @SerialName("Bitrate") val bitrate: Long? = null,
-    /** Array in 10.9+, comma-separated string before. */
+    /** Array in 10.9+ (and Emby), comma-separated string before. */
     @SerialName("TranscodeReasons") val reasons: JsonElement? = null,
+    /** Jellyfin only. */
     @SerialName("HardwareAccelerationType") val hwAccel: String? = null,
+    /** Emby only: whether its video encoder/decoder runs on hardware, and which acceleration it uses. */
+    @SerialName("VideoEncoderIsHardware") val encoderIsHardware: Boolean? = null,
+    @SerialName("VideoEncoderHwAccel") val encoderHwAccel: String? = null,
+    @SerialName("VideoDecoderIsHardware") val decoderIsHardware: Boolean? = null,
+    @SerialName("VideoDecoderHwAccel") val decoderHwAccel: String? = null,
 )
 
 @Serializable
-private data class JfSession(
+internal data class JfSession(
     @SerialName("Id") val id: String = "",
     @SerialName("UserName") val user: String? = null,
     @SerialName("Client") val client: String? = null,
@@ -164,14 +182,12 @@ private val LIB_TYPES = mapOf(
     "books" to "Book", "boxsets" to "BoxSet", "playlists" to "Playlist",
 )
 
-private val ID = Regex("^[0-9a-fA-F]{32}$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-
 private suspend fun loadJfOverview(s: ServiceConfig): JfOverview = coroutineScope {
     val c = app.client
-    val info = async { c.get<JfInfo>(s, "/System/Info") }
-    val counts = async { runCatching { c.get<JfCounts>(s, "/Items/Counts") }.getOrNull() }
-    val folders = async { runCatching { c.get<List<JfFolder>>(s, "/Library/VirtualFolders") }.getOrDefault(emptyList()) }
-    val libs = folders.await().filter { it.itemId != null && ID.matches(it.itemId) }.map { f ->
+    val info = async { c.get<JfInfo>(s, mediaBrowserPath(s, "/System/Info")) }
+    val counts = async { runCatching { c.get<JfCounts>(s, mediaBrowserPath(s, "/Items/Counts")) }.getOrNull() }
+    val folders = async { runCatching { c.get(s, mediaBrowserLibrariesPath(s), mediaBrowserList(JfFolder.serializer())) }.getOrDefault(emptyList()) }
+    val libs = folders.await().filter { isMediaBrowserId(it.itemId) }.map { f ->
         async {
             val type = LIB_TYPES[f.collectionType]
             val q = "ParentId=${f.itemId}&Recursive=true&Limit=0&EnableTotalRecordCount=true" + if (type != null) "&IncludeItemTypes=$type" else "&IsFolder=false"
@@ -180,7 +196,7 @@ private suspend fun loadJfOverview(s: ServiceConfig): JfOverview = coroutineScop
                 name = f.name ?: "Library",
                 kind = f.collectionType ?: "mixed",
                 // A count is nice-to-have; don't fail the screen for it.
-                count = runCatching { c.get<JfTotal>(s, "/Items?$q").total }.getOrNull(),
+                count = runCatching { c.get<JfTotal>(s, mediaBrowserPath(s, "/Items?$q")).total }.getOrNull(),
                 scanning = f.refreshStatus == "Active",
                 progress = f.refreshProgress,
             )
@@ -189,9 +205,9 @@ private suspend fun loadJfOverview(s: ServiceConfig): JfOverview = coroutineScop
     JfOverview(info.await(), counts.await(), libs)
 }
 
-private enum class PlayMethod(val label: String) { DirectPlay("Direct play"), DirectStream("Direct stream"), Transcode("Transcode") }
+internal enum class PlayMethod(val label: String) { DirectPlay("Direct play"), DirectStream("Direct stream"), Transcode("Transcode") }
 
-private data class NowPlaying(
+internal data class NowPlaying(
     val id: String,
     val user: String,
     val device: String,
@@ -208,14 +224,14 @@ private data class NowPlaying(
 )
 
 /** Which item carries the poster: the item itself, else its series/album. */
-private fun posterOf(it: JfItem): String? {
+internal fun posterOf(s: ServiceConfig, it: JfItem): String? {
     val id = when {
         it.type == "Episode" || it.type == "Season" -> if (it.seriesImageTag != null) it.seriesId else if (it.imageTags["Primary"] != null) it.id else it.seriesId
         it.imageTags["Primary"] != null -> it.id
         it.albumImageTag != null -> it.albumId
         else -> null
     } ?: return null
-    return "/Items/$id/Images/Primary?maxHeight=300"
+    return mediaBrowserPath(s, "/Items/$id/Images/Primary?maxHeight=300")
 }
 
 /** "VideoCodecNotSupported" → "Video codec not supported". */
@@ -231,55 +247,63 @@ private fun JfSession.method(): PlayMethod = when (playState.method) {
     else -> transcoding?.let { if (it.videoDirect == false || it.audioDirect == false) PlayMethod.Transcode else PlayMethod.DirectStream } ?: PlayMethod.DirectPlay
 }
 
-private suspend fun loadSessions(s: ServiceConfig): List<NowPlaying> =
-    app.client.get<List<JfSession>>(s, "/Sessions?activeWithinSeconds=960").mapNotNull { x ->
-        val it = x.item ?: return@mapNotNull null
-        val method = x.method()
-        val t = x.transcoding
-        val isEp = it.type == "Episode"
-        val reasons = when (val r = t?.reasons) {
-            is kotlinx.serialization.json.JsonArray -> r.mapNotNull { e -> (e as? JsonPrimitive)?.content }
-            is JsonPrimitive -> r.content.split(',').filter { s2 -> s2.isNotBlank() }
-            else -> emptyList()
-        }
-        NowPlaying(
-            id = x.id.ifBlank { "${x.user}:${it.id}" },
-            user = x.user ?: "Someone",
-            device = listOfNotNull(x.client, x.device).filter { d -> d.isNotBlank() }.joinToString(" · "),
-            title = (if (isEp) it.seriesName else null) ?: it.name ?: "Unknown",
-            subtitle = if (isEp) "${episodeCode(it.season ?: 0, it.episode ?: 0)} · ${it.name.orEmpty()}" else it.year?.toString(),
-            poster = posterOf(it),
-            position = ((x.playState.position ?: 0) / TICKS).coerceAtLeast(0.0),
-            runtime = ((it.runTimeTicks ?: 0) / TICKS).coerceAtLeast(0.0),
-            paused = x.playState.paused,
-            method = method,
-            detail = if (t == null || method == PlayMethod.DirectPlay) null else listOfNotNull(
-                if (t.videoDirect == true) "Video direct" else t.videoCodec?.let { c -> "Video → ${c.uppercase()}" } ?: "Video converted",
-                if (t.audioDirect == true) "Audio direct" else t.audioCodec?.let { c -> "Audio → ${c.uppercase()}" } ?: "Audio converted",
-                t.container?.uppercase(),
-                t.bitrate?.takeIf { b -> b > 0 }?.let { b -> "%.1f Mbps".format(b / 1e6) },
-            ).joinToString(" · "),
-            reasons = if (method == PlayMethod.DirectPlay) emptyList() else reasons.map(::humanize),
-            hwAccel = t?.hwAccel?.takeIf { h -> h.isNotBlank() && !h.equals("none", true) },
-        )
+/** A playing session as a row, or null for an idle client (no NowPlayingItem). */
+internal fun nowPlaying(s: ServiceConfig, x: JfSession): NowPlaying? {
+    val it = x.item ?: return null
+    val method = x.method()
+    val t = x.transcoding
+    val isEp = it.type == "Episode"
+    val reasons = when (val r = t?.reasons) {
+        is kotlinx.serialization.json.JsonArray -> r.mapNotNull { e -> (e as? JsonPrimitive)?.content }
+        is JsonPrimitive -> r.content.split(',').filter { s2 -> s2.isNotBlank() }
+        else -> emptyList()
     }
+    return NowPlaying(
+        id = x.id.ifBlank { "${x.user}:${it.id}" },
+        user = x.user ?: "Someone",
+        device = listOfNotNull(x.client, x.device).filter { d -> d.isNotBlank() }.joinToString(" · "),
+        title = (if (isEp) it.seriesName else null) ?: it.name ?: "Unknown",
+        subtitle = if (isEp) "${episodeCode(it.season ?: 0, it.episode ?: 0)} · ${it.name.orEmpty()}" else it.year?.toString(),
+        poster = posterOf(s, it),
+        position = ((x.playState.position ?: 0) / TICKS).coerceAtLeast(0.0),
+        runtime = ((it.runTimeTicks ?: 0) / TICKS).coerceAtLeast(0.0),
+        paused = x.playState.paused,
+        method = method,
+        detail = if (t == null || method == PlayMethod.DirectPlay) null else listOfNotNull(
+            if (t.videoDirect == true) "Video direct" else t.videoCodec?.let { c -> "Video → ${c.uppercase()}" } ?: "Video converted",
+            if (t.audioDirect == true) "Audio direct" else t.audioCodec?.let { c -> "Audio → ${c.uppercase()}" } ?: "Audio converted",
+            t.container?.uppercase(),
+            t.bitrate?.takeIf { b -> b > 0 }?.let { b -> "%.1f Mbps".format(b / 1e6) },
+        ).joinToString(" · "),
+        reasons = if (method == PlayMethod.DirectPlay) emptyList() else reasons.map(::humanize),
+        hwAccel = listOfNotNull(
+            t?.hwAccel,
+            t?.encoderHwAccel?.takeIf { t.encoderIsHardware != false },
+            t?.decoderHwAccel?.takeIf { t.decoderIsHardware != false },
+        ).firstOrNull { h -> h.isNotBlank() && !h.equals("none", true) },
+    )
+}
+
+private suspend fun loadSessions(s: ServiceConfig): List<NowPlaying> =
+    app.client.get<List<JfSession>>(s, mediaBrowserSessionsPath(s)).mapNotNull { nowPlaying(s, it) }
 
 private data class LatestItem(val id: String, val title: String, val subtitle: String?, val poster: String?)
 
-private suspend fun adminUser(s: ServiceConfig): JfUser? {
-    val users = app.client.get<List<JfUser>>(s, "/Users")
-    return users.firstOrNull { it.policy.admin && !it.policy.disabled } ?: users.firstOrNull { !it.policy.disabled }
-}
+private suspend fun loadUsers(s: ServiceConfig): List<JfUser> = app.client.get(s, mediaBrowserUsersPath(s), mediaBrowserList(JfUser.serializer()))
+
+/** Whose view "latest media" comes from: the first enabled administrator, else any enabled user. */
+internal fun pickAdmin(users: List<JfUser>): JfUser? =
+    users.firstOrNull { it.policy.admin && !it.policy.disabled } ?: users.firstOrNull { !it.policy.disabled }
 
 private suspend fun loadLatest(s: ServiceConfig): List<LatestItem> {
-    val u = adminUser(s)?.takeIf { ID.matches(it.id) } ?: return emptyList()
-    val items = app.client.get<List<JfItem>>(s, "/Items/Latest?userId=${u.id}&Limit=24&Fields=DateCreated&EnableImageTypes=Primary&GroupItems=true")
+    val u = pickAdmin(loadUsers(s))?.takeIf { isMediaBrowserId(it.id) } ?: return emptyList()
+    val items = app.client.get<List<JfItem>>(s, mediaBrowserLatestPath(s, u.id, "Limit=24&Fields=DateCreated&EnableImageTypes=Primary&GroupItems=true"))
     return items.filter { it.id.isNotBlank() }.distinctBy { it.id }.map {
         LatestItem(
             it.id,
             (if (it.type == "Episode") it.seriesName else null) ?: it.name ?: "Untitled",
             if (it.type == "Episode") it.name else it.year?.toString(),
-            posterOf(it) ?: "/Items/${it.id}/Images/Primary?maxHeight=300",
+            posterOf(s, it) ?: mediaBrowserPath(s, "/Items/${it.id}/Images/Primary?maxHeight=300"),
         )
     }
 }
@@ -294,7 +318,7 @@ fun JellyfinServiceScreen(s: ServiceConfig, nav: NavController) {
     val sessions = rememberHubLoader(hub, "svc:jf:${s.id}:sessions", refreshMs = 5_000, staleMs = 5_000) { loadSessions(s) }
     val latest = rememberHubLoader(hub, "svc:jf:${s.id}:latest", refreshMs = 5 * 60_000) { loadLatest(s) }
     val users = rememberHubLoader(hub, "svc:jf:${s.id}:users", refreshMs = 60_000) {
-        app.client.get<List<JfUser>>(s, "/Users").sortedByDescending { it.lastActivity.orEmpty() }
+        loadUsers(s).sortedByDescending { it.lastActivity.orEmpty() }
     }
     val runner = rememberActionRunner()
     var confirmScan by rememberSaveable { mutableStateOf(false) }
@@ -421,11 +445,11 @@ fun JellyfinServiceScreen(s: ServiceConfig, nav: NavController) {
     if (confirmScan) {
         ConfirmDialog(
             title = "Scan all libraries?",
-            text = "Jellyfin will look for new, changed and removed files in every library.",
+            text = "${s.serviceType?.label ?: "The server"} will look for new, changed and removed files in every library.",
             confirm = "Scan",
             onConfirm = {
                 runner.run("jf:${s.id}:scan", success = "Library scan started", after = { overview.refresh() }) {
-                    app.client.send(s, "/Library/Refresh", "POST")
+                    app.client.send(s, mediaBrowserPath(s, "/Library/Refresh"), "POST")
                     null
                 }
             },
