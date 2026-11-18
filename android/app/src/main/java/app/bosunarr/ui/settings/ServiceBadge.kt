@@ -57,6 +57,7 @@ fun serviceLogo(type: ServiceType?): Int? = when (type) {
     ServiceType.Deluge -> R.drawable.svc_deluge
     ServiceType.Cleanuparr -> R.drawable.svc_cleanuparr
     ServiceType.Tdarr -> R.drawable.svc_tdarr
+    ServiceType.Autobrr -> R.drawable.svc_autobrr
     ServiceType.Server, null -> null
 }
 

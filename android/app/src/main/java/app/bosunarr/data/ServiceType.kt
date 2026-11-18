@@ -59,7 +59,9 @@ enum class ServiceType(
      * Transcodes and health-checks the library with worker nodes. The key is optional: Tdarr only asks for one when
      * authentication is turned on, so the setup form lets it stay empty (see ServiceForm.ready).
      */
-    Tdarr("tdarr", "Tdarr", ServiceCategory.Media, Credentials.ApiKey, 8265, "Leave empty unless authentication is on in Tdarr; then Tdarr → Tools → API Keys", Color(0xFF1FB8D6), "Transcoding");
+    Tdarr("tdarr", "Tdarr", ServiceCategory.Media, Credentials.ApiKey, 8265, "Leave empty unless authentication is on in Tdarr; then Tdarr → Tools → API Keys", Color(0xFF1FB8D6), "Transcoding"),
+    /** Grabs releases the moment they're announced on tracker IRC channels and RSS feeds, by filter (X-API-Token). */
+    Autobrr("autobrr", "Autobrr", ServiceCategory.Indexers, Credentials.ApiKey, 7474, "Autobrr → Settings → API keys → Add new", Color(0xFF3B8EEA), "Announce grabs");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }
