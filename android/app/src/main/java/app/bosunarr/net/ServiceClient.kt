@@ -133,6 +133,8 @@ class ServiceClient(base: OkHttpClient) {
             ServiceType.Tdarr -> if (key.isEmpty()) emptyMap() else mapOf("x-api-key" to key)
             // Autobrr's IsAuthenticated middleware reads X-API-Token (or ?apikey=), never X-Api-Key.
             ServiceType.Autobrr -> mapOf("X-API-Token" to key)
+            // Maintainerr's API has no auth; the user's proxy extras still apply (authHeaders).
+            ServiceType.Maintainerr -> emptyMap()
             else -> mapOf("X-Api-Key" to key)
         }
     }
@@ -425,6 +427,8 @@ private val PROBES = mapOf(
     ServiceType.Tdarr to Probe("/api/v2/status", { it.obj()?.get("status").str() != null && it.obj()?.get("version").str() != null }, version),
     // /config sits behind the key (no key: 403, wrong key: 401) and carries the build version ("v1.90.0" or "dev").
     ServiceType.Autobrr to Probe("/api/config", { it.obj()?.containsKey("version") == true }, { it.obj()?.get("version").str()?.removePrefix("v")?.takeIf { v -> v.isNotBlank() } }),
+    // Version JSON sent as a text body: {"status":1,"version":"3.32.0","commitTag":"…","updateAvailable":false}.
+    ServiceType.Maintainerr to Probe("/api/app/status", { it.obj()?.get("version").str() != null && it.obj()?.containsKey("commitTag") == true }, { it.obj()?.get("version").str() }),
     ServiceType.Wizarr to Probe("/api/status", { (it.obj()?.get("users") as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() != null }),
 )
 

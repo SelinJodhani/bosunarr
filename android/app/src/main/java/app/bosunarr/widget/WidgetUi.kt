@@ -183,6 +183,7 @@ internal fun serviceIcon(type: String): Int? = when (ServiceType.of(type)) {
     ServiceType.Deluge -> R.drawable.svc_deluge
     ServiceType.Cleanuparr -> R.drawable.svc_cleanuparr
     ServiceType.Autobrr -> R.drawable.svc_autobrr
+    ServiceType.Maintainerr -> R.drawable.svc_maintainerr
     ServiceType.Jellyfin -> R.drawable.svc_jellyfin
     ServiceType.Jellystat -> R.drawable.svc_jellystat
     ServiceType.Plex -> R.drawable.svc_plex

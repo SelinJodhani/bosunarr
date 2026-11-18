@@ -61,7 +61,12 @@ enum class ServiceType(
      */
     Tdarr("tdarr", "Tdarr", ServiceCategory.Media, Credentials.ApiKey, 8265, "Leave empty unless authentication is on in Tdarr; then Tdarr → Tools → API Keys", Color(0xFF1FB8D6), "Transcoding"),
     /** Grabs releases the moment they're announced on tracker IRC channels and RSS feeds, by filter (X-API-Token). */
-    Autobrr("autobrr", "Autobrr", ServiceCategory.Indexers, Credentials.ApiKey, 7474, "Autobrr → Settings → API keys → Add new", Color(0xFF3B8EEA), "Announce grabs");
+    Autobrr("autobrr", "Autobrr", ServiceCategory.Indexers, Credentials.ApiKey, 7474, "Autobrr → Settings → API keys → Add new", Color(0xFF3B8EEA), "Announce grabs"),
+    /**
+     * Deletes library items its rules collect once a collection's timer runs out. Its API has no login of its own
+     * (as of 3.32), so there's no key: if it's exposed, put it behind a proxy and fill the proxy fields.
+     */
+    Maintainerr("maintainerr", "Maintainerr", ServiceCategory.Media, Credentials.None, 6246, "Maintainerr has no login of its own: if it's behind a proxy, add the proxy's headers or basic auth", Color(0xFFF59E0B), "Library cleanup");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }

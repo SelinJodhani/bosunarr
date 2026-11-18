@@ -56,6 +56,7 @@ import kotlinx.serialization.Serializable
 import app.bosunarr.feature.cleanuparr.CleanuparrServiceScreen
 import app.bosunarr.feature.tdarr.TdarrServiceScreen
 import app.bosunarr.feature.autobrr.AutobrrServiceScreen
+import app.bosunarr.feature.maintainerr.MaintainerrServiceScreen
 
 /** A service's own screen; dispatches on its type. */
 @Composable
@@ -89,6 +90,7 @@ fun ServiceScreen(id: String, nav: NavController) {
         ServiceType.Cleanuparr -> CleanuparrServiceScreen(s, nav)
         ServiceType.Tdarr -> TdarrServiceScreen(s, nav)
         ServiceType.Autobrr -> AutobrrServiceScreen(s, nav)
+        ServiceType.Maintainerr -> MaintainerrServiceScreen(s, nav)
         null -> AppScaffold(s.name, onBack = { nav.back() }) { p ->
             MessageBox(Icons.Rounded.Dns, "Unsupported service", Modifier.padding(p), hint = "Bosunarr doesn't know the service type \"${s.type}\".")
         }
