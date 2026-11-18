@@ -54,7 +54,9 @@ enum class ServiceType(
     Transmission("transmission", "Transmission", ServiceCategory.Downloads, Credentials.UserPass, 9091, "Leave both empty unless RPC authentication is on in Transmission", Color(0xFFB50D0D), "Downloads"),
     Deluge("deluge", "Deluge", ServiceCategory.Downloads, Credentials.Password, 8112, "Your Deluge Web UI password (default: deluge)", Color(0xFF4A90D9), "Downloads"),
     /** Removes stuck, failed and malicious downloads by striking them; the key is per user (Settings → Account). */
-    Cleanuparr("cleanuparr", "Cleanuparr", ServiceCategory.Downloads, Credentials.ApiKey, 11011, "Cleanuparr → Settings → Account → API Key", Color(0xFF7B1FA2), "Cleanup");
+    Cleanuparr("cleanuparr", "Cleanuparr", ServiceCategory.Downloads, Credentials.ApiKey, 11011, "Cleanuparr → Settings → Account → API Key", Color(0xFF7B1FA2), "Cleanup"),
+    /** Grabs releases the moment they're announced on tracker IRC channels and RSS feeds, by filter (X-API-Token). */
+    Autobrr("autobrr", "Autobrr", ServiceCategory.Indexers, Credentials.ApiKey, 7474, "Autobrr → Settings → API keys → Add new", Color(0xFF3B8EEA), "Announce grabs");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }

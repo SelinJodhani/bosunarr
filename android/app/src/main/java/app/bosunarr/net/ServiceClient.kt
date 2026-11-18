@@ -129,6 +129,8 @@ class ServiceClient(base: OkHttpClient) {
                 if (s.username.isNullOrEmpty() && s.password.isNullOrEmpty()) emptyMap()
                 else mapOf("Authorization" to okhttp3.Credentials.basic(s.username.orEmpty(), s.password.orEmpty(), Charsets.UTF_8))
             ServiceType.Deluge -> emptyMap()
+            // Autobrr's IsAuthenticated middleware reads X-API-Token (or ?apikey=), never X-Api-Key.
+            ServiceType.Autobrr -> mapOf("X-API-Token" to key)
             else -> mapOf("X-Api-Key" to key)
         }
     }
@@ -415,6 +417,8 @@ private val PROBES = mapOf(
     ServiceType.Tautulli to Probe("/api/v2?cmd=get_tautulli_info", { it.obj()?.get("response")?.obj()?.get("data")?.obj() != null }, { it.obj()?.get("response")?.obj()?.get("data")?.obj()?.get("tautulli_version").str()?.removePrefix("v") }),
     // /api/status needs the key and carries the version ("2.11.0.0").
     ServiceType.Cleanuparr to Probe("/api/status", { it.obj()?.get("application")?.obj() != null }, { it.obj()?.get("application")?.obj()?.get("version").str()?.removeSuffix(".0") }),
+    // /config sits behind the key (no key: 403, wrong key: 401) and carries the build version ("v1.90.0" or "dev").
+    ServiceType.Autobrr to Probe("/api/config", { it.obj()?.containsKey("version") == true }, { it.obj()?.get("version").str()?.removePrefix("v")?.takeIf { v -> v.isNotBlank() } }),
     ServiceType.Wizarr to Probe("/api/status", { (it.obj()?.get("users") as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() != null }),
 )
 
