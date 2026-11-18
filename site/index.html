@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Bosunarr · your *arr stack, in your pocket</title>
-  <meta name="description" content="Bosunarr is a native Material You app for Android that runs Sonarr, Radarr, Lidarr, Prowlarr, Bazarr, Seerr, qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, Jellyfin, Plex and the server underneath them over SSH, straight from your phone. Notifications and widgets without a server, a built-in demo, no account and no cloud.">
+  <meta name="description" content="Bosunarr is a native Material You app for Android that runs Sonarr, Radarr, Lidarr, Prowlarr, Bazarr, Seerr, qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, Jellyfin, Emby, Plex, Tdarr, Cleanuparr and the server underneath them over SSH, straight from your phone. Notifications and widgets without a server, a built-in demo, no account and no cloud.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#fcf8ff">
   <link rel="canonical" href="https://selinjodhani.github.io/bosunarr/">
@@ -427,6 +427,11 @@
             <ul class="svc__caps" role="list"><li>Indexer list &amp; status</li><li>Health warnings</li><li>Usage stats</li></ul>
           </li>
           <li class="svc" tabindex="0">
+            <img src="assets/logos/autobrr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Autobrr</h3><p class="svc__kind">Announce grabs</p>
+            <ul class="svc__caps" role="list"><li>Matched &amp; rejected releases</li><li>Filters on or off</li><li>IRC channel health</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
             <img src="assets/logos/bazarr.webp" alt="" width="56" height="56" loading="lazy">
             <h3>Bazarr</h3><p class="svc__kind">Subtitles</p>
             <ul class="svc__caps" role="list"><li>Wanted subtitles</li><li>Series &amp; movies</li><li>Health</li></ul>
@@ -457,6 +462,11 @@
             <ul class="svc__caps" role="list"><li>Strikes &amp; removals</li><li>Warnings on stuck torrents</li><li>Run jobs, forgive downloads</li></ul>
           </li>
           <li class="svc" tabindex="0">
+            <img src="assets/logos/tdarr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Tdarr</h3><p class="svc__kind">Transcoding</p>
+            <ul class="svc__caps" role="list"><li>Live workers &amp; progress</li><li>Pause or resume nodes</li><li>Queue &amp; errors</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
             <img src="assets/logos/sabnzbd.webp" alt="" width="56" height="56" loading="lazy">
             <h3>SABnzbd</h3><p class="svc__kind">Usenet downloads</p>
             <ul class="svc__caps" role="list"><li>Queue &amp; history</li><li>Pause, resume, speed limit</li><li>Add NZBs by link or file</li></ul>
@@ -477,6 +487,11 @@
             <ul class="svc__caps" role="list"><li>Who's watching now</li><li>Libraries &amp; scans</li><li>Sign in with plex.tv</li></ul>
           </li>
           <li class="svc" tabindex="0">
+            <img src="assets/logos/emby.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Emby</h3><p class="svc__kind">Media server</p>
+            <ul class="svc__caps" role="list"><li>Who's watching now</li><li>Libraries &amp; scans</li><li>Recently added</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
             <img src="assets/logos/jellystat.webp" alt="" width="56" height="56" loading="lazy">
             <h3>Jellystat</h3><p class="svc__kind">Statistics</p>
             <ul class="svc__caps" role="list"><li>Plays &amp; watch time</li><li>Top users &amp; titles</li><li>Recent activity</li></ul>
@@ -485,6 +500,11 @@
             <img src="assets/logos/tautulli.webp" alt="" width="56" height="56" loading="lazy">
             <h3>Tautulli</h3><p class="svc__kind">Statistics</p>
             <ul class="svc__caps" role="list"><li>Plays &amp; watch time</li><li>Top titles</li><li>History</li></ul>
+          </li>
+          <li class="svc" tabindex="0">
+            <img src="assets/logos/maintainerr.webp" alt="" width="56" height="56" loading="lazy">
+            <h3>Maintainerr</h3><p class="svc__kind">Library cleanup</p>
+            <ul class="svc__caps" role="list"><li>What leaves soon</li><li>Keep it or postpone</li><li>Run rules now</li></ul>
           </li>
           <li class="svc" tabindex="0">
             <img src="assets/logos/wizarr.webp" alt="" width="56" height="56" loading="lazy">
@@ -723,7 +743,7 @@
         </ul>
       </nav>
       <div class="footer__legal">
-        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Lidarr, Prowlarr, Bazarr, Seerr, Jellyseerr, Overseerr, qBittorrent, Transmission, Deluge, Cleanuparr, SABnzbd, NZBGet, Jellyfin, Plex, Jellystat, Tautulli or Wizarr.</p>
+        <p>Free and open source under the <a href="https://github.com/SelinJodhani/bosunarr/blob/main/LICENSE">GNU AGPL-3.0</a>. Bosunarr is an independent project and is not affiliated with or endorsed by Sonarr, Radarr, Lidarr, Prowlarr, Bazarr, Seerr, Jellyseerr, Overseerr, qBittorrent, Transmission, Deluge, Cleanuparr, Tdarr, Autobrr, Maintainerr, SABnzbd, NZBGet, Jellyfin, Emby, Plex, Jellystat, Tautulli or Wizarr.</p>
         <p>Service logos from <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> by homarr-labs; logos are trademarks of their respective projects. Android is a trademark of Google LLC. Docker is a trademark of Docker, Inc.</p>
       </div>
     </div>
