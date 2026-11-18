@@ -54,7 +54,9 @@ enum class ServiceType(
     Transmission("transmission", "Transmission", ServiceCategory.Downloads, Credentials.UserPass, 9091, "Leave both empty unless RPC authentication is on in Transmission", Color(0xFFB50D0D), "Downloads"),
     Deluge("deluge", "Deluge", ServiceCategory.Downloads, Credentials.Password, 8112, "Your Deluge Web UI password (default: deluge)", Color(0xFF4A90D9), "Downloads"),
     /** Removes stuck, failed and malicious downloads by striking them; the key is per user (Settings → Account). */
-    Cleanuparr("cleanuparr", "Cleanuparr", ServiceCategory.Downloads, Credentials.ApiKey, 11011, "Cleanuparr → Settings → Account → API Key", Color(0xFF7B1FA2), "Cleanup");
+    Cleanuparr("cleanuparr", "Cleanuparr", ServiceCategory.Downloads, Credentials.ApiKey, 11011, "Cleanuparr → Settings → Account → API Key", Color(0xFF7B1FA2), "Cleanup"),
+    /** Shares Jellyfin's screen: the APIs match apart from the differences in net/MediaBrowser.kt. */
+    Emby("emby", "Emby", ServiceCategory.Server, Credentials.ApiKey, 8096, "Emby → Settings → Advanced → API Keys", Color(0xFF52B54B), "Media server");
 
     companion object {
         fun of(id: String): ServiceType? = entries.firstOrNull { it.id == id }

@@ -72,7 +72,8 @@ fun ServiceScreen(id: String, nav: NavController) {
         ServiceType.Sonarr, ServiceType.Radarr, ServiceType.Whisparr, ServiceType.Lidarr -> ArrServiceScreen(s, nav)
         ServiceType.Prowlarr -> ProwlarrServiceScreen(s, nav)
         ServiceType.Bazarr -> BazarrServiceScreen(s, nav)
-        ServiceType.Jellyfin -> JellyfinServiceScreen(s, nav)
+        // Emby shares Jellyfin's API and screen; the differences live in net/MediaBrowser.kt.
+        ServiceType.Jellyfin, ServiceType.Emby -> JellyfinServiceScreen(s, nav)
         ServiceType.Jellystat -> JellystatServiceScreen(s, nav)
         ServiceType.Plex -> PlexServiceScreen(s, nav)
         ServiceType.Tautulli -> TautulliServiceScreen(s, nav)

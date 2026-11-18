@@ -186,7 +186,8 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
     // Up next and Recently added also show Lidarr's albums; the queue and disk cards stay Sonarr/Radarr.
     val media = arrs + services.filter { it.serviceType == ServiceType.Lidarr }
     val seerrs = services.filter { it.serviceType == ServiceType.Jellyseerr || it.serviceType == ServiceType.Overseerr }
-    val jellyfins = services.filter { it.serviceType == ServiceType.Jellyfin }
+    // Emby shares Jellyfin's "latest media" API, so both feed Recently added when there's no arr.
+    val jellyfins = services.filter { it.serviceType == ServiceType.Jellyfin || it.serviceType == ServiceType.Emby }
     val cleaners = services.filter { it.serviceType == ServiceType.Cleanuparr }
     val healthServices = services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Prowlarr }
 

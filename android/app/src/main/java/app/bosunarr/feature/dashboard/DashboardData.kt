@@ -12,6 +12,10 @@ import app.bosunarr.nav.MovieRoute
 import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.net.ServiceException
 import app.bosunarr.net.fanOut
+import app.bosunarr.net.mediaBrowserLatestPath
+import app.bosunarr.net.mediaBrowserList
+import app.bosunarr.net.mediaBrowserPath
+import app.bosunarr.net.mediaBrowserUsersPath
 import app.bosunarr.ui.common.friendlyMessage
 import app.bosunarr.ui.common.ServiceStatus
 import app.bosunarr.ui.common.ServiceStatuses
@@ -418,12 +422,15 @@ private data class JfItem(
     @SerialName("ChildCount") val childCount: Int? = null,
 )
 
-/** Jellyfin's "Latest media" for the first enabled administrator (what its dashboard shows). */
+/**
+ * Jellyfin's or Emby's "Latest media" for the first enabled administrator (what its dashboard shows). The two
+ * servers share these shapes; the paths that differ come from net/MediaBrowser.kt.
+ */
 suspend fun loadRecentFromJellyfin(jfs: List<ServiceConfig>, limit: Int = 16): Recent {
     val p = each(jfs) { s ->
-        val users = app.client.get<List<JfUser>>(s, "/Users")
+        val users = app.client.get(s, mediaBrowserUsersPath(s), mediaBrowserList(JfUser.serializer()))
         val u = users.firstOrNull { it.policy.admin && !it.policy.disabled } ?: users.firstOrNull { !it.policy.disabled } ?: return@each emptyList()
-        val items = app.client.get<List<JfItem>>(s, "/Items/Latest?userId=${enc(u.id)}&Limit=$limit&Fields=DateCreated&EnableImageTypes=Primary&GroupItems=true")
+        val items = app.client.get<List<JfItem>>(s, mediaBrowserLatestPath(s, enc(u.id), "Limit=$limit&Fields=DateCreated&EnableImageTypes=Primary&GroupItems=true"))
         items.filter { it.id.isNotBlank() }.map { item ->
             val isEp = item.type == "Episode"
             val imageId = if (isEp && item.seriesId != null) item.seriesId else item.id
@@ -437,7 +444,7 @@ suspend fun loadRecentFromJellyfin(jfs: List<ServiceConfig>, limit: Int = 16): R
                 },
                 at = parseInstant(item.created),
                 service = s,
-                poster = ImageRef(s, "/Items/$imageId/Images/Primary?maxHeight=450"),
+                poster = ImageRef(s, mediaBrowserPath(s, "/Items/$imageId/Images/Primary?maxHeight=450")),
                 route = null,
             )
         }
