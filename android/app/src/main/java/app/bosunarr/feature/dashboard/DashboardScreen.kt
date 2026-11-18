@@ -183,12 +183,12 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
     val hub = rememberRefreshHub()
     val arrs = services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr }
     val qbits = services.filter { isTorrentClient(it.serviceType) }
-    // Up next and Recently added also show Lidarr's albums; the queue and disk cards stay Sonarr/Radarr.
+    // Lidarr (music) counts everywhere Sonarr and Radarr do: queue, up next, recently added and disks.
     val media = arrs + services.filter { it.serviceType == ServiceType.Lidarr }
     val seerrs = services.filter { it.serviceType == ServiceType.Jellyseerr || it.serviceType == ServiceType.Overseerr }
     val jellyfins = services.filter { it.serviceType == ServiceType.Jellyfin }
     val cleaners = services.filter { it.serviceType == ServiceType.Cleanuparr }
-    val healthServices = services.filter { it.serviceType == ServiceType.Sonarr || it.serviceType == ServiceType.Radarr || it.serviceType == ServiceType.Prowlarr }
+    val healthServices = services.filter { it.serviceType in setOf(ServiceType.Sonarr, ServiceType.Radarr, ServiceType.Lidarr, ServiceType.Prowlarr) }
 
     val scroll = rememberScrollState()
     ScrollToTopOnReselect(scroll)
@@ -200,12 +200,12 @@ private fun Dashboard(services: List<ServiceConfig>, nav: NavController) {
             // On tablets and in landscape the cards keep a readable width instead of stretching edge to edge.
             Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (services.isNotEmpty()) StatusCard(hub, services, healthServices, nav)
-                if (qbits.isNotEmpty() || arrs.isNotEmpty()) DownloadsCard(hub, qbits, arrs, nav)
+                if (qbits.isNotEmpty() || media.isNotEmpty()) DownloadsCard(hub, qbits, media, nav)
                 if (cleaners.isNotEmpty()) CleanupCard(hub, cleaners, nav)
                 if (media.isNotEmpty()) UpNextCard(hub, media, nav)
                 if (media.isNotEmpty() || jellyfins.isNotEmpty()) RecentCard(hub, media, jellyfins, nav)
                 if (seerrs.isNotEmpty()) RequestsCard(hub, seerrs, nav)
-                if (arrs.isNotEmpty()) DiskCard(hub, arrs)
+                if (media.isNotEmpty()) DiskCard(hub, media)
             }
         }
     }
@@ -358,7 +358,7 @@ private fun HealthSection(hub: RefreshHub, services: List<ServiceConfig>, nav: N
 @Composable
 private fun DownloadsCard(hub: RefreshHub, qbits: List<ServiceConfig>, arrs: List<ServiceConfig>, nav: NavController) {
     val loader = rememberHubLoader(hub, "dash:downloads:${signature(qbits + arrs)}", refreshMs = 10_000) { loadDownloads(qbits, arrs) }
-    val arrNames = arrs.mapNotNull { it.serviceType?.label }.distinct().joinToString(" & ")
+    val arrNames = arrs.mapNotNull { it.serviceType?.label }.distinct().let { n -> if (n.size <= 2) n.joinToString(" & ") else n.dropLast(1).joinToString(", ") + " & " + n.last() }
     SectionCard("Downloads", icon = Icons.Rounded.Download, onClick = { nav.navigateTab(ActivityRoute) }) {
         CardLoad(loader, placeholder = {
             StatRow {

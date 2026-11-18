@@ -288,7 +288,7 @@ fun NotificationSettingsScreen(nav: NavController) {
             item("h:events") { Header("Tell me when") }
             item("events") {
                 val rows = buildList<@Composable () -> Unit> {
-                    add { ToggleRow(Icons.Rounded.Download, "Downloaded", "Sonarr or Radarr imported a movie or episode", s.downloaded, s.enabled) { v -> toggle { it.copy(downloaded = v) } } }
+                    add { ToggleRow(Icons.Rounded.Download, "Downloaded", "Sonarr, Radarr or Lidarr imported a movie, episode or album", s.downloaded, s.enabled) { v -> toggle { it.copy(downloaded = v) } } }
                     add { ToggleRow(Icons.Rounded.ErrorOutline, "Download problems", "A download failed, or an import is blocked", s.failed, s.enabled) { v -> toggle { it.copy(failed = v) } } }
                     add { ToggleRow(Icons.Rounded.PersonAdd, "New requests", "Someone asked for something in Seerr (admins)", s.requests, s.enabled) { v -> toggle { it.copy(requests = v) } } }
                     add { ToggleRow(Icons.Rounded.TaskAlt, "Request available", "Something requested from this Seerr account is ready", s.available, s.enabled) { v -> toggle { it.copy(available = v) } } }

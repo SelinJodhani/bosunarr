@@ -145,6 +145,7 @@ internal object Poller {
         when (s.serviceType) {
             ServiceType.Sonarr, ServiceType.Radarr, ServiceType.Whisparr -> snap = checkArr(s, snap, settings, calls, events)
             ServiceType.Prowlarr -> snap = checkHealth(s, "/api/v1/health", snap, settings, calls, events)
+            ServiceType.Lidarr -> snap = checkLidarr(s, snap, settings, calls, events)
             ServiceType.Jellyseerr, ServiceType.Overseerr -> snap = checkSeerr(s, snap, settings, calls, events)
             ServiceType.QBittorrent -> snap = checkQbit(s, snap, settings, calls, events)
             ServiceType.Transmission, ServiceType.Deluge -> snap = checkTorrentClient(s, snap, settings, calls, events)
@@ -287,7 +288,77 @@ internal object Poller {
         return q.int("resolution")?.takeIf { it > 0 }?.let { "${it}p" } ?: q.str("name")?.takeIf { it.isNotBlank() && it != "Unknown" }
     }
 
-    /** New error-level health checks (Sonarr/Radarr/Whisparr /api/v3, Prowlarr /api/v1). */
+    /* ------------------------------------------------------------------ Lidarr */
+
+    /**
+     * Lidarr (API v1): the same three checks as [checkArr] for albums. An album download is one `downloadImported`
+     * history record (per-track `trackFileImported` records would mean a notification per track).
+     */
+    private suspend fun checkLidarr(s: ServiceConfig, prev: ServiceSnapshot, settings: NotifySettings, calls: Calls, events: MutableList<NotifyEvent>): ServiceSnapshot {
+        var snap = prev
+        val failedDownloadIds = mutableSetOf<String>()
+        if (settings.downloaded || settings.failed) {
+            val page = calls.attempt { app.client.json(s, "/api/v1/history?page=1&pageSize=100&sortKey=date&sortDirection=descending&includeArtist=true&includeAlbum=true") }
+            if (page != null) {
+                val records = page.obj()?.get("records").arr()
+                val last = prev.historyId
+                if (last != null) {
+                    val fresh = records.filter { (it.int("id") ?: 0) > last }.sortedBy { it.int("id") ?: 0 }
+                    if (settings.downloaded) fresh.filter { it.str("eventType") == "downloadImported" }.distinctBy { it.int("albumId") ?: it.int("id") }.forEach { r ->
+                        val albumId = r.int("albumId") ?: 0
+                        events += NotifyEvent(
+                            NotifyKind.Downloaded, "dl:${s.id}:${r.int("id")}",
+                            "${albumLabel(r)} downloaded",
+                            listOfNotNull(quality(r), s.name).joinToString(" · "),
+                            if (albumId > 0) NotifyLinks.album(s.id, albumId) else NotifyLinks.ACTIVITY,
+                        )
+                    }
+                    if (settings.failed) fresh.filter { it.str("eventType") == "downloadFailed" || it.str("eventType") == "albumImportIncomplete" }.forEach { r ->
+                        r.str("downloadId")?.let(failedDownloadIds::add)
+                        val incomplete = r.str("eventType") == "albumImportIncomplete"
+                        events += NotifyEvent(
+                            NotifyKind.Failed, "fail:${s.id}:h${r.int("id")}",
+                            (if (incomplete) "Import incomplete · " else "Download failed · ") + albumLabel(r),
+                            listOfNotNull(r.obj("data")?.str("message")?.takeIf { it.isNotBlank() } ?: r.str("sourceTitle"), s.name).joinToString(" · "),
+                            NotifyLinks.ACTIVITY,
+                        )
+                    }
+                }
+                val maxId = records.mapNotNull { it.int("id") }.maxOrNull() ?: 0
+                snap = snap.copy(historyId = maxOf(maxId, last ?: 0))
+            }
+        } else snap = snap.copy(historyId = null)
+
+        if (settings.failed) {
+            val queue = calls.attempt { app.client.json(s, "/api/v1/queue?page=1&pageSize=200&includeArtist=true&includeAlbum=true") }
+            if (queue != null) {
+                val problems = queue.obj()?.get("records").arr().filter { it.str("trackedDownloadStatus")?.lowercase() in setOf("warning", "error") }
+                val seen = prev.problemQueue
+                if (seen != null) problems
+                    .filter { (it.int("id") ?: 0) !in seen && it.str("downloadId") !in failedDownloadIds }
+                    .forEach { q ->
+                        val e = queueProblem(s, q, sonarr = false, adult = false)
+                        events += e.copy(title = e.title.substringBefore(" · ") + " · " + albumLabel(q))
+                    }
+                snap = snap.copy(problemQueue = problems.mapNotNull { it.int("id") }.toSet())
+            }
+        } else snap = snap.copy(problemQueue = null)
+
+        return checkHealth(s, "/api/v1/health", snap, settings, calls, events)
+    }
+
+    /** "Artist – Album", falling back to the release name. */
+    private fun albumLabel(r: JsonElement): String {
+        val artist = r.obj("artist")?.str("artistName")
+        val album = r.obj("album")?.str("title")
+        return when {
+            artist != null && album != null -> "$artist – $album"
+            album != null -> album
+            else -> r.str("sourceTitle") ?: r.str("title") ?: "An album"
+        }
+    }
+
+    /** New error-level health checks (Sonarr/Radarr/Whisparr /api/v3, Prowlarr and Lidarr /api/v1). */
     private suspend fun checkHealth(s: ServiceConfig, path: String, prev: ServiceSnapshot, settings: NotifySettings, calls: Calls, events: MutableList<NotifyEvent>): ServiceSnapshot {
         if (!settings.health) return prev.copy(healthErrors = null)
         val list = calls.attempt { app.client.json(s, path) } ?: return prev

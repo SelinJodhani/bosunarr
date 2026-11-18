@@ -24,6 +24,7 @@ import app.bosunarr.nav.SeriesRoute
 import app.bosunarr.nav.ServiceRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import app.bosunarr.nav.AlbumRoute
 
 /**
  * Notification taps. A notification carries a small link string ("movie/<serviceId>/<id>", "requests", …)
@@ -40,6 +41,7 @@ object NotifyLinks {
     const val SETTINGS = "notifications"
     fun movie(serviceId: String, id: Int) = "movie/$serviceId/$id"
     fun series(serviceId: String, id: Int) = "series/$serviceId/$id"
+    fun album(serviceId: String, id: Int) = "album/$serviceId/$id"
     fun media(mediaType: String, tmdbId: Int) = "media/$mediaType/$tmdbId"
     fun service(serviceId: String) = "service/$serviceId"
 
@@ -74,6 +76,7 @@ object NotifyLinks {
             SETTINGS -> NotificationSettingsRoute
             "movie" -> p.getOrNull(2)?.toIntOrNull()?.let { MovieRoute(p[1], it) }
             "series" -> p.getOrNull(2)?.toIntOrNull()?.let { SeriesRoute(p[1], it) }
+            "album" -> p.getOrNull(2)?.toIntOrNull()?.let { AlbumRoute(p[1], it) }
             "media" -> p.getOrNull(2)?.toIntOrNull()?.let { MediaRoute(p[1], it) }
             "service" -> p.getOrNull(1)?.let { ServiceRoute(it) }
             else -> null

@@ -50,7 +50,7 @@ import app.bosunarr.nav.AlbumRoute
  * qBittorrent's list (by Whisparr's queue and by category/tag).
  */
 internal object WidgetData {
-    private val ARR = setOf(ServiceType.Sonarr, ServiceType.Radarr)
+    private val ARR = setOf(ServiceType.Sonarr, ServiceType.Radarr, ServiceType.Lidarr)
 
     /** Services the widgets may mention (everything except Whisparr). */
     fun visibleServices(): List<ServiceConfig> = app.services.value.filter { it.serviceType != null && it.serviceType != ServiceType.Whisparr }
@@ -122,8 +122,10 @@ internal object WidgetData {
 
     private fun isWhisparr(t: LightTorrent) = t.category.contains("whisparr", true) || t.tags.contains("whisparr", true)
 
-    private fun QueueEntry.link(): String = libraryId?.let { if (isEpisode) DeepLink.series(serviceId, it) else DeepLink.movie(serviceId, it) }
-        ?: DeepLink.ACTIVITY
+    private fun QueueEntry.link(): String = when {
+        music -> albumId?.takeIf { it > 0 }?.let { DeepLink.album(serviceId, it) }
+        else -> libraryId?.let { if (isEpisode) DeepLink.series(serviceId, it) else DeepLink.movie(serviceId, it) }
+    } ?: DeepLink.ACTIVITY
 
     suspend fun downloads(prev: DownloadsSnapshot?): DownloadsSnapshot = coroutineScope {
         val now = System.currentTimeMillis()
@@ -198,7 +200,7 @@ internal object WidgetData {
 
     suspend fun upNext(context: Context, prev: UpNextSnapshot?): UpNextSnapshot {
         val now = System.currentTimeMillis()
-        val arrs = app.services.value.filter { it.serviceType in ARR || it.serviceType == ServiceType.Lidarr }
+        val arrs = app.services.value.filter { it.serviceType in ARR }
         if (arrs.isEmpty()) return UpNextSnapshot(at = now, okAt = now, configured = false)
         val data = try {
             CalendarApi.load(arrs, pastDays = 0, aheadDays = 30)

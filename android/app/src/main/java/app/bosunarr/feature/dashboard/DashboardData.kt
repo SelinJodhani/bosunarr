@@ -107,7 +107,7 @@ suspend fun loadDownloads(qbits: List<ServiceConfig>, arrs: List<ServiceConfig>)
                 active.count { it.state in DL_STATES || (it.progress < 1 && it.dlspeed > 0) },
                 active.count { it.state in UP_STATES && !(it.progress < 1 && it.dlspeed > 0) },
             )
-        } else app.client.get<QueueStatus>(s, "/api/v3/queue/status")
+        } else app.client.get<QueueStatus>(s, "${arrApi(s)}/queue/status")
     }
     val errors = r.mapNotNull { (_, x) -> x.exceptionOrNull()?.friendlyMessage() }
     if (all.isNotEmpty() && errors.size == all.size) throw ServiceException(errors.first())
@@ -126,6 +126,9 @@ suspend fun loadDownloads(qbits: List<ServiceConfig>, arrs: List<ServiceConfig>)
         errors = errors,
     )
 }
+
+/** Lidarr and Prowlarr speak API v1; Sonarr, Radarr and Whisparr v3. */
+private fun arrApi(s: ServiceConfig): String = if (s.serviceType == ServiceType.Lidarr || s.serviceType == ServiceType.Prowlarr) "/api/v1" else "/api/v3"
 
 /* ================================================================ up next (calendar) */
 
@@ -504,7 +507,7 @@ fun dedupeDisks(spaces: List<DiskSpace>): List<Disk> {
 }
 
 suspend fun loadDisks(arrs: List<ServiceConfig>): Disks {
-    val p = each(arrs) { app.client.get<List<DiskSpace>>(it, "/api/v3/diskspace") }
+    val p = each(arrs) { app.client.get<List<DiskSpace>>(it, "${arrApi(it)}/diskspace") }
     return Disks(dedupeDisks(p.ok.flatMap { it.second }), p.errors)
 }
 
@@ -521,7 +524,7 @@ private fun rank(type: String) = when (type) { "error" -> 0; "warning" -> 1; els
 
 suspend fun loadHealth(services: List<ServiceConfig>): Health {
     val p = each(services) { s ->
-        val path = if (s.serviceType == ServiceType.Prowlarr) "/api/v1/health" else "/api/v3/health"
+        val path = "${arrApi(s)}/health"
         app.client.get<List<ArrHealthCheck>>(s, path)
     }
     val issues = p.ok.flatMap { (s, list) ->
